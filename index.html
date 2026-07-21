@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#087f76">
+  <title>ระบบบันทึกอุบัติเหตุบุคลากร</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">+</span><div><strong>IC • Srisangworn</strong><small>Occupational Exposure Registry</small></div></div>
+    <div class="header-actions"><button class="btn ghost" id="exportJson">สำรอง JSON</button><button class="btn ghost" id="exportCsv">ส่งออก CSV</button><button class="btn primary" id="newRecord">+ บันทึกเหตุการณ์</button></div>
+  </header>
+
+  <main>
+    <section id="dashboard" class="view active">
+      <div class="hero"><div><span class="eyebrow">INFECTION CONTROL</span><h1>บันทึกอุบัติเหตุ<br><em>อย่างเป็นระบบ</em></h1><p>ติดตามการสัมผัสเลือดหรือสารคัดหลั่ง การให้ยาป้องกัน และผลตรวจครบทุกช่วงเวลา</p></div><div class="hero-art"><span>Safety<br>first.</span></div></div>
+      <div class="stats">
+        <article><span>เหตุการณ์ทั้งหมด</span><strong id="statTotal">0</strong><small>รายการ</small></article>
+        <article><span>อยู่ระหว่างติดตาม</span><strong id="statPending">0</strong><small>รายการ</small></article>
+        <article><span>บันทึกเดือนนี้</span><strong id="statMonth">0</strong><small>รายการ</small></article>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><span class="eyebrow">RECORDS</span><h2>รายการอุบัติเหตุ</h2></div><label class="search">⌕ <input id="search" placeholder="ค้นหาชื่อ, HN, Soundex, สถานที่..."></label></div>
+        <div class="table-wrap"><table><thead><tr><th>วันที่เกิดเหตุ</th><th>บุคลากร</th><th>ลักษณะอุบัติเหตุ</th><th>สถานะ</th><th></th></tr></thead><tbody id="recordRows"></tbody></table><div id="emptyState" class="empty"><b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span></div></div>
+      </div>
+    </section>
+
+    <section id="editor" class="view">
+      <div class="editor-head"><button class="back" id="backBtn" aria-label="กลับ">←</button><div><span class="eyebrow">FORM IC 1 • VERSION 2.0</span><h1 id="formTitle">บันทึกเหตุการณ์ใหม่</h1></div><div class="save-state" id="saveState">ยังไม่บันทึก</div></div>
+      <form id="accidentForm">
+        <input type="hidden" name="id">
+        <nav class="steps" id="steps">
+          <button type="button" data-step="0" class="active"><b>01</b><span>ข้อมูลเหตุการณ์</span></button>
+          <button type="button" data-step="1"><b>02</b><span>การสัมผัส</span></button>
+          <button type="button" data-step="2"><b>03</b><span>ผลตรวจเริ่มต้น</span></button>
+          <button type="button" data-step="3"><b>04</b><span>การรักษา</span></button>
+          <button type="button" data-step="4"><b>05</b><span>ติดตามผล</span></button>
+        </nav>
+
+        <div class="form-page active" data-page="0">
+          <div class="section-title"><span>01</span><div><h2>ข้อมูลบุคลากรและเหตุการณ์</h2><p>รายละเอียดผู้ประสบเหตุและช่วงเวลาที่เกิดเหตุ</p></div></div>
+          <div class="grid cols-2">
+            <label class="wide">ชื่อหน่วยงาน<input name="department" value="โรงพยาบาลศรีสังวรสุโขทัย" required></label>
+            <label>ชื่อบุคลากร<input name="staffName" required></label><label>Soundex code<input name="soundex"></label>
+            <label>HN บุคลากร<input name="staffHn"></label><label>เบอร์โทรศัพท์<input name="phone" inputmode="tel"></label>
+            <label>อายุ (ปี)<input name="age" type="number" min="15" max="100"></label><label>เพศ<select name="gender"><option value="">เลือก</option><option>หญิง</option><option>ชาย</option><option>ไม่ระบุ</option></select></label>
+            <label>ระยะเวลาปฏิบัติงาน (ปี)<input name="workYears" type="number" min="0"></label><label>เดือน<input name="workMonths" type="number" min="0" max="11"></label>
+            <label>ประเภทบุคลากร<select name="staffType"><option value="">เลือก</option><option>แพทย์</option><option>พยาบาล</option><option>พนักงานช่วยเหลือคนไข้</option><option>พนักงานช่วยการพยาบาล</option><option>อื่น ๆ</option></select></label><label>ระบุประเภทอื่น / ID Line<input name="staffTypeOther"></label>
+            <label>วันที่เกิดเหตุ<input name="incidentDate" type="date" required></label><label>เวลา<input name="incidentTime" type="time" required></label>
+            <label class="wide">สถานที่เกิดเหตุ<input name="location" required></label>
+          </div>
+        </div>
+
+        <div class="form-page" data-page="1">
+          <div class="section-title"><span>02</span><div><h2>ลักษณะการสัมผัส</h2><p>ข้อมูลกลไก ตำแหน่ง และการปฐมพยาบาล</p></div></div>
+          <fieldset><legend>ลักษณะอุบัติเหตุ (เลือกได้มากกว่า 1 ข้อ)</legend><div class="choice-grid">
+            <label class="choice"><input type="checkbox" name="exposureType" value="ของแหลมคม"><span><b>ของแหลมคม</b><small>ทิ่ม ตำ หรือบาด</small></span></label>
+            <label class="choice"><input type="checkbox" name="exposureType" value="ผิวหนังมีบาดแผล"><span><b>ผิวหนังมีบาดแผล</b><small>สัมผัสเลือด/สารคัดหลั่ง</small></span></label>
+            <label class="choice"><input type="checkbox" name="exposureType" value="เยื่อบุตาหรือเนื้อเยื่ออ่อน"><span><b>เยื่อบุตา/เนื้อเยื่ออ่อน</b><small>สัมผัสเลือด/สารคัดหลั่ง</small></span></label>
+            <label class="choice"><input type="checkbox" name="exposureType" value="อื่น ๆ"><span><b>อื่น ๆ</b><small>ระบุรายละเอียดด้านล่าง</small></span></label>
+          </div></fieldset>
+          <div class="grid cols-2"><label>ชนิดของแหลมคม<select name="sharpType"><option value="">ไม่เกี่ยวข้อง</option><option>มีด</option><option>แก้ว</option><option>เข็มมีรู</option><option>เข็มแบบตัน</option><option>อื่น ๆ</option></select></label><label>รายละเอียดอื่น<input name="exposureOther"></label>
+          <label class="wide">ลักษณะงานและเหตุการณ์<textarea name="incidentDescription" rows="4" required></textarea></label><label>ตำแหน่งอวัยวะ<input name="bodySite"></label><label>การปฐมพยาบาล<input name="firstAid"></label></div>
+          <div class="subsection"><h3>ข้อมูลผู้ป่วย/ผู้รับบริการ (Source patient)</h3><div class="grid cols-2"><label>ชื่อผู้ป่วย<input name="sourceName"></label><label>HN ผู้ป่วย<input name="sourceHn"></label></div><div id="sourceLabs" class="lab-grid"></div><label>ประวัติพฤติกรรมเสี่ยง<select name="sourceRisk"><option value="">เลือก</option><option>มี</option><option>ไม่มี</option><option>ไม่ทราบ</option><option>ไม่ได้ถาม</option></select></label><label>รายละเอียดความเสี่ยง<input name="sourceRiskDetail"></label></div>
+        </div>
+
+        <div class="form-page" data-page="2">
+          <div class="section-title"><span>03</span><div><h2>ความยินยอมและผลตรวจ Day 0</h2><p>บันทึกข้อมูลทันทีหลังเกิดอุบัติเหตุ</p></div></div>
+          <div class="consent-grid" id="consents"></div>
+          <div class="subsection"><h3>ผลตรวจเลือดบุคลากรทันที (Day 0)</h3><div id="staffLabs" class="lab-grid"></div><div class="grid cols-2"><label>ประวัติพฤติกรรมเสี่ยง<select name="staffRisk"><option value="">เลือก</option><option>มี</option><option>ไม่มี</option><option>ไม่ทราบ</option><option>ไม่ได้ถาม</option></select></label><label>รายละเอียดความเสี่ยง<input name="staffRiskDetail"></label><label>ชื่อแพทย์ผู้ดูแล<input name="doctorName"></label><label>วันที่ให้ความยินยอม<input name="consentDate" type="date"></label></div></div>
+          <aside class="notice"><b>ควรให้ยาป้องกันเร็วที่สุด</b><span>ภายใน 1–4 ชั่วโมง และไม่ควรเกิน 48–72 ชั่วโมงหลังเกิดเหตุ</span></aside>
+        </div>
+
+        <div class="form-page" data-page="3">
+          <div class="section-title"><span>04</span><div><h2>การรักษาเพื่อป้องกัน</h2><p>สูตรยา ระยะเวลา ผลข้างเคียง และผลเลือดก่อนเริ่มยา</p></div></div>
+          <div class="grid cols-2"><label>สูตรยา<select name="pepRegimen"><option value="">ไม่ได้รับยา</option><option>TDF/3TC/DTG</option><option>AZT/3TC/DTG</option><option>อื่น ๆ</option></select></label><label>ขนาดยา / สูตรอื่น<input name="pepDose"></label><label>วันที่เริ่มยา<input name="pepStart" type="date"></label><label>หลังเกิดเหตุ (ชั่วโมง)<input name="pepHours" type="number" min="0" step="0.5"></label><label>วันที่สิ้นสุด<input name="pepEnd" type="date"></label><label>ผลการรับประทาน<select name="pepOutcome"><option value="">เลือก</option><option>ครบ 4 สัปดาห์ ไม่มีผลข้างเคียง</option><option>ครบ 4 สัปดาห์ มีผลข้างเคียง</option><option>รับประทานไม่ครบ</option></select></label><label>จำนวนวันที่รับประทาน<input name="pepDays" type="number" min="0"></label><label>ผลข้างเคียง / เหตุผลที่หยุดยา<input name="pepNote"></label><label>การรักษาอื่น ๆ<input name="otherTreatment"></label><label>เหตุผลที่ไม่ได้รับการรักษา<input name="noTreatmentReason"></label></div>
+          <div class="subsection"><h3>ผล CBC และการทำงานของตับ/ไต เมื่อเริ่มยา</h3><div class="grid cols-3" id="baselineLabs"></div></div>
+        </div>
+
+        <div class="form-page" data-page="4">
+          <div class="section-title"><span>05</span><div><h2>ติดตามผลเลือด</h2><p>เดือนที่ 1, 3 และ 6 หลังเกิดอุบัติเหตุ</p></div></div>
+          <div id="followups"></div>
+          <label>หมายเหตุเพิ่มเติม<textarea name="notes" rows="4"></textarea></label>
+          <div class="review-card"><span>พร้อมบันทึก</span><h3>ตรวจสอบข้อมูลก่อนยืนยัน</h3><p>ข้อมูลจะถูกจัดเก็บเฉพาะในเบราว์เซอร์เครื่องนี้ โปรดสำรองเป็น JSON เป็นประจำ</p></div>
+        </div>
+
+        <div class="form-actions"><button type="button" class="btn ghost dark" id="prevBtn">ย้อนกลับ</button><span id="stepLabel">ขั้นตอน 1 จาก 5</span><button type="button" class="btn primary" id="nextBtn">ถัดไป</button><button type="submit" class="btn primary hidden" id="saveBtn">บันทึกข้อมูล</button></div>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+  <dialog id="detailDialog"><button class="dialog-close" aria-label="ปิด">×</button><div id="detailContent"></div><div class="dialog-actions"><button class="btn ghost dark" id="printRecord">พิมพ์</button><button class="btn ghost dark" id="editRecord">แก้ไข</button><button class="btn danger" id="deleteRecord">ลบรายการ</button></div></dialog>
+  <script src="app.js"></script>
+</body>
+</html>
