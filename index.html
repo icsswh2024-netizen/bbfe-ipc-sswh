@@ -12,13 +12,21 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="brand-mark">+</span><div><strong>IC • Srisangworn</strong><small>Occupational Exposure Registry</small></div></div>
+    <div class="brand" id="homeLink" role="button" tabindex="0" title="กลับหน้าหลัก"><span class="brand-mark">+</span><div><strong>IC • Srisangworn</strong><small>Occupational Exposure Registry</small></div></div>
     <div class="header-actions"><button class="btn ghost" id="exportJson">สำรอง JSON</button><button class="btn ghost" id="exportCsv">ส่งออก CSV</button><button class="btn primary" id="newRecord">+ บันทึกเหตุการณ์</button></div>
   </header>
 
   <main>
-    <section id="dashboard" class="view active">
-      <div class="hero"><div><span class="eyebrow">INFECTION CONTROL</span><h1>บันทึกอุบัติเหตุ<br><em>อย่างเป็นระบบ</em></h1><p>ติดตามการสัมผัสเลือดหรือสารคัดหลั่ง การให้ยาป้องกัน และผลตรวจครบทุกช่วงเวลา</p></div><div class="hero-art"><span>Safety<br>first.</span></div></div>
+    <section id="home" class="view active">
+      <div class="hero"><div><span class="eyebrow">INFECTION CONTROL</span><h1>หน้าหลัก<br><em>เลือกเมนู</em></h1><p>ระบบบันทึกและติดตามอุบัติเหตุจากการให้บริการทางการแพทย์และสาธารณสุข ตามแบบฟอร์ม IC 1 Version 2.0</p></div><div class="hero-art"><span>Safety<br>first.</span></div></div>
+      <div class="menu-grid">
+        <button type="button" class="menu-card feature" data-go="new"><span class="menu-icon">+</span><b>บันทึกเหตุการณ์</b><small>เริ่มบันทึกอุบัติเหตุใหม่ตามแบบฟอร์ม IC 1 ทั้ง 5 ขั้นตอน</small><span class="menu-arrow">เริ่มบันทึก →</span></button>
+        <button type="button" class="menu-card" data-go="records"><span class="menu-icon">▤</span><b>ทะเบียนอุบัติเหตุ</b><small>ดู ค้นหา แก้ไข และติดตามผลรายการที่บันทึกไว้ทั้งหมด</small><span class="menu-arrow">เปิดทะเบียน →</span></button>
+      </div>
+    </section>
+
+    <section id="dashboard" class="view">
+      <div class="editor-head"><button class="back" id="dashHome" aria-label="กลับหน้าหลัก">←</button><div><span class="eyebrow">RECORDS</span><h1>ทะเบียนอุบัติเหตุ</h1></div></div>
       <div class="stats">
         <article><span>เหตุการณ์ทั้งหมด</span><strong id="statTotal">0</strong><small>รายการ</small></article>
         <article><span>อยู่ระหว่างติดตาม</span><strong id="statPending">0</strong><small>รายการ</small></article>

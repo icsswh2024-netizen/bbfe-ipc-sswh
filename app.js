@@ -52,6 +52,12 @@ function download(filename, content, type){ const a=document.createElement('a');
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
 buildDynamicFields(); renderDashboard();
+function goHome(){ showView('home'); }
+function openRecords(){ showView('dashboard'); renderDashboard($('#search').value); }
+$('#homeLink').onclick=goHome;
+$('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
+$('#dashHome').onclick=goHome;
+$$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go==='new'){resetForm();showView('editor');} else if(go==='records'){openRecords();}});
 $('#newRecord').onclick=()=>{resetForm();showView('editor')};
 $('#backBtn').onclick=()=>{showView('dashboard');renderDashboard($('#search').value)};
 $('#nextBtn').onclick=()=>{if(validateStep())showStep(currentStep+1)};
