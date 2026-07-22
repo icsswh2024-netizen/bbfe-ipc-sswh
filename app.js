@@ -57,7 +57,7 @@ function openRecords(){ showView('dashboard'); renderDashboard($('#search').valu
 $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
-$$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go==='new'){resetForm();showView('editor');} else if(go==='records'){openRecords();} else if(go==='csv'){csvExport();} else if(go==='json'){$('#exportJson').click();}});
+$$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go==='new'){resetForm();showView('editor');} else if(go==='records'){openRecords();}});
 $('#newRecord').onclick=()=>{resetForm();showView('editor')};
 $('#backBtn').onclick=()=>{showView('dashboard');renderDashboard($('#search').value)};
 $('#nextBtn').onclick=()=>{if(validateStep())showStep(currentStep+1)};
