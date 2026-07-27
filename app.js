@@ -17,12 +17,13 @@ const SOUNDEX_CACHE_KEY = 'icsswh-soundex-cache-v1';
 const DEFAULT_SOUNDEX = (() => { const g = { 1: 'กขคฆงจ', 2: 'มวศษส', 3: 'ฉชซหอฮฌ', 4: 'ญยนณลฬรฤ', 5: 'ดตฎฏฐฑฒถทธ', 6: 'บปผฝพฟภ' }; const m = {}; for (const d in g)[...g[d]].forEach(c => m[c] = d); return m; })();
 function loadCachedSoundex() { try { return JSON.parse(localStorage.getItem(SOUNDEX_CACHE_KEY)) || {}; } catch { return {}; } }
 let SOUNDEX_MAP = { ...DEFAULT_SOUNDEX, ...loadCachedSoundex() };
-// Format A.000.00 — A = 1st char of surname; 3 digits from surname chars 2-4; 2 digits from first-name chars 1-2 (missing/unmapped = 0)
+// Keep only Thai consonants (ก–ฮ); skip vowels, tone marks, spaces, etc.
+function consonants(s) { return [...(s || '')].filter(c => c >= 'ก' && c <= 'ฮ'); }
+// Format A.000.00 — A = 1st consonant of surname; 3 digits from surname consonants 2-4; 2 digits from first-name consonants 1-2 (missing/unmapped = 0)
 function soundexCode(first, last) {
-  first = (first || '').trim(); last = (last || '').trim();
-  if (!first && !last) return '';
+  const L = consonants(last), F = consonants(first);
+  if (!L.length && !F.length) return '';
   const val = ch => (ch && SOUNDEX_MAP[ch]) || '0';
-  const L = [...last], F = [...first];
   return `${L[0] || ''}.${val(L[1])}${val(L[2])}${val(L[3])}.${val(F[0])}${val(F[1])}`;
 }
 function updateSoundex() {
