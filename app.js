@@ -6,8 +6,11 @@ let currentStep = 0;
 let selectedId = null;
 
 // ---- Dropdown options (loaded from a public Google Sheet, with built-in fallback) ----
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1MREAXB4CB5LMKc5LliTep45iUahomoYnid3JABh-bxM/gviz/tq?tqx=out:csv&sheet=index';
+const SHEET_ID = '1MREAXB4CB5LMKc5LliTep45iUahomoYnid3JABh-bxM';
+const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=index`;
+const FIELDS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=fields`;
 const OPT_CACHE_KEY = 'icsswh-options-cache-v1';
+const FIELDS_CACHE_KEY = 'icsswh-fields-cache-v1';
 const DEFAULT_OPTIONS = {
   department: ['กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ', 'งานจ่ายกลาง', 'ห้องผ่าตัด', 'ตรวจรักษาพิเศษ (Scope)', 'สูติกรรม/นรีเวชกรรม', 'วิสัญญี', 'ตรวจรักษาพิเศษ (เคมีบำบัด)', 'ผู้ป่วยนอก ชั้น 1', 'ผู้ป่วยนอก ชั้น 2', 'อุบัติเหตุและฉุกเฉิน', 'ศูนย์เปล', 'ผู้ป่วยหนัก', 'อายุรกรรมชาย', 'โรคหลอดเลือดสมอง', 'อายุรกรรมหญิง', 'ศัลยกรรมชาย', 'ศัลยกรรมหญิง', 'Cohort', 'กุมารเวชกรรม', 'ทารกวิกฤต', 'หอผู้ป่วยพิเศษ 6/1', 'หอผู้ป่วยพิเศษ 6/2', 'หอผู้ป่วยพิเศษ 6/3', 'หอผู้ป่วยพิเศษ 6/4', 'หอผู้ป่วยพิเศษ 6/5', 'จิตต์โกศล', 'รพ.สต.', 'อื่นๆ'],
   workGroup: ['กลุ่มงานการพยาบาล', 'องค์กรแพทย์', 'กลุ่มงานทันตกรรม', 'กลุ่มงานรังสีวิทยา (ไม่รวมแพทย์)', 'กลุ่มงานเทคนิคการแพทย์และพยาธิวิทยาคลินิก', 'งานซักฟอก', 'งานศูนย์สะอาด', 'กลุ่มงานเวชกรรมสังคม', 'กลุ่มงานอาชีวเวชกรรม', 'กลุ่มงานการแพทย์แผนไทยฯ', 'กลุ่มงานเภสัชกรรม', 'กลุ่มงานเวชกรรมฟื้นฟู', 'กลุ่มงานจิตเวชและยาเสพติด', 'สสอ.ศรีสำโรง', 'อื่นๆ'],
@@ -41,6 +44,10 @@ const SELECT_FIELDS = [
 ];
 function loadCachedOptions() { try { return JSON.parse(localStorage.getItem(OPT_CACHE_KEY)) || {}; } catch { return {}; } }
 let OPTIONS = { ...DEFAULT_OPTIONS, ...loadCachedOptions() };
+// Per-field config from the "fields" sheet tab: { fieldKey: {label, options[], required} }
+function loadCachedFields() { try { return JSON.parse(localStorage.getItem(FIELDS_CACHE_KEY)) || {}; } catch { return {}; } }
+let FIELD_CFG = loadCachedFields();
+function fieldOptions(name) { const c = FIELD_CFG[name]; return (c && c.options && c.options.length) ? c.options : null; }
 
 const sourceLabNames =[['sourceHiv','Anti HIV'],['sourceHbsAg','HBs Ag'],['sourceHcv','Anti HCV']];
 const staffLabNames = [['staffHiv','Anti HIV'],['staffHbsAg','HBs Ag'],['staffAntiHbs','Anti HBs'],['staffHcv','Anti HCV']];
@@ -59,9 +66,10 @@ function buildDynamicFields() {
 
 function populateSelects() {
   SELECT_FIELDS.forEach(f => {
-    const el = form.elements[f.name]; if (!el) return;
+    const el = form.elements[f.name]; if (!el || !el.tagName) return;
     const cur = el.value;
-    el.innerHTML = `<option value="">${esc(f.placeholder)}</option>` + (OPTIONS[f.key] || []).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+    const opts = fieldOptions(f.name) || OPTIONS[f.key] || [];
+    el.innerHTML = `<option value="">${esc(f.placeholder)}</option>` + opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
     if (cur && ![...el.options].some(o => o.value === cur)) el.add(new Option(cur, cur));
     el.value = cur;
   });
@@ -92,7 +100,51 @@ function optionsFromRows(rows) {
   }
   return Object.keys(cols).length ? cols : null;
 }
-function refreshOptionUI() { buildDynamicFields(); populateSelects(); }
+function refreshOptionUI() { buildDynamicFields(); populateSelects(); applyFieldConfig(); }
+function parseFieldsRows(rows) {
+  if (!rows || rows.length < 2) return null;
+  const H = rows[0].map(h => String(h).trim());
+  const ck = H.indexOf('key'), cl = H.indexOf('คำถาม'), co = H.indexOf('ตัวเลือก'), cr = H.indexOf('จำเป็น');
+  if (ck < 0) return null;
+  const cfg = {};
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r], key = (row[ck] || '').trim(); if (!key) continue;
+    const c = {};
+    if (cl >= 0) { const l = (row[cl] || '').trim(); if (l) c.label = l; }
+    if (co >= 0) { const raw = (row[co] || '').trim(); if (raw && raw !== '(จากรายการในชีต)') { const o = raw.split('|').map(s => s.trim()).filter(Boolean); if (o.length) c.options = o; } }
+    if (cr >= 0) c.required = /^(✓|ใช่|yes|true|1|จำเป็น|y)$/i.test((row[cr] || '').trim());
+    cfg[key] = c;
+  }
+  return Object.keys(cfg).length ? cfg : null;
+}
+function applyFieldConfig() {
+  Object.entries(FIELD_CFG).forEach(([key, cfg]) => {
+    const el = form.elements[key];
+    if (!el || !el.tagName) return; // skip radio/checkbox groups (RadioNodeList)
+    if (cfg.label) {
+      const lab = el.closest('label');
+      if (lab) {
+        const t = [...lab.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+        if (t) t.textContent = cfg.label; else lab.insertBefore(document.createTextNode(cfg.label), lab.firstChild);
+      }
+    }
+    if (cfg.required != null) el.required = !!cfg.required;
+  });
+}
+async function loadFieldsFromSheet() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(FIELDS_CSV_URL, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const cfg = parseFieldsRows(parseCSV(await res.text()));
+    if (!cfg) return;
+    FIELD_CFG = cfg;
+    localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
+    if (!$('#editor').classList.contains('active')) { populateSelects(); applyFieldConfig(); }
+  } catch (e) { /* keep static labels / cached config */ }
+}
 async function loadOptionsFromSheet() {
   try {
     const ctrl = new AbortController();
@@ -138,7 +190,7 @@ function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(val
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); renderDashboard(); loadOptionsFromSheet();
+buildDynamicFields(); populateSelects(); applyFieldConfig(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
 let isAdmin=false;           // dashboard viewing mode
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
