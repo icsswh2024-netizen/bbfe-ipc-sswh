@@ -100,11 +100,37 @@ function optionsFromRows(rows) {
   }
   return Object.keys(cols).length ? cols : null;
 }
-function refreshOptionUI() { buildDynamicFields(); populateSelects(); applyFieldConfig(); }
+function refreshOptionUI() { buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); }
+const PAGE_BY_SECTION = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4 };
+function renderField(f) {
+  const label = esc(f.label || f.key), name = esc(f.key), t = f.type || 'text';
+  const req = f.required ? ' required' : '';
+  if (t === 'select') { const opts = fieldOptions(f.key) || f.options || OPTIONS[f.key] || []; return `<label>${label}<select name="${name}"${req}><option value="">เลือก</option>${opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`; }
+  if (t === 'textarea') { return `<label class="wide">${label}<textarea name="${name}" rows="3"${req}></textarea></label>`; }
+  if (t === 'radio') { const opts = f.options || OPTIONS.testResult; return `<div class="lab-item wide"><span>${label}</span>${segmented(name, opts)}</div>`; }
+  if (t === 'checkbox') { MULTI_FIELDS.add(f.key); const opts = f.options || []; return `<fieldset class="wide"><legend>${label}</legend><div class="choice-grid">${opts.map(o => `<label class="choice"><input type="checkbox" name="${name}" value="${esc(o)}"><span><b>${esc(o)}</b></span></label>`).join('')}</div></fieldset>`; }
+  const it = (t === 'number' || t === 'date' || t === 'time') ? t : 'text';
+  return `<label>${label}<input name="${name}" type="${it}"${req}></label>`;
+}
+// Create form controls for sheet keys that have no matching field in the static form
+function addDynamicFields() {
+  $$('.dyn-extra').forEach(n => n.remove());
+  const news = Object.entries(FIELD_CFG)
+    .filter(([k]) => !form.elements[k])
+    .map(([k, c]) => ({ key: k, ...c }))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  news.forEach(f => {
+    const page = $$('.form-page')[PAGE_BY_SECTION[String(f.section)] ?? 0];
+    if (!page) return;
+    let box = page.querySelector('.dyn-extra');
+    if (!box) { box = document.createElement('div'); box.className = 'grid cols-2 dyn-extra'; page.appendChild(box); }
+    box.insertAdjacentHTML('beforeend', renderField(f));
+  });
+}
 function parseFieldsRows(rows) {
   if (!rows || rows.length < 2) return null;
   const H = rows[0].map(h => String(h).trim());
-  const ck = H.indexOf('key'), cl = H.indexOf('คำถาม'), co = H.indexOf('ตัวเลือก'), cr = H.indexOf('จำเป็น');
+  const ck = H.indexOf('key'), cl = H.indexOf('คำถาม'), co = H.indexOf('ตัวเลือก'), cr = H.indexOf('จำเป็น'), cs = H.indexOf('ส่วน'), cn = H.indexOf('ลำดับ'), ct = H.indexOf('ประเภท');
   if (ck < 0) return null;
   const cfg = {};
   for (let r = 1; r < rows.length; r++) {
@@ -113,6 +139,9 @@ function parseFieldsRows(rows) {
     if (cl >= 0) { const l = (row[cl] || '').trim(); if (l) c.label = l; }
     if (co >= 0) { const raw = (row[co] || '').trim(); if (raw && raw !== '(จากรายการในชีต)') { const o = raw.split('|').map(s => s.trim()).filter(Boolean); if (o.length) c.options = o; } }
     if (cr >= 0) c.required = /^(✓|ใช่|yes|true|1|จำเป็น|y)$/i.test((row[cr] || '').trim());
+    if (cs >= 0) c.section = (row[cs] || '').trim();
+    if (cn >= 0) c.order = Number(row[cn]) || 0;
+    if (ct >= 0) c.type = ((row[ct] || 'text').trim() || 'text').toLowerCase();
     cfg[key] = c;
   }
   return Object.keys(cfg).length ? cfg : null;
@@ -142,7 +171,7 @@ async function loadFieldsFromSheet() {
     if (!cfg) return;
     FIELD_CFG = cfg;
     localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
-    if (!$('#editor').classList.contains('active')) { populateSelects(); applyFieldConfig(); }
+    if (!$('#editor').classList.contains('active')) { populateSelects(); addDynamicFields(); applyFieldConfig(); }
   } catch (e) { /* keep static labels / cached config */ }
 }
 async function loadOptionsFromSheet() {
@@ -182,7 +211,8 @@ const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4];
 let formMode='staff';
 function applyMode(mode){ formMode=mode; const pages=mode==='admin'?ADMIN_PAGES:STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#formEyebrow').textContent=mode==='admin'?'ส่วนแอดมิน • ขั้นตอน 4-5':'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; $('#stepLabel').textContent=mode==='admin'?'การรักษาและติดตามผล (แอดมิน)':'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; window.scrollTo({top:0}); }
 function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); }
-function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(k==='exposureType'){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } if(!out.exposureType) out.exposureType=[]; return out; }
+let MULTI_FIELDS = new Set(['exposureType']); // fields whose value is an array (checkbox groups)
+function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); return out; }
 function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; }
 
 function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section><section class="detail-section"><h4>ผู้ป่วยต้นเหตุ</h4><div class="detail-grid">${item('ชื่อ / HN',[r.sourceName,r.sourceHn].filter(Boolean).join(' / '))}${labs(sourceLabNames)}</div></section><section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>`; }
@@ -190,7 +220,7 @@ function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(val
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); applyFieldConfig(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
+buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
 let isAdmin=false;           // dashboard viewing mode
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
