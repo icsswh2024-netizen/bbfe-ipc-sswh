@@ -100,7 +100,31 @@ function optionsFromRows(rows) {
   }
   return Object.keys(cols).length ? cols : null;
 }
-function refreshOptionUI() { buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); }
+function refreshOptionUI() { buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
+// "อื่นๆ" free-text: when a select's value is an "other" option, reveal a companion text input ({key}Other)
+const OTHER_RE = /^อื่น\s*ๆ$/;
+function setupOtherInputs() {
+  $$('.dyn-other').forEach(n => n.remove());
+  $$('select', form).forEach(sel => {
+    if (!sel.name) return;
+    const cn = sel.name + 'Other';
+    if (!form.elements[cn]) {
+      if (![...sel.options].some(o => OTHER_RE.test((o.value || '').trim()))) return;
+      const lab = document.createElement('label');
+      lab.className = 'wide dyn-other';
+      lab.innerHTML = `โปรดระบุ<input name="${esc(cn)}">`;
+      (sel.closest('label') || sel).insertAdjacentElement('afterend', lab);
+    }
+  });
+  updateAllOther();
+}
+function updateOtherVisibility(sel) {
+  const comp = form.elements[sel.name + 'Other'];
+  if (!comp || !comp.closest) return;
+  const w = comp.closest('label') || comp;
+  w.classList.toggle('other-hidden', !OTHER_RE.test((sel.value || '').trim()));
+}
+function updateAllOther() { $$('select', form).forEach(updateOtherVisibility); }
 const PAGE_BY_SECTION = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4 };
 function renderField(f) {
   const label = esc(f.label || f.key), name = esc(f.key), t = f.type || 'text';
@@ -194,7 +218,7 @@ async function loadFieldsFromSheet() {
     if (!cfg) return;
     FIELD_CFG = cfg;
     localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
-    if (!$('#editor').classList.contains('active')) { populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); }
+    if (!$('#editor').classList.contains('active')) { populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
   } catch (e) { /* keep static labels / cached config */ }
 }
 async function loadOptionsFromSheet() {
@@ -233,17 +257,18 @@ function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id
 const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4];
 let formMode='staff';
 function applyMode(mode){ formMode=mode; const pages=mode==='admin'?ADMIN_PAGES:STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#formEyebrow').textContent=mode==='admin'?'ส่วนแอดมิน • ขั้นตอน 4-5':'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; $('#stepLabel').textContent=mode==='admin'?'การรักษาและติดตามผล (แอดมิน)':'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; window.scrollTo({top:0}); }
-function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); }
+function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); updateAllOther(); }
 let MULTI_FIELDS = new Set(['exposureType']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); return out; }
-function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; }
+function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; updateAllOther(); }
 
-function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section><section class="detail-section"><h4>ผู้ป่วยต้นเหตุ</h4><div class="detail-grid">${item('ชื่อ / HN',[r.sourceName,r.sourceHn].filter(Boolean).join(' / '))}${labs(sourceLabNames)}</div></section><section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>`; }
+function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ระยะเวลาปฏิบัติงาน',(r.workYears||r.workMonths)?`${r.workYears||0} ปี ${r.workMonths||0} เดือน`:'')}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section><section class="detail-section"><h4>ผู้ป่วยต้นเหตุ</h4><div class="detail-grid">${item('ชื่อ / HN',[r.sourceName,r.sourceHn].filter(Boolean).join(' / '))}${labs(sourceLabNames)}</div></section><section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>`; }
 
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
+buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
+form.addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateOtherVisibility(e.target); });
 let isAdmin=false;           // dashboard viewing mode
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
