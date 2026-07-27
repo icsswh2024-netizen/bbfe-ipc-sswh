@@ -60,7 +60,7 @@
             <label>HN บุคลากร<input name="staffHn"></label><label>เบอร์โทรศัพท์<input name="phone" inputmode="tel"></label>
             <label>อายุ (ปี)<input name="age" type="number" min="15" max="100"></label><label>เพศ<select name="gender"><option value="">เลือก</option><option>หญิง</option><option>ชาย</option><option>ไม่ระบุ</option></select></label>
             <div class="wide duration-field"><span class="dur-label">ระยะเวลาปฏิบัติงาน</span><div class="dur-inputs"><input name="workYears" type="number" min="0" placeholder="0"><span>ปี</span><input name="workMonths" type="number" min="0" max="11" placeholder="0"><span>เดือน</span></div></div>
-            <label>ตำแหน่ง<select name="staffType"></select></label><label>ระบุตำแหน่งอื่น / ID Line<input name="staffTypeOther"></label>
+            <label>ตำแหน่ง<select name="staffType"></select></label><label>ระบุตำแหน่งอื่น<input name="staffTypeOther"></label>
             <label>วันที่เกิดเหตุ<input name="incidentDate" type="date" required></label><label>เวลา<input name="incidentTime" type="time" required></label>
             <label class="wide">สถานที่เกิดเหตุ<input name="location" required></label>
           </div>
@@ -75,7 +75,7 @@
             <label class="choice"><input type="checkbox" name="exposureType" value="อื่น ๆ"><span><b>อื่น ๆ</b><small>ระบุรายละเอียดด้านล่าง</small></span></label>
           </div></fieldset>
           <div class="grid cols-2"><label>ชนิดของแหลมคม<select name="sharpType"><option value="">ไม่เกี่ยวข้อง</option><option>มีด</option><option>แก้ว</option><option>เข็มมีรู</option><option>เข็มแบบตัน</option><option>อื่น ๆ</option></select></label><label>รายละเอียดอื่น<input name="exposureOther"></label>
-          <label class="wide">ลักษณะงานและเหตุการณ์<textarea name="incidentDescription" rows="4" required></textarea></label><label>ตำแหน่งอวัยวะ<input name="bodySite"></label><label>การปฐมพยาบาล<input name="firstAid"></label></div>
+          <label class="wide">ลักษณะงานและเหตุการณ์<textarea name="incidentDescription" rows="4" required></textarea></label><fieldset class="wide" id="bodySiteField"><legend>ตำแหน่งอวัยวะ</legend><div class="choice-grid" id="bodySiteChoices"></div></fieldset><label>การปฐมพยาบาล<input name="firstAid"></label></div>
           <div class="subsection"><h3>ข้อมูลผู้ป่วย/ผู้รับบริการ (Source patient)</h3><div class="grid cols-2"><label>ชื่อผู้ป่วย<input name="sourceName"></label><label>HN ผู้ป่วย<input name="sourceHn"></label></div><div id="sourceLabs" class="lab-grid"></div><label>ประวัติพฤติกรรมเสี่ยง<select name="sourceRisk"><option value="">เลือก</option><option>มี</option><option>ไม่มี</option><option>ไม่ทราบ</option><option>ไม่ได้ถาม</option></select></label><label>รายละเอียดความเสี่ยง<input name="sourceRiskDetail"></label></div>
         </div>
 
