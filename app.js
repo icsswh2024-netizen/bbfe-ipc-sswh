@@ -55,13 +55,22 @@ const consentNames = [['understandsTesting','ทราบข้อดีแล�
 const baselineNames = [['hemoglobin','Hemoglobin (mg%)'],['hematocrit','Hematocrit (vol%)'],['redCellMorphology','Red cell morphology'],['plateletCount','Platelet count'],['wbc','WBC count / cu.mm.'],['neutrophil','Neutrophil (%)'],['lymphocyte','Lymphocyte (%)'],['monocyte','Monocyte (%)'],['basophil','Basophil (%)'],['eosinophil','Eosinophil (%)'],['bandForm','Band form (%)'],['creatinine','Creatinine (mg/dl)'],['sgpt','SGPT / ALT (U/L)'],['sgot','SGOT / AST (U/L)']];
 
 function segmented(name, options) { options = options || OPTIONS.testResult; return `<div class="segmented">${options.map(o => `<label><input type="radio" name="${name}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div>`; }
+function labLabel(n, def) { return (FIELD_CFG[n] && FIELD_CFG[n].label) || def; }
+function labItem(n, def) { return `<div class="lab-item"><span>${esc(labLabel(n, def))}</span>${segmented(n, fieldOptions(n) || OPTIONS.testResult)}</div>`; }
 function buildDynamicFields() {
-  $('#sourceLabs').innerHTML = sourceLabNames.map(([n,l]) => `<div class="lab-item"><span>${l}</span>${segmented(n)}</div>`).join('');
-  $('#staffLabs').innerHTML = staffLabNames.map(([n,l]) => `<div class="lab-item"><span>${l}</span>${segmented(n)}</div>`).join('');
-  $('#consents').innerHTML = consentNames.map(([n,l]) => `<div class="consent-row"><span>${l}</span>${segmented(n,OPTIONS.consent)}</div>`).join('');
-  $('#baselineLabs').innerHTML = baselineNames.map(([n,l]) => `<label>${l}<input name="${n}"></label>`).join('');
+  $('#sourceLabs').innerHTML = sourceLabNames.map(([n,l]) => labItem(n,l)).join('');
+  $('#staffLabs').innerHTML = staffLabNames.map(([n,l]) => labItem(n,l)).join('');
+  $('#consents').innerHTML = consentNames.map(([n,l]) => `<div class="consent-row"><span>${esc(labLabel(n,l))}</span>${segmented(n, fieldOptions(n) || OPTIONS.consent)}</div>`).join('');
+  $('#baselineLabs').innerHTML = baselineNames.map(([n,l]) => `<label>${esc(labLabel(n,l))}<input name="${n}"></label>`).join('');
   const groups = [{m:'1',labs:[['HIV','Anti HIV'],['HCV','Anti HCV']]},{m:'3',labs:[['HIV','Anti HIV']]},{m:'6',labs:[['HIV','Anti HIV'],['HbsAg','HBsAg'],['HCV','Anti HCV']]}];
-  $('#followups').innerHTML = groups.map(g => `<section class="followup"><h3>เดือนที่ ${g.m} หลังเกิดอุบัติเหตุ</h3><div class="grid cols-2"><label>วันที่ตรวจ<input type="date" name="follow${g.m}Date"></label><label>เหตุผลที่ไม่ได้ตรวจ<input name="follow${g.m}Reason"></label></div><div class="lab-grid">${g.labs.map(([k,l])=>`<div class="lab-item"><span>${l}</span>${segmented(`follow${g.m}${k}`)}</div>`).join('')}</div></section>`).join('');
+  $('#followups').innerHTML = groups.map(g => `<section class="followup"><h3>เดือนที่ ${g.m} หลังเกิดอุบัติเหตุ</h3><div class="grid cols-2"><label>วันที่ตรวจ<input type="date" name="follow${g.m}Date"></label><label>เหตุผลที่ไม่ได้ตรวจ<input name="follow${g.m}Reason"></label></div><div class="lab-grid">${g.labs.map(([k,l])=>labItem(`follow${g.m}${k}`,l)).join('')}</div></section>`).join('');
+}
+const BODYSITE_DEFAULT = ['มือซ้าย','มือขวา','ตาซ้าย','ตาขวา','ใบหน้า','อื่นๆ'];
+function populateChecks() {
+  const box = $('#bodySiteChoices'); if (!box) return;
+  const opts = fieldOptions('bodySite') || BODYSITE_DEFAULT;
+  const checked = new Set([...box.querySelectorAll('input:checked')].map(i => i.value));
+  box.innerHTML = opts.map(o => `<label class="choice"><input type="checkbox" name="bodySite" value="${esc(o)}"${checked.has(o) ? ' checked' : ''}><span><b>${esc(o)}</b></span></label>`).join('');
 }
 
 function populateSelects() {
@@ -100,7 +109,7 @@ function optionsFromRows(rows) {
   }
   return Object.keys(cols).length ? cols : null;
 }
-function refreshOptionUI() { buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
+function refreshOptionUI() { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
 // "อื่นๆ" free-text: when a select's value is an "other" option, reveal a companion text input ({key}Other)
 const OTHER_RE = /^อื่น\s*ๆ$/;
 function setupOtherInputs() {
@@ -136,12 +145,20 @@ function renderField(f) {
   const it = (t === 'number' || t === 'date' || t === 'time') ? t : 'text';
   return `<label class="dyn-extra">${label}<input name="${name}" type="${it}"${req}></label>`;
 }
+// Outer flow-level wrapper of a field control (handles single controls and radio/checkbox groups)
+function ctrlWrapper(name) {
+  const el = form.elements[name];
+  if (!el) return null;
+  if (el.tagName) return el.closest('label,.lab-item,fieldset'); // single control
+  const node = el[0]; if (!node) return null;                    // group: use its outer container, not the inner choice label
+  return node.closest('fieldset,.lab-item,.consent-row,.followup') || node.closest('label');
+}
 // The wrapping element of an existing field with the largest order <= the new field's order (same section)
 function referenceElementFor(f) {
   const cand = Object.entries(FIELD_CFG)
-    .filter(([k, c]) => c.type !== 'section' && String(c.section) === String(f.section) && k !== f.key && form.elements[k] && form.elements[k].tagName && (c.order || 0) <= (f.order || 0))
+    .filter(([k, c]) => c.type !== 'section' && String(c.section) === String(f.section) && k !== f.key && (c.order || 0) <= (f.order || 0) && ctrlWrapper(k))
     .sort((a, b) => (b[1].order || 0) - (a[1].order || 0));
-  for (const [k] of cand) { const w = form.elements[k].closest('label,fieldset,.lab-item'); if (w) return w; }
+  for (const [k] of cand) { const w = ctrlWrapper(k); if (w) return w; }
   return null;
 }
 // Create form controls for sheet keys that have no matching field in the static form, inserted by ลำดับ
@@ -218,7 +235,7 @@ async function loadFieldsFromSheet() {
     if (!cfg) return;
     FIELD_CFG = cfg;
     localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
-    if (!$('#editor').classList.contains('active')) { populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
+    if (!$('#editor').classList.contains('active')) { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
   } catch (e) { /* keep static labels / cached config */ }
 }
 async function loadOptionsFromSheet() {
@@ -258,7 +275,7 @@ const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4];
 let formMode='staff';
 function applyMode(mode){ formMode=mode; const pages=mode==='admin'?ADMIN_PAGES:STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#formEyebrow').textContent=mode==='admin'?'ส่วนแอดมิน • ขั้นตอน 4-5':'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; $('#stepLabel').textContent=mode==='admin'?'การรักษาและติดตามผล (แอดมิน)':'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; window.scrollTo({top:0}); }
 function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); updateAllOther(); }
-let MULTI_FIELDS = new Set(['exposureType']); // fields whose value is an array (checkbox groups)
+let MULTI_FIELDS = new Set(['exposureType', 'bodySite']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); return out; }
 function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; updateAllOther(); }
 
@@ -267,7 +284,7 @@ function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(val
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
+buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
 form.addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateOtherVisibility(e.target); });
 let isAdmin=false;           // dashboard viewing mode
 let editorReturn='home';     // where the editor's back/save should return to
