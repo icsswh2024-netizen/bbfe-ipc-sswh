@@ -9,8 +9,10 @@ let selectedId = null;
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1MREAXB4CB5LMKc5LliTep45iUahomoYnid3JABh-bxM/gviz/tq?tqx=out:csv&sheet=index';
 const OPT_CACHE_KEY = 'icsswh-options-cache-v1';
 const DEFAULT_OPTIONS = {
+  department: ['กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ', 'งานจ่ายกลาง', 'ห้องผ่าตัด', 'ตรวจรักษาพิเศษ (Scope)', 'สูติกรรม/นรีเวชกรรม', 'วิสัญญี', 'ตรวจรักษาพิเศษ (เคมีบำบัด)', 'ผู้ป่วยนอก ชั้น 1', 'ผู้ป่วยนอก ชั้น 2', 'อุบัติเหตุและฉุกเฉิน', 'ศูนย์เปล', 'ผู้ป่วยหนัก', 'อายุรกรรมชาย', 'โรคหลอดเลือดสมอง', 'อายุรกรรมหญิง', 'ศัลยกรรมชาย', 'ศัลยกรรมหญิง', 'Cohort', 'กุมารเวชกรรม', 'ทารกวิกฤต', 'หอผู้ป่วยพิเศษ 6/1', 'หอผู้ป่วยพิเศษ 6/2', 'หอผู้ป่วยพิเศษ 6/3', 'หอผู้ป่วยพิเศษ 6/4', 'หอผู้ป่วยพิเศษ 6/5', 'จิตต์โกศล', 'รพ.สต.', 'อื่นๆ'],
+  workGroup: ['กลุ่มงานการพยาบาล', 'องค์กรแพทย์', 'กลุ่มงานทันตกรรม', 'กลุ่มงานรังสีวิทยา (ไม่รวมแพทย์)', 'กลุ่มงานเทคนิคการแพทย์และพยาธิวิทยาคลินิก', 'งานซักฟอก', 'งานศูนย์สะอาด', 'กลุ่มงานเวชกรรมสังคม', 'กลุ่มงานอาชีวเวชกรรม', 'กลุ่มงานการแพทย์แผนไทยฯ', 'กลุ่มงานเภสัชกรรม', 'กลุ่มงานเวชกรรมฟื้นฟู', 'กลุ่มงานจิตเวชและยาเสพติด', 'สสอ.ศรีสำโรง', 'อื่นๆ'],
+  staffType: ['พยาบาลวิชาชีพ', 'ช่างตัดเย็บผ้า', 'ช่างทันตกรรม', 'ทันตแพทย์', 'นักกายภาพบำบัด', 'นักกิจกรรมบำบัด', 'นักจิตวิทยาคลินิก', 'นักรังสีการแพทย์', 'นักวิชาการสาธารณสุข', 'นักวิทยาศาสตร์การแพทย์', 'นักเทคนิคการแพทย์', 'นักเทคโนโลยีหัวใจและทรวงอก', 'นายแพทย์', 'ผู้ช่วยทันตแพทย์', 'ผู้ช่วยนักกายภาพบำบัด', 'ผู้ช่วยพยาบาล', 'ผู้ช่วยแพทย์แผนไทยด้านการนวดไทย', 'พนักงานการแพทย์และรังสี', 'พนักงานช่วยการพยาบาล', 'พนักงานช่วยเหลือคนไข้', 'พนักงานซักฟอก', 'พนักงานบริการ', 'พนักงานบริการทำความสะอาด', 'พนักงานประจำห้องทดลอง', 'พนักงานวิทยาศาสตร์', 'พยาบาลเทคนิค', 'เจ้าพนักงานวิทยาศาสตร์การแพทย์', 'เจ้าพนักงานเภสัชกรรม', 'เภสัชกร', 'แพทย์แผนไทย', 'อื่นๆ'],
   gender: ['หญิง', 'ชาย', 'ไม่ระบุ'],
-  staffType: ['แพทย์', 'พยาบาล', 'พนักงานช่วยเหลือคนไข้', 'พนักงานช่วยการพยาบาล', 'อื่น ๆ'],
   sharpType: ['มีด', 'แก้ว', 'เข็มมีรู', 'เข็มแบบตัน', 'อื่น ๆ'],
   riskHistory: ['มี', 'ไม่มี', 'ไม่ทราบ', 'ไม่ได้ถาม'],
   pepRegimen: ['TDF/3TC/DTG', 'AZT/3TC/DTG', 'อื่น ๆ'],
@@ -20,14 +22,17 @@ const DEFAULT_OPTIONS = {
 };
 // Thai column headers in the sheet -> internal option key (compared lower-cased & trimmed)
 const HEADER_MAP = {
+  'ชื่อหน่วยงาน': 'department', 'ชื่อกลุ่มงาน': 'workGroup', 'ตำแหน่ง': 'staffType',
   'เพศ': 'gender', 'ประเภทบุคลากร': 'staffType', 'ชนิดของแหลมคม': 'sharpType',
   'ประวัติพฤติกรรมเสี่ยง': 'riskHistory', 'สูตรยา pep': 'pepRegimen',
   'ผลการรับประทานยา': 'pepOutcome', 'ผลตรวจเลือด': 'testResult', 'ความยินยอม': 'consent',
 };
 // <select> fields -> option key + its leading placeholder (kept as the first option)
 const SELECT_FIELDS = [
+  { name: 'department', key: 'department', placeholder: 'เลือกหน่วยงาน' },
+  { name: 'workGroup', key: 'workGroup', placeholder: 'เลือกกลุ่มงาน' },
   { name: 'gender', key: 'gender', placeholder: 'เลือก' },
-  { name: 'staffType', key: 'staffType', placeholder: 'เลือก' },
+  { name: 'staffType', key: 'staffType', placeholder: 'เลือกตำแหน่ง' },
   { name: 'sharpType', key: 'sharpType', placeholder: 'ไม่เกี่ยวข้อง' },
   { name: 'sourceRisk', key: 'riskHistory', placeholder: 'เลือก' },
   { name: 'staffRisk', key: 'riskHistory', placeholder: 'เลือก' },
@@ -82,7 +87,7 @@ function optionsFromRows(rows) {
     keys.forEach((key, ci) => {
       if (!key) return;
       const v = (rows[r][ci] || '').trim();
-      if (v) (cols[key] ??= []).push(v);
+      if (v) { (cols[key] ??= []); if (!cols[key].includes(v)) cols[key].push(v); }
     });
   }
   return Object.keys(cols).length ? cols : null;
@@ -124,14 +129,14 @@ function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id
 const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4];
 let formMode='staff';
 function applyMode(mode){ formMode=mode; const pages=mode==='admin'?ADMIN_PAGES:STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#formEyebrow').textContent=mode==='admin'?'ส่วนแอดมิน • ขั้นตอน 4-5':'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; $('#stepLabel').textContent=mode==='admin'?'การรักษาและติดตามผล (แอดมิน)':'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; window.scrollTo({top:0}); }
-function resetForm(){ form.reset(); form.department.value='โรงพยาบาลศรีสังวรสุโขทัย'; form.id.value=''; $('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); }
+function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); }
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(k==='exposureType'){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } if(!out.exposureType) out.exposureType=[]; return out; }
 function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; }
 
-function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('ประเภทบุคลากร',r.staffType)}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section><section class="detail-section"><h4>ผู้ป่วยต้นเหตุ</h4><div class="detail-grid">${item('ชื่อ / HN',[r.sourceName,r.sourceHn].filter(Boolean).join(' / '))}${labs(sourceLabNames)}</div></section><section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>`; }
+function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section><section class="detail-section"><h4>ผู้ป่วยต้นเหตุ</h4><div class="detail-grid">${item('ชื่อ / HN',[r.sourceName,r.sourceHn].filter(Boolean).join(' / '))}${labs(sourceLabNames)}</div></section><section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>`; }
 
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
-function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
+function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
 buildDynamicFields(); populateSelects(); renderDashboard(); loadOptionsFromSheet();
 let isAdmin=false;           // dashboard viewing mode
