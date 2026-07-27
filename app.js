@@ -100,31 +100,54 @@ function optionsFromRows(rows) {
   }
   return Object.keys(cols).length ? cols : null;
 }
-function refreshOptionUI() { buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); }
+function refreshOptionUI() { buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); }
 const PAGE_BY_SECTION = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4 };
 function renderField(f) {
   const label = esc(f.label || f.key), name = esc(f.key), t = f.type || 'text';
   const req = f.required ? ' required' : '';
-  if (t === 'select') { const opts = fieldOptions(f.key) || f.options || OPTIONS[f.key] || []; return `<label>${label}<select name="${name}"${req}><option value="">เลือก</option>${opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`; }
-  if (t === 'textarea') { return `<label class="wide">${label}<textarea name="${name}" rows="3"${req}></textarea></label>`; }
-  if (t === 'radio') { const opts = f.options || OPTIONS.testResult; return `<div class="lab-item wide"><span>${label}</span>${segmented(name, opts)}</div>`; }
-  if (t === 'checkbox') { MULTI_FIELDS.add(f.key); const opts = f.options || []; return `<fieldset class="wide"><legend>${label}</legend><div class="choice-grid">${opts.map(o => `<label class="choice"><input type="checkbox" name="${name}" value="${esc(o)}"><span><b>${esc(o)}</b></span></label>`).join('')}</div></fieldset>`; }
+  if (t === 'select') { const opts = fieldOptions(f.key) || f.options || OPTIONS[f.key] || []; return `<label class="dyn-extra">${label}<select name="${name}"${req}><option value="">เลือก</option>${opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`; }
+  if (t === 'textarea') { return `<label class="wide dyn-extra">${label}<textarea name="${name}" rows="3"${req}></textarea></label>`; }
+  if (t === 'radio') { const opts = f.options || OPTIONS.testResult; return `<div class="lab-item wide dyn-extra"><span>${label}</span>${segmented(name, opts)}</div>`; }
+  if (t === 'checkbox') { MULTI_FIELDS.add(f.key); const opts = f.options || []; return `<fieldset class="wide dyn-extra"><legend>${label}</legend><div class="choice-grid">${opts.map(o => `<label class="choice"><input type="checkbox" name="${name}" value="${esc(o)}"><span><b>${esc(o)}</b></span></label>`).join('')}</div></fieldset>`; }
   const it = (t === 'number' || t === 'date' || t === 'time') ? t : 'text';
-  return `<label>${label}<input name="${name}" type="${it}"${req}></label>`;
+  return `<label class="dyn-extra">${label}<input name="${name}" type="${it}"${req}></label>`;
 }
-// Create form controls for sheet keys that have no matching field in the static form
+// The wrapping element of an existing field with the largest order <= the new field's order (same section)
+function referenceElementFor(f) {
+  const cand = Object.entries(FIELD_CFG)
+    .filter(([k, c]) => c.type !== 'section' && String(c.section) === String(f.section) && k !== f.key && form.elements[k] && form.elements[k].tagName && (c.order || 0) <= (f.order || 0))
+    .sort((a, b) => (b[1].order || 0) - (a[1].order || 0));
+  for (const [k] of cand) { const w = form.elements[k].closest('label,fieldset,.lab-item'); if (w) return w; }
+  return null;
+}
+// Create form controls for sheet keys that have no matching field in the static form, inserted by ลำดับ
 function addDynamicFields() {
   $$('.dyn-extra').forEach(n => n.remove());
   const news = Object.entries(FIELD_CFG)
-    .filter(([k]) => !form.elements[k])
+    .filter(([k, c]) => c.type !== 'section' && !form.elements[k])
     .map(([k, c]) => ({ key: k, ...c }))
     .sort((a, b) => (a.order || 0) - (b.order || 0));
   news.forEach(f => {
     const page = $$('.form-page')[PAGE_BY_SECTION[String(f.section)] ?? 0];
     if (!page) return;
-    let box = page.querySelector('.dyn-extra');
-    if (!box) { box = document.createElement('div'); box.className = 'grid cols-2 dyn-extra'; page.appendChild(box); }
-    box.insertAdjacentHTML('beforeend', renderField(f));
+    const ref = referenceElementFor(f);
+    if (ref) { ref.insertAdjacentHTML('afterend', renderField(f)); }
+    else { // no earlier field to anchor to -> start of the page's first grid, else end of page
+      const grid = page.querySelector('.grid');
+      if (grid) grid.insertAdjacentHTML('afterbegin', renderField(f));
+      else page.insertAdjacentHTML('beforeend', renderField(f));
+    }
+  });
+}
+// Override section headings (title + subtitle) from rows whose ประเภท = "section"
+function applySectionTitles() {
+  Object.values(FIELD_CFG).forEach(c => {
+    if (c.type !== 'section' || !c.section) return;
+    const page = $$('.form-page')[PAGE_BY_SECTION[String(c.section)]];
+    if (!page) return;
+    const h2 = page.querySelector('.section-title h2'), pEl = page.querySelector('.section-title p');
+    if (c.label && h2) h2.textContent = c.label;
+    if (pEl && c.options && c.options.length) pEl.textContent = c.options.join(' ');
   });
 }
 function parseFieldsRows(rows) {
@@ -171,7 +194,7 @@ async function loadFieldsFromSheet() {
     if (!cfg) return;
     FIELD_CFG = cfg;
     localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
-    if (!$('#editor').classList.contains('active')) { populateSelects(); addDynamicFields(); applyFieldConfig(); }
+    if (!$('#editor').classList.contains('active')) { populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); }
   } catch (e) { /* keep static labels / cached config */ }
 }
 async function loadOptionsFromSheet() {
@@ -220,7 +243,7 @@ function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(val
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
+buildDynamicFields(); populateSelects(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
 let isAdmin=false;           // dashboard viewing mode
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
