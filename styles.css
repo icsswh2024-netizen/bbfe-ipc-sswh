@@ -35,3 +35,7 @@ input,select,textarea,button,.search input{font-family:inherit}
 .other-hidden{display:none!important}
 #editor .dur-label{font-size:19.5px}
 #editor .dur-inputs span{font-size:22.5px}
+
+/* work-duration helper note */
+.dur-note{display:block;margin-top:8px;color:var(--muted);font-size:12px}
+#editor .dur-note{font-size:16px}

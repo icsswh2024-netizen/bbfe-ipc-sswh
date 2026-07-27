@@ -109,31 +109,46 @@ function optionsFromRows(rows) {
   }
   return Object.keys(cols).length ? cols : null;
 }
-function refreshOptionUI() { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
-// "อื่นๆ" free-text: when a select's value is an "other" option, reveal a companion text input ({key}Other)
+function refreshOptionUI() { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); }
+// "อื่นๆ" free-text: a select whose value — or a checkbox group whose "อื่นๆ" box —
+// is chosen reveals a companion text input ({name}Other)
 const OTHER_RE = /^อื่น\s*ๆ$/;
+function otherCandidates() {
+  const names = new Set();
+  $$('select', form).forEach(s => { if (s.name && [...s.options].some(o => OTHER_RE.test((o.value || '').trim()))) names.add(s.name); });
+  $$('input[type=checkbox]', form).forEach(c => { if (c.name && OTHER_RE.test((c.value || '').trim())) names.add(c.name); });
+  return [...names];
+}
+function isOtherActive(name) {
+  const el = form.elements[name];
+  if (!el) return false;
+  if (el.tagName === 'SELECT') return OTHER_RE.test((el.value || '').trim());
+  const nodes = el.tagName ? [el] : [...el];
+  return nodes.some(n => n.type === 'checkbox' && n.checked && OTHER_RE.test((n.value || '').trim()));
+}
 function setupOtherInputs() {
   $$('.dyn-other').forEach(n => n.remove());
-  $$('select', form).forEach(sel => {
-    if (!sel.name) return;
-    const cn = sel.name + 'Other';
+  otherCandidates().forEach(name => {
+    const cn = name + 'Other';
     if (!form.elements[cn]) {
-      if (![...sel.options].some(o => OTHER_RE.test((o.value || '').trim()))) return;
+      const anchor = ctrlWrapper(name);
+      if (!anchor) return;
       const lab = document.createElement('label');
       lab.className = 'wide dyn-other';
       lab.innerHTML = `โปรดระบุ<input name="${esc(cn)}">`;
-      (sel.closest('label') || sel).insertAdjacentElement('afterend', lab);
+      anchor.insertAdjacentElement('afterend', lab);
     }
   });
   updateAllOther();
 }
-function updateOtherVisibility(sel) {
-  const comp = form.elements[sel.name + 'Other'];
+function updateOtherVisibility(name) {
+  const comp = form.elements[name + 'Other'];
   if (!comp || !comp.closest) return;
   const w = comp.closest('label') || comp;
-  w.classList.toggle('other-hidden', !OTHER_RE.test((sel.value || '').trim()));
+  w.classList.toggle('other-hidden', !isOtherActive(name));
 }
-function updateAllOther() { $$('select', form).forEach(updateOtherVisibility); }
+function updateAllOther() { otherCandidates().forEach(updateOtherVisibility); }
+function updateDurationNote() { const el = $('#durNote'); if (!el) return; const m = (FIELD_CFG.workMonths && FIELD_CFG.workMonths.label) || ''; el.textContent = (m && m !== 'เดือน') ? m : ''; }
 const PAGE_BY_SECTION = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4 };
 function renderField(f) {
   const label = esc(f.label || f.key), name = esc(f.key), t = f.type || 'text';
@@ -235,7 +250,7 @@ async function loadFieldsFromSheet() {
     if (!cfg) return;
     FIELD_CFG = cfg;
     localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
-    if (!$('#editor').classList.contains('active')) { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); }
+    if (!$('#editor').classList.contains('active')) { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); }
   } catch (e) { /* keep static labels / cached config */ }
 }
 async function loadOptionsFromSheet() {
@@ -284,8 +299,8 @@ function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(val
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
-form.addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateOtherVisibility(e.target); });
+buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet();
+form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 let isAdmin=false;           // dashboard viewing mode
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
