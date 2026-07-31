@@ -10,6 +10,8 @@ const SHEET_ID = '1MREAXB4CB5LMKc5LliTep45iUahomoYnid3JABh-bxM';
 const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=index`;
 const FIELDS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=fields`;
 const SOUNDEX_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=code`;
+const LOGO_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=logo`;
+const LOGO_CACHE_KEY = 'icsswh-logo-cache-v1';
 const OPT_CACHE_KEY = 'icsswh-options-cache-v1';
 const FIELDS_CACHE_KEY = 'icsswh-fields-cache-v1';
 const SOUNDEX_CACHE_KEY = 'icsswh-soundex-cache-v1';
@@ -29,6 +31,21 @@ function soundexCode(first, last) {
 function updateSoundex() {
   const s = form.elements.soundex; if (!s) return;
   s.value = soundexCode(form.elements.staffName ? form.elements.staffName.value : '', form.elements.staffName2 ? form.elements.staffName2.value : '');
+}
+// Logo: read column B of the "logo" tab (Google Drive links -> displayable image URLs)
+function driveImg(u) { u = String(u || '').trim(); const m = u.match(/\/d\/([\w-]+)/) || u.match(/[?&]id=([\w-]+)/); return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w480` : u; }
+function renderLogos(urls) { const box = $('#brandLogos'); if (!box || !urls || !urls.length) return; box.innerHTML = urls.map(u => `<img class="brand-logo" src="${esc(driveImg(u))}" alt="โลโก้">`).join(''); const bm = $('#brandMark'); if (bm) bm.style.display = 'none'; }
+function loadCachedLogos() { try { return JSON.parse(localStorage.getItem(LOGO_CACHE_KEY)) || []; } catch { return []; } }
+async function loadLogoFromSheet() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(LOGO_CSV_URL, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const urls = parseCSV(await res.text()).map(r => (r[1] || '').trim()).filter(v => /^https?:\/\//.test(v));
+    if (urls.length) { localStorage.setItem(LOGO_CACHE_KEY, JSON.stringify(urls)); renderLogos(urls); }
+  } catch (e) { /* keep the fallback mark */ }
 }
 async function loadSoundexFromSheet() {
   try {
@@ -330,7 +347,7 @@ function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(val
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet();
+buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderLogos(loadCachedLogos()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let isAdmin=false;           // dashboard viewing mode
