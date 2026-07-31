@@ -358,6 +358,57 @@ function setupSignPad(){
 
 function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ระยะเวลาปฏิบัติงาน',(r.workYears||r.workMonths)?`${r.workYears||0} ปี ${r.workMonths||0} เดือน`:'')}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section><section class="detail-section"><h4>ผู้ป่วยต้นเหตุ</h4><div class="detail-grid">${item('ชื่อ / HN',[r.sourceName,r.sourceHn].filter(Boolean).join(' / '))}${labs(sourceLabNames)}</div></section><section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>${r.sign?`<section class="detail-section sign-detail"><h4>ลงชื่อผู้ให้ความยินยอม</h4><img class="sign-img" src="${r.sign}" alt="ลายเซ็น">${r.consentDate?`<div class="detail-meta" style="margin-top:8px">วันที่ ${thaiDate(r.consentDate)}</div>`:''}</section>`:''}`; }
 
+// ---- A4 report preview (shown for confirmation before saving) ----
+function reportA4Html(r){
+  const v = x => (x==null||x==='') ? '—' : esc(String(x));
+  const dt = x => x ? thaiDate(x) : '—';
+  const cell = (label,val,wide) => `<div class="rc${wide?' wide':''}"><span>${label}</span><b>${val}</b></div>`;
+  const labs = pairs => pairs.map(([k,l]) => cell(l, v(r[k]))).join('');
+  const dur = (r.workYears||r.workMonths) ? `${r.workYears||0} ปี ${r.workMonths||0} เดือน` : '—';
+  const body = Array.isArray(r.bodySite) ? r.bodySite.join(', ') : r.bodySite;
+  return `<div class="rpt-head"><img class="rpt-logo" src="assets/logo-sswh.png" alt=""><div class="rpt-titles"><b>แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข</b><span>โรงพยาบาลศรีสังวรสุโขทัย · Form IC 1 · Version 2.0</span></div><img class="rpt-logo" src="assets/logo-ic.png" alt=""></div>`
+    + `<h3 class="rpt-h">1. ข้อมูลบุคลากรและเหตุการณ์</h3><div class="rpt-grid">`
+    + cell('วันที่/เวลาเกิดเหตุ', `${dt(r.incidentDate)}${r.incidentTime?' · '+esc(r.incidentTime)+' น.':''}`)
+    + cell('สถานที่เกิดเหตุ', v(r.location))
+    + cell('ชื่อบุคลากร', v(r.staffName)) + cell('HN บุคลากร', v(r.staffHn))
+    + cell('Soundex code', v(r.soundex)) + cell('อายุ / เพศ', `${v(r.age)} · ${v(r.gender)}`)
+    + cell('หน่วยงาน', v(r.department)) + cell('กลุ่มงาน', v(r.workGroup))
+    + cell('ตำแหน่ง', v(r.staffType)) + cell('ระยะเวลาปฏิบัติงาน', dur)
+    + `</div>`
+    + `<h3 class="rpt-h">2. ลักษณะการสัมผัส</h3><div class="rpt-grid">`
+    + cell('ลักษณะอุบัติเหตุ', v(exposureLabel(r))) + cell('ชนิดของแหลมคม', v(r.sharpType))
+    + cell('ตำแหน่งอวัยวะ', v(body)) + cell('การปฐมพยาบาล', v(r.firstAid))
+    + cell('ลักษณะงานและเหตุการณ์', v(r.incidentDescription), true)
+    + `</div>`
+    + `<h3 class="rpt-h">ผู้ป่วย/ผู้รับบริการต้นเหตุ</h3><div class="rpt-grid">`
+    + cell('ชื่อผู้ป่วย', v(r.sourceName)) + cell('HN ผู้ป่วย', v(r.sourceHn))
+    + labs(sourceLabNames)
+    + cell('พฤติกรรมเสี่ยง', v(r.sourceRisk)) + cell('รายละเอียดความเสี่ยง', v(r.sourceRiskDetail))
+    + `</div>`
+    + `<h3 class="rpt-h">3. ความยินยอม</h3><div class="rpt-grid">`
+    + consentNames.map(([k,l]) => cell(l, v(r[k]))).join('')
+    + cell('ชื่อแพทย์ผู้ดูแล', v(r.doctorName)) + cell('วันที่ให้ความยินยอม', dt(r.consentDate))
+    + `</div>`
+    + `<h3 class="rpt-h">4. ผลตรวจเลือดบุคลากร (Day 0) และการรักษาเพื่อป้องกัน</h3><div class="rpt-grid">`
+    + labs(staffLabNames)
+    + cell('พฤติกรรมเสี่ยง (บุคลากร)', v(r.staffRisk)) + cell('สูตรยา PEP', v(r.pepRegimen))
+    + cell('วันที่เริ่มยา', dt(r.pepStart)) + cell('ผลการรับประทาน', v(r.pepOutcome))
+    + `</div>`
+    + `<h3 class="rpt-h">5. การติดตามผลเลือด</h3><div class="rpt-grid">`
+    + cell('เดือนที่ 1', `${dt(r.follow1Date)} · HIV ${v(r.follow1HIV)} · HCV ${v(r.follow1HCV)}`)
+    + cell('เดือนที่ 3', `${dt(r.follow3Date)} · HIV ${v(r.follow3HIV)}`)
+    + cell('เดือนที่ 6', `${dt(r.follow6Date)} · HIV ${v(r.follow6HIV)} · HBsAg ${v(r.follow6HbsAg)} · HCV ${v(r.follow6HCV)}`, true)
+    + `</div>`
+    + `<div class="rpt-sign"><div class="rpt-sign-box">${r.sign?`<img src="${r.sign}" alt="ลายเซ็น">`:'<div class="rpt-sign-blank"></div>'}<b>ลงชื่อผู้ให้ความยินยอม</b><small>${r.consentDate?'วันที่ '+dt(r.consentDate):'( ....... / ....... / ....... )'}</small></div></div>`;
+}
+let pendingSave = null;
+function commitSave(data){
+  const list = records(), now = new Date().toISOString();
+  if (data.id) { const i = list.findIndex(r => r.id === data.id); data.createdAt = list[i]?.createdAt || now; data.updatedAt = now; if (i >= 0) list[i] = data; else list.push(data); }
+  else { data.id = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`; data.createdAt = now; data.updatedAt = now; list.push(data); }
+  persist(list);
+}
+
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
@@ -379,7 +430,10 @@ $$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
-form.onsubmit=e=>{e.preventDefault(); const data=formDataObject(), list=records(), now=new Date().toISOString(); if(data.id){const i=list.findIndex(r=>r.id===data.id); data.createdAt=list[i]?.createdAt||now; data.updatedAt=now; if(i>=0)list[i]=data; else list.push(data);}else{data.id=crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`;data.createdAt=now;data.updatedAt=now;list.push(data)} persist(list); toast('บันทึกข้อมูลเรียบร้อย'); editorBack();};
+form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#previewBody').innerHTML=reportA4Html(pendingSave); $('#previewDialog').showModal(); $('#previewDialog').scrollTop=0; const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0;};
+$('#previewEdit').onclick=()=>{ $('#previewDialog').close(); pendingSave=null; };
+$('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
+$('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=isAdmin?'บันทึกการรักษา/ติดตาม':'แก้ไข';$('#detailDialog').showModal();}};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); isAdmin?openAdminEdit(r):openStaffEdit(r);}};
