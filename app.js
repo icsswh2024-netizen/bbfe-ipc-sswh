@@ -379,7 +379,7 @@ function reportA4Html(r){
   const labRow = (no,label,val) => `<div class="lrow"><span class="llbl">${no} ${label}</span>${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>opt(val,o)).join('')}</div>`;
   const crow = (label,val) => `<div class="crow"><span class="clbl">${label}</span><span class="opt">${ck(eq(val,'ใช่'))} ใช่</span><span class="opt">${ck(eq(val,'ไม่ใช่'))} ไม่ใช่</span></div>`;
   return `<div class="doc">`
-    + `<div class="doc-top"><span></span><span>Form IC 1</span></div>`
+    + `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="assets/logo-sswh.png" alt=""></div>`
     + `<h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข</h1>`
     + `<div class="doc-body">`
     + `<div class="ln">${t('1. ชื่อหน่วยงาน')}${fx(r.department,true)}${t('โรงพยาบาลศรีสังวรสุโขทัย')}</div>`
@@ -414,6 +414,7 @@ function reportA4Html(r){
     +   `<div class="sig-col"><div class="sig-sign"></div><div class="sig-cap">ลงชื่อ ............................................. (แพทย์ผู้ดูแล)</div><div class="sig-cap">( ${has(r.doctorName)?esc(r.doctorName):'............................................'} )</div><div class="sig-cap">&nbsp;</div></div>`
     + `</div>`
     + `<div class="doc-note"><b>หมายเหตุ</b> &nbsp; การให้ยาป้องกัน ควรได้รับยาเร็วที่สุด (1 – 4 ชั่วโมง หลังเกิดเหตุการณ์) อย่างช้าไม่ควรเกิน 48 – 72 ชั่วโมง หลังเกิดอุบัติเหตุ</div>`
+    + `<div class="doc-logo-bottom"><img src="assets/logo-ic.png" alt=""></div>`
     + `<div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`
     + `</div></div>`;
 }
