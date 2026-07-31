@@ -362,7 +362,8 @@ function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(val
 const THAI_MONTHS=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 function reportA4Html(r){
   const has = x => x!=null && x!=='';
-  const fx = v => `<span class="fx">${has(v)?esc(String(v)):''}</span>`;
+  const t = s => `<span class="t">${s}</span>`;
+  const fx = (v,fill) => `<span class="fx${fill?' fill':''}">${has(v)?esc(String(v)):''}</span>`;
   const ck = on => `<span class="ck">(${on?'✓':'&nbsp;&nbsp;'})</span>`;
   const eq = (v,o) => String(v||'').trim()===o;
   const dparts = v => { if(!has(v)) return {d:'',m:'',y:''}; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return {d:'',m:'',y:''}; return {d:d.getDate(), m:THAI_MONTHS[d.getMonth()], y:d.getFullYear()+543}; };
@@ -371,47 +372,51 @@ function reportA4Html(r){
   const body = Array.isArray(r.bodySite) ? r.bodySite.join(', ') : (r.bodySite||'');
   const sharp = r.sharpType||'';
   const inc = dparts(r.incidentDate), cd = dparts(r.consentDate);
+  const fullName = ((r.staffName||'')+' '+(r.staffName2||'')).trim();
   const stdTypes = [['แพทย์',/แพทย์|นายแพทย์/],['พยาบาล',/พยาบาล/],['พนักงานช่วยเหลือคนไข้',/พนักงานช่วยเหลือคนไข้/],['พนักงานช่วยการพยาบาล',/พนักงานช่วยการพยาบาล/]];
   const typeMatch = stdTypes.find(([k,re]) => re.test(r.staffType||''));
-  const labRow = (no,label,val) => `<div class="ln in1 lab">${no} ${label} ${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>`${ck(eq(val,o))} ${o}`).join('&nbsp;&nbsp;')}</div>`;
-  const consentLn = (label,val) => `<div class="ln in1">${label} &nbsp; ${ck(eq(val,'ใช่'))} ใช่ &nbsp;&nbsp; ${ck(eq(val,'ไม่ใช่'))} ไม่ใช่</div>`;
+  const opt = (val,o) => `<span class="opt">${ck(eq(val,o))} ${o}</span>`;
+  const labRow = (no,label,val) => `<div class="lrow"><span class="llbl">${no} ${label}</span>${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>opt(val,o)).join('')}</div>`;
+  const crow = (label,val) => `<div class="crow"><span class="clbl">${label}</span><span class="opt">${ck(eq(val,'ใช่'))} ใช่</span><span class="opt">${ck(eq(val,'ไม่ใช่'))} ไม่ใช่</span></div>`;
   return `<div class="doc">`
     + `<div class="doc-top"><span></span><span>Form IC 1</span></div>`
     + `<h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข</h1>`
     + `<div class="doc-body">`
-    + `<div class="ln">1. ชื่อหน่วยงาน ${fx(r.department)} <span class="hos">โรงพยาบาลศรีสังวรสุโขทัย</span></div>`
-    + `<div class="ln">2. ชื่อบุคลากร ${fx(r.staffName)} Soundex code ${fx(r.soundex)} HN ${fx(r.staffHn)}</div>`
-    + `<div class="ln in1">อายุ ${fx(r.age)} ปี เพศ ${fx(r.gender)} ระยะเวลาปฏิบัติงาน ${fx(r.workYears)} ปี ${fx(r.workMonths)} เดือน &nbsp; เบอร์โทรศัพท์ ${fx(r.phone)}</div>`
-    + `<div class="ln">3. ประเภทบุคลากร</div>`
-    + `<div class="ln in1">${stdTypes.map(([t])=>`${ck(!!typeMatch&&typeMatch[0]===t)} ${t}`).join(' &nbsp; ')}</div>`
-    + `<div class="ln in1">${ck(!typeMatch&&has(r.staffType))} อื่น ๆ (ระบุ) ${fx(!typeMatch?r.staffType:'')}</div>`
-    + `<div class="ln">4. อุบัติเหตุฯ ที่เกิดขึ้น วันที่ ${fx(inc.d)} เดือน ${fx(inc.m)} พ.ศ ${fx(inc.y)} เวลา ${fx(r.incidentTime)} น.</div>`
-    + `<div class="ln in1">สถานที่ ${fx(r.location)}</div>`
-    + `<div class="ln">5. ลักษณะอุบัติเหตุฯ</div>`
-    + `<div class="ln in1">${ck(hasExp('ของแหลมคม'))} ของแหลมคมที่ปนเปื้อนเลือดหรือสารคัดหลั่งจากผู้ป่วย ทิ่ม ตำ หรือ บาด</div>`
-    + `<div class="ln in2">ระบุ ${ck(eq(sharp,'มีด'))} มีด ${ck(eq(sharp,'แก้ว'))} แก้ว ${ck(/เข็ม/.test(sharp))} เข็ม ${ck(eq(sharp,'เข็มมีรู'))} มีรู ${ck(eq(sharp,'เข็มแบบตัน'))} แบบตัน ${ck(eq(sharp,'อื่น ๆ'))} อื่น ๆ ${fx(r.sharpTypeOther)}</div>`
-    + `<div class="ln in1">${ck(hasExp('ผิวหนัง'))} ผิวหนังที่มีบาดแผล สัมผัสถูกเลือดหรือสารคัดหลั่งจากผู้ป่วย</div>`
-    + `<div class="ln in1">${ck(hasExp('เยื่อบุ')||hasExp('เนื้อเยื่อ'))} เยื่อบุตา เนื้อเยื่ออ่อน สัมผัสถูกเลือดหรือสารคัดหลั่งจากผู้ป่วย</div>`
-    + `<div class="ln in1">${ck(hasExp('อื่น'))} อื่น ๆ ระบุ ${fx(r.exposureOther)}</div>`
-    + `<div class="ln">6. บรรยายลักษณะงานที่ปฏิบัติและอุบัติเหตุฯ ที่เกิดขึ้น ${fx(r.incidentDescription)}</div>`
-    + `<div class="ln">7. ตำแหน่งอวัยวะที่เกิดอุบัติเหตุฯ ${fx(body)}</div>`
-    + `<div class="ln">8. การปฐมพยาบาลที่ได้รับ คือ ${fx(r.firstAid)}</div>`
-    + `<div class="ln">9. ผู้ป่วย/ผู้รับบริการมีผลการตรวจเลือดและประวัติ หลังเกิดอุบัติเหตุ (ชื่อผู้ป่วย ${fx(r.sourceName)} HN ${fx(r.sourceHn)})</div>`
-    + labRow('9.1','Anti HIV',r.sourceHiv) + labRow('9.2','HBs Ag',r.sourceHbsAg) + labRow('9.3','Anti HCV',r.sourceHcv)
-    + `<div class="ln in1 lab">9.4 ประวัติพฤติกรรมเสี่ยง ${ck(eq(r.sourceRisk,'มี'))} มี ระบุ ${fx(r.sourceRiskDetail)} ${ck(eq(r.sourceRisk,'ไม่มี'))} ไม่มี ${ck(eq(r.sourceRisk,'ไม่ทราบ'))} ไม่ทราบ ${ck(eq(r.sourceRisk,'ไม่ได้ถาม'))} ไม่ได้ถาม</div>`
-    + `<div class="ln">10. ${consentLnBare('บุคลากรฯ ทราบถึงข้อดี ข้อเสีย ของการตรวจเลือด', r.understandsTesting, ck, eq)}</div>`
-    + consentLn('&nbsp;&nbsp;&nbsp;&nbsp;บุคลากรฯ ยินยอมที่จะให้ตรวจเลือด', r.consentBloodTest)
-    + consentLn('&nbsp;&nbsp;&nbsp;&nbsp;บุคลากรฯ ยินดีรับการรักษาเบื้องต้นเพื่อป้องกัน HIV', r.consentHivPep)
-    + consentLn('&nbsp;&nbsp;&nbsp;&nbsp;บุคลากรฯ ยินดีรับการรักษาเบื้องต้นเพื่อป้องกัน Hepatitis B', r.consentHbvPep)
+    + `<div class="ln">${t('1. ชื่อหน่วยงาน')}${fx(r.department,true)}${t('โรงพยาบาลศรีสังวรสุโขทัย')}</div>`
+    + `<div class="ln">${t('2. ชื่อบุคลากร')}${fx(r.staffName,true)}${t('นามสกุล')}${fx(r.staffName2,true)}</div>`
+    + `<div class="ln in1">${t('Soundex code')}${fx(r.soundex)}${t('HN')}${fx(r.staffHn,true)}</div>`
+    + `<div class="ln in1">${t('อายุ')}${fx(r.age)}${t('ปี  เพศ')}${fx(r.gender)}${t('ระยะเวลาปฏิบัติงาน')}${fx(r.workYears)}${t('ปี')}${fx(r.workMonths)}${t('เดือน  เบอร์โทรศัพท์')}${fx(r.phone,true)}</div>`
+    + `<div class="ln">${t('3. ประเภทบุคลากร')}</div>`
+    + `<div class="ln in1 nowrap">${stdTypes.map(([ty])=>`<span class="opt">${ck(!!typeMatch&&typeMatch[0]===ty)} ${ty}</span>`).join('')}</div>`
+    + `<div class="ln in1">${ck(!typeMatch&&has(r.staffType))} ${t('อื่น ๆ (ระบุ)')}${fx(!typeMatch?r.staffType:'',true)}</div>`
+    + `<div class="ln">${t('4. อุบัติเหตุฯ ที่เกิดขึ้น วันที่')}${fx(inc.d)}${t('เดือน')}${fx(inc.m)}${t('พ.ศ')}${fx(inc.y)}${t('เวลา')}${fx(r.incidentTime)}${t('น.')}</div>`
+    + `<div class="ln in1">${t('สถานที่')}${fx(r.location,true)}</div>`
+    + `<div class="ln">${t('5. ลักษณะอุบัติเหตุฯ')}</div>`
+    + `<div class="ln in1">${ck(hasExp('ของแหลมคม'))} ${t('ของแหลมคมที่ปนเปื้อนเลือดหรือสารคัดหลั่งจากผู้ป่วย ทิ่ม ตำ หรือ บาด')}</div>`
+    + `<div class="ln in2 nowrap">${t('ระบุ')}<span class="opt">${ck(eq(sharp,'มีด'))} มีด</span><span class="opt">${ck(eq(sharp,'แก้ว'))} แก้ว</span><span class="opt">${ck(/เข็ม/.test(sharp))} เข็ม</span><span class="opt">${ck(eq(sharp,'เข็มมีรู'))} มีรู</span><span class="opt">${ck(eq(sharp,'เข็มแบบตัน'))} แบบตัน</span><span class="opt">${ck(eq(sharp,'อื่น ๆ'))} อื่น ๆ</span></div>`
+    + `<div class="ln in1">${ck(hasExp('ผิวหนัง'))} ${t('ผิวหนังที่มีบาดแผล สัมผัสถูกเลือดหรือสารคัดหลั่งจากผู้ป่วย')}</div>`
+    + `<div class="ln in1">${ck(hasExp('เยื่อบุ')||hasExp('เนื้อเยื่อ'))} ${t('เยื่อบุตา เนื้อเยื่ออ่อน สัมผัสถูกเลือดหรือสารคัดหลั่งจากผู้ป่วย')}</div>`
+    + `<div class="ln in1">${ck(hasExp('อื่น'))} ${t('อื่น ๆ ระบุ')}${fx(r.exposureOther,true)}</div>`
+    + `<div class="ln">${t('6. บรรยายลักษณะงานที่ปฏิบัติและอุบัติเหตุฯ ที่เกิดขึ้น')}${fx(r.incidentDescription,true)}</div>`
+    + `<div class="ln">${t('7. ตำแหน่งอวัยวะที่เกิดอุบัติเหตุฯ')}${fx(body,true)}</div>`
+    + `<div class="ln">${t('8. การปฐมพยาบาลที่ได้รับ คือ')}${fx(r.firstAid,true)}</div>`
+    + `<div class="ln">${t('9. ผู้ป่วย/ผู้รับบริการมีผลการตรวจเลือดและประวัติ หลังเกิดอุบัติเหตุ')}${t('(ชื่อผู้ป่วย')}${fx(r.sourceName)}${t('HN')}${fx(r.sourceHn)}${t(')')}</div>`
+    + `<div class="labs">${labRow('9.1','Anti HIV',r.sourceHiv)}${labRow('9.2','HBs Ag',r.sourceHbsAg)}${labRow('9.3','Anti HCV',r.sourceHcv)}</div>`
+    + `<div class="ln in1">${t('9.4 ประวัติพฤติกรรมเสี่ยง')}<span class="opt">${ck(eq(r.sourceRisk,'มี'))} มี ระบุ</span>${fx(r.sourceRiskDetail,true)}<span class="opt">${ck(eq(r.sourceRisk,'ไม่มี'))} ไม่มี</span><span class="opt">${ck(eq(r.sourceRisk,'ไม่ทราบ'))} ไม่ทราบ</span><span class="opt">${ck(eq(r.sourceRisk,'ไม่ได้ถาม'))} ไม่ได้ถาม</span></div>`
+    + `<div class="cst">`
+    +   `<div class="crow"><span class="clbl">${t('10. บุคลากรฯ ทราบถึงข้อดี ข้อเสีย ของการตรวจเลือด')}</span><span class="opt">${ck(eq(r.understandsTesting,'ใช่'))} ใช่</span><span class="opt">${ck(eq(r.understandsTesting,'ไม่ใช่'))} ไม่ใช่</span></div>`
+    +   crow('บุคลากรฯ ยินยอมที่จะให้ตรวจเลือด', r.consentBloodTest)
+    +   crow('บุคลากรฯ ยินดีรับการรักษาเบื้องต้นเพื่อป้องกันเชื้อ HIV', r.consentHivPep)
+    +   crow('บุคลากรฯ ยินดีรับการรักษาเบื้องต้นเพื่อป้องกันเชื้อ Hepatitis B', r.consentHbvPep)
+    + `</div>`
     + `<div class="sig-row">`
-    +   `<div class="sig-col"><div class="sig-sign">${r.sign?`<img src="${r.sign}" alt="">`:''}</div><div class="sig-cap">ลงชื่อ ............................................. (บุคลากร)</div><div class="sig-cap">( ${has(r.staffName)?esc(r.staffName):'............................................'} )</div><div class="sig-cap">วันที่ ${cd.d||'.....'} / ${cd.m||'..........'} / ${cd.y||'........'}</div></div>`
+    +   `<div class="sig-col"><div class="sig-sign">${r.sign?`<img src="${r.sign}" alt="">`:''}</div><div class="sig-cap">ลงชื่อ ............................................. (บุคลากร)</div><div class="sig-cap">( ${has(fullName)?esc(fullName):'............................................'} )</div><div class="sig-cap">วันที่ ${cd.d||'.....'} / ${cd.m||'..........'} / ${cd.y||'........'}</div></div>`
     +   `<div class="sig-col"><div class="sig-sign"></div><div class="sig-cap">ลงชื่อ ............................................. (แพทย์ผู้ดูแล)</div><div class="sig-cap">( ${has(r.doctorName)?esc(r.doctorName):'............................................'} )</div><div class="sig-cap">&nbsp;</div></div>`
     + `</div>`
     + `<div class="doc-note"><b>หมายเหตุ</b> &nbsp; การให้ยาป้องกัน ควรได้รับยาเร็วที่สุด (1 – 4 ชั่วโมง หลังเกิดเหตุการณ์) อย่างช้าไม่ควรเกิน 48 – 72 ชั่วโมง หลังเกิดอุบัติเหตุ</div>`
     + `<div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`
     + `</div></div>`;
 }
-function consentLnBare(label,val,ck,eq){ return `${label} &nbsp; ${ck(eq(val,'ใช่'))} ใช่ &nbsp;&nbsp; ${ck(eq(val,'ไม่ใช่'))} ไม่ใช่`; }
 let pendingSave = null;
 function commitSave(data){
   const list = records(), now = new Date().toISOString();
@@ -453,7 +458,7 @@ function fillDemo(){
   const setChecks=(n,vals)=>{ const g=el(n); if(!g)return; [...(g.length?g:[g])].forEach(x=>{ if(x.type==='checkbox')x.checked=vals.includes(x.value); }); };
   const today=new Date().toISOString().slice(0,10);
   const plus=d=>{ const t=new Date(); t.setDate(t.getDate()+d); return t.toISOString().slice(0,10); };
-  setV('department','ห้องผ่าตัด'); setV('workGroup','กลุ่มงานการพยาบาล'); setV('staffName','สมหญิง ใจดี');
+  setV('department','ห้องผ่าตัด'); setV('workGroup','กลุ่มงานการพยาบาล'); setV('staffName','สมหญิง'); setV('staffName2','ใจดี');
   setV('staffHn','456789'); setV('phone','081-234-5678'); setV('age','29'); setV('gender','หญิง');
   setV('workYears','5'); setV('workMonths','3'); setV('staffType','พยาบาลวิชาชีพ');
   setV('incidentDate',today); setV('incidentTime','14:20'); setV('location','ห้องผ่าตัดที่ 3');
@@ -487,9 +492,12 @@ $$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
-form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#previewBody').innerHTML=reportA4Html(pendingSave); $('#previewDialog').showModal(); $('#previewDialog').scrollTop=0; const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0;};
+form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDialog').showModal();};
+$('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
+$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } $('#warnDialog').close(); $('#previewBody').innerHTML=reportA4Html(pendingSave); $('#previewDialog').showModal(); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); pendingSave=null; };
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
+$('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=isAdmin?'บันทึกการรักษา/ติดตาม':'แก้ไข';$('#detailDialog').showModal();}};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
