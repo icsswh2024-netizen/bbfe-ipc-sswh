@@ -358,29 +358,35 @@ function setupSignPad(){
 
 function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ระยะเวลาปฏิบัติงาน',(r.workYears||r.workMonths)?`${r.workYears||0} ปี ${r.workMonths||0} เดือน`:'')}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section><section class="detail-section"><h4>ผู้ป่วยต้นเหตุ</h4><div class="detail-grid">${item('ชื่อ / HN',[r.sourceName,r.sourceHn].filter(Boolean).join(' / '))}${labs(sourceLabNames)}</div></section><section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>${r.sign?`<section class="detail-section sign-detail"><h4>ลงชื่อผู้ให้ความยินยอม</h4><img class="sign-img" src="${r.sign}" alt="ลายเซ็น">${r.consentDate?`<div class="detail-meta" style="margin-top:8px">วันที่ ${thaiDate(r.consentDate)}</div>`:''}</section>`:''}`; }
 
-// ---- Official A4 document (Form IC 1, page 1 = items 1–10, shown for confirmation before saving) ----
+// ---- Official A4 document (Form IC 1) — one continuous form: page 1 (items 1–10, staff) + page 2 (items 11–16, admin) ----
 const THAI_MONTHS=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-function reportA4Html(r){
-  const has = x => x!=null && x!=='';
-  const t = s => `<span class="t">${s}</span>`;
-  const fx = (v,fill) => `<span class="fx${fill?' fill':''}">${has(v)?esc(String(v)):''}</span>`;
-  const ck = on => `<span class="ck">(${on?'✓':'&nbsp;&nbsp;'})</span>`;
-  const eq = (v,o) => String(v||'').trim()===o;
-  const dparts = v => { if(!has(v)) return {d:'',m:'',y:''}; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return {d:'',m:'',y:''}; return {d:d.getDate(), m:THAI_MONTHS[d.getMonth()], y:d.getFullYear()+543}; };
+const rHas = x => x!=null && x!=='';
+const rT = s => `<span class="t">${s}</span>`;
+const rFx = (v,fill) => `<span class="fx${fill?' fill':''}">${rHas(v)?esc(String(v)):''}</span>`;
+const rCk = on => `<span class="ck">(${on?'✓':'&nbsp;&nbsp;'})</span>`;
+const rEq = (v,o) => String(v||'').trim()===o;
+const rOpt = (val,o) => `<span class="opt">${rCk(rEq(val,o))} ${o}</span>`;
+const rLabRow = (no,label,val) => `<div class="lrow"><span class="llbl">${no} ${label}</span>${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>rOpt(val,o)).join('')}</div>`;
+const rDparts = v => { if(!rHas(v)) return {d:'',m:'',y:''}; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return {d:'',m:'',y:''}; return {d:d.getDate(), m:THAI_MONTHS[d.getMonth()], y:d.getFullYear()+543}; };
+function docHead(sub){ return `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="assets/logo-sswh.png" alt=""></div><h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
+function docFoot(){ return `<div class="doc-logo-bottom"><img src="assets/logo-ic.png" alt=""></div><div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`; }
+// scope 'admin' -> page 2 (items 11–16); anything else -> page 1 (items 1–10)
+function reportA4Html(r, scope){ return scope==='admin' ? docPage2(r) : docPage1(r); }
+// whole continuous case (both pages) for printing
+function fullDocHtml(r){ return `<div class="a4-page">${docPage1(r)}</div><div class="a4-page">${docPage2(r)}</div>`; }
+function docPage1(r){
+  const t=rT, fx=rFx, ck=rCk, eq=rEq, has=rHas, opt=rOpt, labRow=rLabRow;
   const exposure = Array.isArray(r.exposureType) ? r.exposureType : (r.exposureType?[r.exposureType]:[]);
   const hasExp = s => exposure.some(e => String(e).includes(s));
   const body = Array.isArray(r.bodySite) ? r.bodySite.join(', ') : (r.bodySite||'');
   const sharp = r.sharpType||'';
-  const inc = dparts(r.incidentDate), cd = dparts(r.consentDate);
+  const inc = rDparts(r.incidentDate), cd = rDparts(r.consentDate);
   const fullName = ((r.staffName||'')+' '+(r.staffName2||'')).trim();
   const stdTypes = [['แพทย์',/แพทย์|นายแพทย์/],['พยาบาล',/พยาบาล/],['พนักงานช่วยเหลือคนไข้',/พนักงานช่วยเหลือคนไข้/],['พนักงานช่วยการพยาบาล',/พนักงานช่วยการพยาบาล/]];
   const typeMatch = stdTypes.find(([k,re]) => re.test(r.staffType||''));
-  const opt = (val,o) => `<span class="opt">${ck(eq(val,o))} ${o}</span>`;
-  const labRow = (no,label,val) => `<div class="lrow"><span class="llbl">${no} ${label}</span>${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>opt(val,o)).join('')}</div>`;
   const crow = (label,val) => `<div class="crow"><span class="clbl">${label}</span><span class="opt">${ck(eq(val,'ใช่'))} ใช่</span><span class="opt">${ck(eq(val,'ไม่ใช่'))} ไม่ใช่</span></div>`;
   return `<div class="doc">`
-    + `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="assets/logo-sswh.png" alt=""></div>`
-    + `<h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข</h1>`
+    + docHead('')
     + `<div class="doc-body">`
     + `<div class="ln">${t('1. ชื่อหน่วยงาน')}${fx(r.department,true)}${t('โรงพยาบาลศรีสังวรสุโขทัย')}</div>`
     + `<div class="ln">${t('2. ชื่อบุคลากร')}${fx(r.staffName,true)}${t('นามสกุล')}${fx(r.staffName2,true)}</div>`
@@ -414,8 +420,45 @@ function reportA4Html(r){
     +   `<div class="sig-col"><div class="sig-sign"></div><div class="sig-cap">ลงชื่อ ............................................. (แพทย์ผู้ดูแล)</div><div class="sig-cap">( ${has(r.doctorName)?esc(r.doctorName):'............................................'} )</div><div class="sig-cap">&nbsp;</div></div>`
     + `</div>`
     + `<div class="doc-note"><b>หมายเหตุ</b> &nbsp; การให้ยาป้องกัน ควรได้รับยาเร็วที่สุด (1 – 4 ชั่วโมง หลังเกิดเหตุการณ์) อย่างช้าไม่ควรเกิน 48 – 72 ชั่วโมง หลังเกิดอุบัติเหตุ</div>`
-    + `<div class="doc-logo-bottom"><img src="assets/logo-ic.png" alt=""></div>`
-    + `<div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`
+    + docFoot()
+    + `</div></div>`;
+}
+function docPage2(r){
+  const t=rT, fx=rFx, ck=rCk, eq=rEq, has=rHas, opt=rOpt, labRow=rLabRow;
+  const ps=rDparts(r.pepStart), pe=rDparts(r.pepEnd), f1=rDparts(r.follow1Date), f3=rDparts(r.follow3Date), f6=rDparts(r.follow6Date);
+  const complete4=/ครบ 4 สัปดาห์/.test(r.pepOutcome||''), sideEffect=eq(r.pepOutcome,'ครบ 4 สัปดาห์ มีผลข้างเคียง'), notComplete=eq(r.pepOutcome,'รับประทานไม่ครบ');
+  return `<div class="doc">`
+    + docHead('ต่อ')
+    + `<div class="doc-body">`
+    + `<div class="ln">${t('11. บุคลากรฯ มีผลการตรวจเลือดและประวัติหลังเกิดอุบัติเหตุทันที (Day 0)')}</div>`
+    + `<div class="labs">${labRow('11.1','Anti HIV',r.staffHiv)}${labRow('11.2','HBs Ag',r.staffHbsAg)}${labRow('11.3','Anti HBs',r.staffAntiHbs)}${labRow('11.4','Anti HCV',r.staffHcv)}</div>`
+    + `<div class="ln in1">${t('11.5 ประวัติพฤติกรรมเสี่ยง')}<span class="opt">${ck(eq(r.staffRisk,'มี'))} มี ระบุ</span>${fx(r.staffRiskDetail,true)}<span class="opt">${ck(eq(r.staffRisk,'ไม่มี'))} ไม่มี</span><span class="opt">${ck(eq(r.staffRisk,'ไม่ทราบ'))} ไม่ทราบ</span><span class="opt">${ck(eq(r.staffRisk,'ไม่ได้ถาม'))} ไม่ได้ถาม</span></div>`
+    + `<div class="ln">${t('12. บุคลากรได้รับการรักษาเพื่อป้องกันการติดเชื้อคือ')}</div>`
+    + `<div class="ln in1">${t('12.1 ยาที่ได้รับ')}<span class="opt">${ck(eq(r.pepRegimen,'TDF/3TC/DTG'))} TDF/3TC/DTG</span><span class="opt">${ck(eq(r.pepRegimen,'AZT/3TC/DTG'))} AZT/3TC/DTG</span><span class="opt">${ck(eq(r.pepRegimen,'อื่น ๆ'))} อื่น ๆ</span>${t('ระบุขนาดยา')}${fx(r.pepDose,true)}</div>`
+    + `<div class="ln in2">${t('วันที่เริ่มรับประทานยา วันที่')}${fx(ps.d)}${t('เดือน')}${fx(ps.m)}${t('พ.ศ')}${fx(ps.y)}${t('หลังเกิดอุบัติเหตุ')}${fx(r.pepHours)}${t('ชม.')}</div>`
+    + `<div class="ln in2">${t('ถึง วันที่')}${fx(pe.d)}${t('เดือน')}${fx(pe.m)}${t('พ.ศ')}${fx(pe.y)}</div>`
+    + `<div class="ln in1">${t('12.2 ผลการรับประทานยา')}<span class="opt">${ck(complete4)} รับประทานครบ 4 สัปดาห์</span><span class="opt">${ck(eq(r.pepOutcome,'ครบ 4 สัปดาห์ ไม่มีผลข้างเคียง'))} ไม่มีผลข้างเคียง</span><span class="opt">${ck(sideEffect)} มีผลข้างเคียง ระบุ</span>${fx(sideEffect?r.pepNote:'',true)}</div>`
+    + `<div class="ln in2">${ck(notComplete)} ${t('ไม่ครบ รับประทานได้')}${fx(notComplete?r.pepDays:'')}${t('วัน เหตุผลที่หยุดยา')}${fx(notComplete?r.pepNote:'',true)}</div>`
+    + `<div class="ln in1">${t('12.3 การรักษาอื่น ๆ ระบุ')}${fx(r.otherTreatment,true)}</div>`
+    + `<div class="ln in1">${t('12.4 ไม่ได้รับการรักษาเพื่อการป้องกัน เพราะ')}${fx(r.noTreatmentReason,true)}</div>`
+    + `<div class="ln">${t('13. ในกรณีให้ยา ผลการตรวจเลือด')}</div>`
+    + `<div class="ln in1">${t('13.1 เมื่อเริ่มได้รับยา (Day 0)')}</div>`
+    + `<div class="ln in2 sub">${t('ผล CBC')}</div>`
+    + `<div class="ln in2">${t('Hemoglobin')}${fx(r.hemoglobin)}${t('mg%')}${t('Hematocrit')}${fx(r.hematocrit)}${t('vol%')}</div>`
+    + `<div class="ln in2">${t('Red cell morphology')}${fx(r.redCellMorphology,true)}</div>`
+    + `<div class="ln in2">${t('WBC Count')}${fx(r.wbc)}${t('per cu.mm.')}</div>`
+    + `<div class="ln in2">${t('Neutrophil')}${fx(r.neutrophil)}${t('%  Lymphocyte')}${fx(r.lymphocyte)}${t('%  Monocyte')}${fx(r.monocyte)}${t('%')}</div>`
+    + `<div class="ln in2">${t('Basophil')}${fx(r.basophil)}${t('%  Eosinophil')}${fx(r.eosinophil)}${t('%  Band form')}${fx(r.bandForm)}${t('%')}</div>`
+    + `<div class="ln in2">${t('Creatinine')}${fx(r.creatinine)}${t('mg/dl (0.5–1.2)')}</div>`
+    + `<div class="ln in2 sub">${t('Liver function test')}</div>`
+    + `<div class="ln in2">${t('SGPT (ALT)')}${fx(r.sgpt)}${t('U/L (0–41)')}${t('SGOT (AST)')}${fx(r.sgot)}${t('U/L (0–38)')}</div>`
+    + `<div class="ln">${t('14. ผลการตรวจเลือดบุคลากร ในเดือนที่ 1 หลังเกิดอุบัติเหตุ วันที่')}${fx(f1.d)}${t('เดือน')}${fx(f1.m)}${t('พ.ศ')}${fx(f1.y)}</div>`
+    + `<div class="labs">${labRow('14.1','Anti HIV',r.follow1HIV)}${labRow('14.2','Anti HCV',r.follow1HCV)}</div>`
+    + `<div class="ln">${t('15. ผลการตรวจเลือดบุคลากร ในเดือนที่ 3 หลังเกิดอุบัติเหตุ วันที่')}${fx(f3.d)}${t('เดือน')}${fx(f3.m)}${t('พ.ศ')}${fx(f3.y)}</div>`
+    + `<div class="labs">${labRow('15.1','Anti HIV',r.follow3HIV)}</div>`
+    + `<div class="ln">${t('16. ผลการตรวจเลือดบุคลากร ในเดือนที่ 6 หลังเกิดอุบัติเหตุ วันที่')}${fx(f6.d)}${t('เดือน')}${fx(f6.m)}${t('พ.ศ')}${fx(f6.y)}</div>`
+    + `<div class="labs">${labRow('16.1','Anti HIV',r.follow6HIV)}${labRow('16.2','HBsAg',r.follow6HbsAg)}${labRow('16.3','Anti HCV',r.follow6HCV)}</div>`
+    + docFoot()
     + `</div></div>`;
 }
 let pendingSave = null;
@@ -495,7 +538,7 @@ $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
 form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDialog').showModal();};
 $('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
-$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } $('#warnDialog').close(); $('#previewBody').innerHTML=reportA4Html(pendingSave); $('#previewDialog').showModal(); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } $('#warnDialog').close(); $('#previewBody').innerHTML=reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); pendingSave=null; };
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
@@ -504,6 +547,7 @@ $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)r
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); isAdmin?openAdminEdit(r):openStaffEdit(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
-$('#printRecord').onclick=()=>window.print();
+$('#printRecord').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(r); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
+window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
 $('#exportCsv').onclick=csvExport;
