@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <header class="topbar">
@@ -83,7 +83,7 @@
         <div class="form-page" data-page="2">
           <div class="section-title"><span>03</span><div><h2>ความยินยอมและผลตรวจ Day 0</h2><p>บันทึกข้อมูลทันทีหลังเกิดอุบัติเหตุ</p></div></div>
           <div class="consent-grid" id="consents"></div>
-          <div class="grid cols-2"><label>ชื่อแพทย์ผู้ดูแล<input name="doctorName"></label><label>วันที่ให้ความยินยอม<input name="consentDate" type="date"></label></div>
+          <label class="wide">วันที่ให้ความยินยอม<input name="consentDate" type="date"></label>
           <div class="subsection sign-block"><h3>ลงชื่อผู้ให้ความยินยอม</h3><p class="sign-hint">เซ็นชื่อในกรอบด้านล่างด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="signPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="signClear">ล้างลายเซ็น</button></div><input type="hidden" name="sign"></div>
           <aside class="notice"><b>ควรให้ยาป้องกันเร็วที่สุด</b><span>ภายใน 1–4 ชั่วโมง และไม่ควรเกิน 48–72 ชั่วโมงหลังเกิดเหตุ</span></aside>
         </div>
@@ -99,6 +99,7 @@
           <div class="section-title"><span>05</span><div><h2>ติดตามผลเลือด</h2><p>เดือนที่ 1, 3 และ 6 หลังเกิดอุบัติเหตุ</p></div></div>
           <div id="followups"></div>
           <label>หมายเหตุเพิ่มเติม<textarea name="notes" rows="4"></textarea></label>
+          <label class="wide">ชื่อแพทย์ผู้ดูแล<input name="doctorName"></label>
           <div class="review-card"><span>พร้อมบันทึก</span><h3>ตรวจสอบข้อมูลก่อนยืนยัน</h3><p>ข้อมูลจะถูกจัดเก็บเฉพาะในเบราว์เซอร์เครื่องนี้ โปรดสำรองเป็น JSON เป็นประจำ</p></div>
         </div>
 
@@ -113,6 +114,6 @@
   <dialog id="warnDialog" class="warn-dialog"><div class="warn-box"><div class="warn-ico">⚠️</div><h3>ตรวจสอบข้อมูลก่อนบันทึก</h3><p>โปรดตรวจสอบข้อมูลให้ถูกต้องครบถ้วน เมื่อกด “ตกลง” ระบบจะแสดงตัวอย่างเอกสารเพื่อให้ตรวจทานก่อนยืนยันการบันทึก</p><div class="warn-actions"><button type="button" class="btn ghost dark" id="warnCancel">ยกเลิก</button><button type="button" class="btn primary" id="warnOk">ตกลง</button></div></div></dialog>
   <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody" class="a4-page"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
   <div id="printArea" aria-hidden="true"></div>
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
