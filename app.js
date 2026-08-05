@@ -114,6 +114,8 @@ function buildDynamicFields() {
   $('#followups').innerHTML = groups.map(g => `<section class="followup"><h3>เดือนที่ ${g.m} หลังเกิดอุบัติเหตุ</h3><div class="grid cols-2"><label>วันที่ตรวจ<input type="date" name="follow${g.m}Date"></label><label>เหตุผลที่ไม่ได้ตรวจ<input name="follow${g.m}Reason"></label></div><div class="lab-grid">${g.labs.map(([k,l])=>labItem(`follow${g.m}${k}`,l)).join('')}</div></section>`).join('');
 }
 // ---- Source patient (repeatable) ----
+// Handled by the repeatable patient cards — must NOT be auto-generated from the "fields" sheet tab
+const SOURCE_KEYS = new Set(['sourceName','sourceHn','sourceHiv','sourceHbsAg','sourceHcv','sourceRisk','sourceRiskDetail']);
 function srcSeg(key, i, val){ const o=fieldOptions(key)||OPTIONS.testResult; return `<div class="segmented">${o.map(x=>`<label><input type="radio" name="sp_${key}_${i}" value="${esc(x)}"${x===val?' checked':''}><span>${esc(x)}</span></label>`).join('')}</div>`; }
 function patientCard(p, i, total){ const risk=fieldOptions('sourceRisk')||OPTIONS.riskHistory; return `<div class="patient-card" data-idx="${i}"><div class="patient-head"><b>ผู้ป่วย/ผู้รับบริการ คนที่ ${i+1}</b><button type="button" class="btn ghost dark sp-remove"${total>1?'':' style="display:none"'}>ลบ</button></div><div class="grid cols-2"><label>ชื่อผู้ป่วย<input data-sp="name" value="${esc(p.name||'')}"></label><label>HN ผู้ป่วย<input data-sp="hn" value="${esc(p.hn||'')}"></label></div><div class="lab-grid"><div class="lab-item"><span>${esc(labLabel('sourceHiv','Anti HIV'))}</span>${srcSeg('sourceHiv',i,p.hiv)}</div><div class="lab-item"><span>${esc(labLabel('sourceHbsAg','HBs Ag'))}</span>${srcSeg('sourceHbsAg',i,p.hbsAg)}</div><div class="lab-item"><span>${esc(labLabel('sourceHcv','Anti HCV'))}</span>${srcSeg('sourceHcv',i,p.hcv)}</div></div><div class="grid cols-2"><label>ประวัติพฤติกรรมเสี่ยง<select data-sp="risk"><option value="">เลือก</option>${risk.map(x=>`<option${x===p.risk?' selected':''}>${esc(x)}</option>`).join('')}</select></label><label>รายละเอียดความเสี่ยง<input data-sp="riskDetail" value="${esc(p.riskDetail||'')}"></label></div></div>`; }
 function renderSourcePatients(list){ const box=$('#sourcePatients'); if(!box)return; const arr=(list&&list.length)?list:[{}]; box.innerHTML=arr.map((p,i)=>patientCard(p,i,arr.length)).join(''); }
@@ -233,7 +235,7 @@ function referenceElementFor(f) {
 function addDynamicFields() {
   $$('.dyn-extra').forEach(n => n.remove());
   const news = Object.entries(FIELD_CFG)
-    .filter(([k, c]) => c.type !== 'section' && !form.elements[k])
+    .filter(([k, c]) => c.type !== 'section' && !SOURCE_KEYS.has(k) && !form.elements[k])
     .map(([k, c]) => ({ key: k, ...c }))
     .sort((a, b) => (a.order || 0) - (b.order || 0));
   news.forEach(f => {
