@@ -344,7 +344,7 @@ function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id
 const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4], ICN_PAGES=[3];
 const PAGES_BY_MODE={staff:STAFF_PAGES,admin:ADMIN_PAGES,icn:ICN_PAGES};
 let formMode='staff';
-function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); const eyebrow={admin:'ส่วนแอดมิน • ขั้นตอน 4-5',icn:'ICN / เวรตรวจการ • ส่วนที่ 4'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'การรักษาและติดตามผล (แอดมิน)',icn:'การรักษาเพื่อป้องกัน (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
+function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#viewPrevDoc').classList.toggle('hidden',mode!=='icn'); const eyebrow={admin:'ส่วนแอดมิน • ขั้นตอน 4-5',icn:'ICN / เวรตรวจการ • ส่วนที่ 4'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'การรักษาและติดตามผล (แอดมิน)',icn:'การรักษาเพื่อป้องกัน (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
 function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); }
 let MULTI_FIELDS = new Set(['exposureType', 'bodySite']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); out.sourcePatients=collectSourcePatients(); const p0=out.sourcePatients[0]||{}; out.sourceName=p0.name||''; out.sourceHn=p0.hn||''; out.sourceHiv=p0.hiv||''; out.sourceHbsAg=p0.hbsAg||''; out.sourceHcv=p0.hcv||''; out.sourceRisk=p0.risk||''; out.sourceRiskDetail=p0.riskDetail||''; return out; }
@@ -574,9 +574,12 @@ $('#sourcePatients').onclick=e=>{ const btn=e.target.closest('.sp-remove'); if(!
 form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDialog').showModal();};
 $('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
 function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp.clientWidth-20; const scale=Math.min(1, avail/794); vp.querySelectorAll('.a4-page').forEach(pg=>{ pg.style.zoom=scale; }); }
-$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } $('#warnDialog').close(); $('#previewBody').innerHTML=reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+let previewRef=false; // true = read-only reference view (ICN viewing previous sections), no save
+function setPreviewMode(ref){ previewRef=ref; $('#previewConfirm').classList.toggle('hidden',ref); $('#previewEdit').textContent=ref?'ปิด':'← แก้ไข'; }
+$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode(false); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+$('#viewPrevDoc').onclick=()=>{ setPreviewMode(true); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
-$('#previewEdit').onclick=()=>{ $('#previewDialog').close(); pendingSave=null; };
+$('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(!previewRef) pendingSave=null; };
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
