@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
   <header class="topbar">
@@ -21,6 +21,7 @@
       <div class="hero"><div><span class="eyebrow">INFECTION CONTROL</span><h1>หน้าหลัก<br><em>เลือกเมนู</em></h1><p>ระบบบันทึกและติดตามอุบัติเหตุจากการให้บริการทางการแพทย์และสาธารณสุข ตามแบบฟอร์ม IC 1 Version 2.0</p></div><div class="hero-art"><span>Safety<br>first.</span></div></div>
       <div class="menu-grid">
         <button type="button" class="menu-card feature" data-go="new"><span class="menu-icon">+</span><b>บันทึกเหตุการณ์</b><small>สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว</small><span class="menu-arrow">เริ่มบันทึก →</span></button>
+        <button type="button" class="menu-card" data-go="icn"><span class="menu-icon">✚</span><b>ICN / เวรตรวจการ</b><small>เลือกรายการเพื่อบันทึกความยินยอมและผลตรวจ Day 0 (ส่วนที่ 3)</small><span class="menu-arrow">เข้าโหมด ICN →</span></button>
         <button type="button" class="menu-card" data-go="records"><span class="menu-icon">▤</span><b>ทะเบียนอุบัติเหตุ</b><small>ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด</small><span class="menu-arrow">เปิดทะเบียน →</span></button>
         <button type="button" class="menu-card" data-go="admin"><span class="menu-icon">⚙</span><b>ส่วนแอดมิน</b><small>บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON</small><span class="menu-arrow">เข้าส่วนแอดมิน →</span></button>
       </div>
@@ -116,6 +117,6 @@
   <dialog id="warnDialog" class="warn-dialog"><div class="warn-box"><div class="warn-ico">⚠️</div><h3>ตรวจสอบข้อมูลก่อนบันทึก</h3><p>โปรดตรวจสอบข้อมูลให้ถูกต้องครบถ้วน เมื่อกด “ตกลง” ระบบจะแสดงตัวอย่างเอกสารเพื่อให้ตรวจทานก่อนยืนยันการบันทึก</p><div class="warn-actions"><button type="button" class="btn ghost dark" id="warnCancel">ยกเลิก</button><button type="button" class="btn primary" id="warnOk">ตกลง</button></div></div></dialog>
   <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody" class="a4-page"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
   <div id="printArea" aria-hidden="true"></div>
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
