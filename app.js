@@ -341,9 +341,10 @@ function renderDashboard(query='') {
   $('#emptyState').classList.toggle('show',filtered.length===0);
 }
 function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===name)); window.scrollTo({top:0}); }
-const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4];
+const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4], ICN_PAGES=[2];
+const PAGES_BY_MODE={staff:STAFF_PAGES,admin:ADMIN_PAGES,icn:ICN_PAGES};
 let formMode='staff';
-function applyMode(mode){ formMode=mode; const pages=mode==='admin'?ADMIN_PAGES:STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#formEyebrow').textContent=mode==='admin'?'ส่วนแอดมิน • ขั้นตอน 4-5':'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; $('#stepLabel').textContent=mode==='admin'?'การรักษาและติดตามผล (แอดมิน)':'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; window.scrollTo({top:0}); }
+function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); const eyebrow={admin:'ส่วนแอดมิน • ขั้นตอน 4-5',icn:'ICN / เวรตรวจการ • ส่วนที่ 3'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'การรักษาและติดตามผล (แอดมิน)',icn:'ความยินยอมและผลตรวจ Day 0 (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
 function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); }
 let MULTI_FIELDS = new Set(['exposureType', 'bodySite']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); out.sourcePatients=collectSourcePatients(); const p0=out.sourcePatients[0]||{}; out.sourceName=p0.name||''; out.sourceHn=p0.hn||''; out.sourceHiv=p0.hiv||''; out.sourceHbsAg=p0.hbsAg||''; out.sourceHcv=p0.hcv||''; out.sourceRisk=p0.risk||''; out.sourceRiskDetail=p0.riskDetail||''; return out; }
@@ -502,14 +503,21 @@ function csvExport(){ const items=records(); if(!items.length)return toast('ย�
 buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
-let isAdmin=false;           // dashboard viewing mode
+let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
-function openDashboard(admin){ isAdmin=admin; $('#adminBar').classList.toggle('hidden',!admin); $('#adminHint').classList.toggle('hidden',!admin); $('#dashEyebrow').textContent=admin?'ADMIN':'RECORDS'; $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':'ทะเบียนอุบัติเหตุ'; showView('dashboard'); renderDashboard($('#search').value); }
+function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn';
+  $('#adminBar').classList.toggle('hidden',!admin);
+  $('#adminHint').classList.toggle('hidden',dashMode==='records');
+  $('#adminHint').innerHTML = admin?'<b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span>':(icn?'<b>โหมด ICN / เวรตรวจการ</b><span>เลือกรายการด้านล่างเพื่อบันทึกความยินยอมและผลตรวจ Day 0 (ส่วนที่ 3)</span>':'');
+  $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':'RECORDS');
+  $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — ความยินยอมและผลตรวจ Day 0':'ทะเบียนอุบัติเหตุ');
+  showView('dashboard'); renderDashboard($('#search').value); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='บันทึกการรักษาและติดตามผล'; showView('editor'); }
-function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn==='admin'); }
+function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='ความยินยอม / ผลตรวจ Day 0'; showView('editor'); initSignPad(); }
+function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
 // ---- DEMO data filler (temporary — remove together with the #fillDemo button) ----
 function drawDemoSignature(){
   const c=signCanvas(); if(!c||!c.getContext) return;
@@ -557,7 +565,7 @@ $('#fillDemo').onclick=fillDemo;
 $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
-$$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard(false);} else if(go==='admin'){openDashboard(true);}});
+$$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');}});
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
@@ -572,9 +580,9 @@ $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); pendingSave=null; }
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=isAdmin?'บันทึกการรักษา/ติดตาม':'แก้ไข';$('#detailDialog').showModal();}};
+$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':(dashMode==='icn'?'บันทึก Day 0 / ความยินยอม':'แก้ไข');$('#detailDialog').showModal();}};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
-$('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); isAdmin?openAdminEdit(r):openStaffEdit(r);}};
+$('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
 $('#printRecord').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(r); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
