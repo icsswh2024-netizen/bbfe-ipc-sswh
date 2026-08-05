@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <header class="topbar">
@@ -77,7 +77,7 @@
           </div></fieldset>
           <div class="grid cols-2"><label>ชนิดของแหลมคม<select name="sharpType"><option value="">ไม่เกี่ยวข้อง</option><option>มีด</option><option>แก้ว</option><option>เข็มมีรู</option><option>เข็มแบบตัน</option><option>อื่น ๆ</option></select></label><label>รายละเอียดอื่น<input name="exposureOther"></label>
           <label class="wide">ลักษณะงานและเหตุการณ์<textarea name="incidentDescription" rows="4" required></textarea></label><fieldset class="wide" id="bodySiteField"><legend>ตำแหน่งอวัยวะ</legend><div class="choice-grid" id="bodySiteChoices"></div></fieldset><label>การปฐมพยาบาล<input name="firstAid"></label></div>
-          <div class="subsection"><h3>ข้อมูลผู้ป่วย/ผู้รับบริการ (Source patient)</h3><div class="grid cols-2"><label>ชื่อผู้ป่วย<input name="sourceName"></label><label>HN ผู้ป่วย<input name="sourceHn"></label></div><div id="sourceLabs" class="lab-grid"></div><label>ประวัติพฤติกรรมเสี่ยง<select name="sourceRisk"><option value="">เลือก</option><option>มี</option><option>ไม่มี</option><option>ไม่ทราบ</option><option>ไม่ได้ถาม</option></select></label><label>รายละเอียดความเสี่ยง<input name="sourceRiskDetail"></label></div>
+          <div class="subsection"><h3>ข้อมูลผู้ป่วย/ผู้รับบริการ (Source patient)</h3><div id="sourcePatients"></div><button type="button" class="btn ghost dark" id="addPatient">+ เพิ่มผู้ป่วย</button></div>
         </div>
 
         <div class="form-page" data-page="2">
@@ -113,6 +113,6 @@
   <dialog id="warnDialog" class="warn-dialog"><div class="warn-box"><div class="warn-ico">⚠️</div><h3>ตรวจสอบข้อมูลก่อนบันทึก</h3><p>โปรดตรวจสอบข้อมูลให้ถูกต้องครบถ้วน เมื่อกด “ตกลง” ระบบจะแสดงตัวอย่างเอกสารเพื่อให้ตรวจทานก่อนยืนยันการบันทึก</p><div class="warn-actions"><button type="button" class="btn ghost dark" id="warnCancel">ยกเลิก</button><button type="button" class="btn primary" id="warnOk">ตกลง</button></div></div></dialog>
   <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody" class="a4-page"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
   <div id="printArea" aria-hidden="true"></div>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
