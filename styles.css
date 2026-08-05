@@ -43,3 +43,9 @@ input,select,textarea,button,.search input{font-family:inherit}
 #editor .dur-note{font-size:16px}
 
 @media(max-width:900px){.a4-viewport{padding:10px}}
+
+.patient-card{border:1px solid var(--line);border-radius:12px;padding:16px 16px 4px;margin-bottom:14px;background:#fffafa}
+.patient-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.patient-head b{font-size:16px;color:var(--teal)}
+.sp-remove{padding:6px 14px;font-size:13px}
+#addPatient{margin-top:2px}
