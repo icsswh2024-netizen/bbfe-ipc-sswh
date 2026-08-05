@@ -430,8 +430,10 @@ function docPage1(r){
     + `<div class="ln in1">${ck(hasExp('อื่น'))} ${t('อื่น ๆ ระบุ')}${fx(r.exposureOther,true)}</div>`
     + `<div class="ln">${t('6. บรรยายลักษณะงานที่ปฏิบัติและอุบัติเหตุฯ ที่เกิดขึ้น')}</div>`
     + `<div class="ln in1">${fx(r.incidentDescription,true)}</div>`
-    + `<div class="ln">${t('7. ตำแหน่งอวัยวะที่เกิดอุบัติเหตุฯ')}${fx(body,true)}</div>`
-    + `<div class="ln">${t('8. การปฐมพยาบาลที่ได้รับ คือ')}${fx(r.firstAid,true)}</div>`
+    + `<div class="ln">${t('7. ตำแหน่งอวัยวะที่เกิดอุบัติเหตุฯ')}</div>`
+    + `<div class="ln in1">${fx(body,true)}</div>`
+    + `<div class="ln">${t('8. การปฐมพยาบาลที่ได้รับ คือ')}</div>`
+    + `<div class="ln in1">${fx(r.firstAid,true)}</div>`
     + `<div class="ln">${t('9. ผู้ป่วย/ผู้รับบริการมีผลการตรวจเลือดและประวัติ หลังเกิดอุบัติเหตุ')}</div>`
     + ((r.sourcePatients&&r.sourcePatients.length)?r.sourcePatients:[{name:r.sourceName,hn:r.sourceHn,hiv:r.sourceHiv,hbsAg:r.sourceHbsAg,hcv:r.sourceHcv,risk:r.sourceRisk,riskDetail:r.sourceRiskDetail}]).map((p,idx,a)=>`<div class="ln in1">${t((a.length>1?`(คนที่ ${idx+1}) `:'')+'ชื่อผู้ป่วย')}${fx(p.name)}${t('HN')}${fx(p.hn)}</div><div class="labs">${labRow('9.1','Anti HIV',p.hiv)}${labRow('9.2','HBs Ag',p.hbsAg)}${labRow('9.3','Anti HCV',p.hcv)}</div><div class="ln in1">${t('9.4 ประวัติพฤติกรรมเสี่ยง')}<span class="opt">${ck(eq(p.risk,'มี'))} มี ระบุ</span>${fx(p.riskDetail,true)}<span class="opt">${ck(eq(p.risk,'ไม่มี'))} ไม่มี</span><span class="opt">${ck(eq(p.risk,'ไม่ทราบ'))} ไม่ทราบ</span><span class="opt">${ck(eq(p.risk,'ไม่ได้ถาม'))} ไม่ได้ถาม</span></div>`).join('')
     + `<div class="cst">`
