@@ -415,7 +415,8 @@ function docPage1(r){
     + `<div class="ln">${t('1. ชื่อหน่วยงาน')}${fx(r.department,true)}${t('โรงพยาบาลศรีสังวรสุโขทัย')}</div>`
     + `<div class="ln">${t('2. ชื่อบุคลากร')}${fx(r.staffName,true)}${t('นามสกุล')}${fx(r.staffName2,true)}</div>`
     + `<div class="ln in1">${t('Soundex code')}${fx(r.soundex)}${t('HN')}${fx(r.staffHn,true)}</div>`
-    + `<div class="ln in1">${t('อายุ')}${fx(r.age)}${t('ปี  เพศ')}${fx(r.gender)}${t('ระยะเวลาปฏิบัติงาน')}${fx(r.workYears)}${t('ปี')}${fx(r.workMonths)}${t('เดือน  เบอร์โทรศัพท์')}${fx(r.phone,true)}</div>`
+    + `<div class="ln in1">${t('อายุ')}${fx(r.age)}${t('ปี  เพศ')}${fx(r.gender)}${t('ระยะเวลาปฏิบัติงาน')}${fx(r.workYears)}${t('ปี')}${fx(r.workMonths)}${t('เดือน')}</div>`
+    + `<div class="ln in1">${t('เบอร์โทรศัพท์')}${fx(r.phone)}${t('ID Line')}${fx(r.line,true)}</div>`
     + `<div class="ln">${t('3. ประเภทบุคลากร')}</div>`
     + `<div class="ln in1 nowrap">${stdTypes.map(([ty])=>`<span class="opt">${ck(!!typeMatch&&typeMatch[0]===ty)} ${ty}</span>`).join('')}</div>`
     + `<div class="ln in1">${ck(!typeMatch&&has(r.staffType))} ${t('อื่น ๆ (ระบุ)')}${fx(!typeMatch?r.staffType:'',true)}</div>`
@@ -427,7 +428,8 @@ function docPage1(r){
     + `<div class="ln in1">${ck(hasExp('ผิวหนัง'))} ${t('ผิวหนังที่มีบาดแผล สัมผัสถูกเลือดหรือสารคัดหลั่งจากผู้ป่วย')}</div>`
     + `<div class="ln in1">${ck(hasExp('เยื่อบุ')||hasExp('เนื้อเยื่อ'))} ${t('เยื่อบุตา เนื้อเยื่ออ่อน สัมผัสถูกเลือดหรือสารคัดหลั่งจากผู้ป่วย')}</div>`
     + `<div class="ln in1">${ck(hasExp('อื่น'))} ${t('อื่น ๆ ระบุ')}${fx(r.exposureOther,true)}</div>`
-    + `<div class="ln">${t('6. บรรยายลักษณะงานที่ปฏิบัติและอุบัติเหตุฯ ที่เกิดขึ้น')}${fx(r.incidentDescription,true)}</div>`
+    + `<div class="ln">${t('6. บรรยายลักษณะงานที่ปฏิบัติและอุบัติเหตุฯ ที่เกิดขึ้น')}</div>`
+    + `<div class="ln in1">${fx(r.incidentDescription,true)}</div>`
     + `<div class="ln">${t('7. ตำแหน่งอวัยวะที่เกิดอุบัติเหตุฯ')}${fx(body,true)}</div>`
     + `<div class="ln">${t('8. การปฐมพยาบาลที่ได้รับ คือ')}${fx(r.firstAid,true)}</div>`
     + `<div class="ln">${t('9. ผู้ป่วย/ผู้รับบริการมีผลการตรวจเลือดและประวัติ หลังเกิดอุบัติเหตุ')}</div>`
