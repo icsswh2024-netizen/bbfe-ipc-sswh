@@ -341,10 +341,10 @@ function renderDashboard(query='') {
   $('#emptyState').classList.toggle('show',filtered.length===0);
 }
 function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===name)); window.scrollTo({top:0}); }
-const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4], ICN_PAGES=[2];
+const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4], ICN_PAGES=[3];
 const PAGES_BY_MODE={staff:STAFF_PAGES,admin:ADMIN_PAGES,icn:ICN_PAGES};
 let formMode='staff';
-function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); const eyebrow={admin:'ส่วนแอดมิน • ขั้นตอน 4-5',icn:'ICN / เวรตรวจการ • ส่วนที่ 3'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'การรักษาและติดตามผล (แอดมิน)',icn:'ความยินยอมและผลตรวจ Day 0 (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
+function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); const eyebrow={admin:'ส่วนแอดมิน • ขั้นตอน 4-5',icn:'ICN / เวรตรวจการ • ส่วนที่ 4'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'การรักษาและติดตามผล (แอดมิน)',icn:'การรักษาเพื่อป้องกัน (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
 function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); }
 let MULTI_FIELDS = new Set(['exposureType', 'bodySite']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); out.sourcePatients=collectSourcePatients(); const p0=out.sourcePatients[0]||{}; out.sourceName=p0.name||''; out.sourceHn=p0.hn||''; out.sourceHiv=p0.hiv||''; out.sourceHbsAg=p0.hbsAg||''; out.sourceHcv=p0.hcv||''; out.sourceRisk=p0.risk||''; out.sourceRiskDetail=p0.riskDetail||''; return out; }
@@ -509,14 +509,14 @@ function goHome(){ showView('home'); }
 function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn';
   $('#adminBar').classList.toggle('hidden',!admin);
   $('#adminHint').classList.toggle('hidden',dashMode==='records');
-  $('#adminHint').innerHTML = admin?'<b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span>':(icn?'<b>โหมด ICN / เวรตรวจการ</b><span>เลือกรายการด้านล่างเพื่อบันทึกความยินยอมและผลตรวจ Day 0 (ส่วนที่ 3)</span>':'');
+  $('#adminHint').innerHTML = admin?'<b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span>':(icn?'<b>โหมด ICN / เวรตรวจการ</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)</span>':'');
   $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':'RECORDS');
-  $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — ความยินยอมและผลตรวจ Day 0':'ทะเบียนอุบัติเหตุ');
+  $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':'ทะเบียนอุบัติเหตุ');
   showView('dashboard'); renderDashboard($('#search').value); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='บันทึกการรักษาและติดตามผล'; showView('editor'); }
-function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='ความยินยอม / ผลตรวจ Day 0'; showView('editor'); initSignPad(); }
+function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
 function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
 // ---- DEMO data filler (temporary — remove together with the #fillDemo button) ----
 function drawDemoSignature(){
@@ -580,7 +580,7 @@ $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); pendingSave=null; }
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':(dashMode==='icn'?'บันทึก Day 0 / ความยินยอม':'แก้ไข');$('#detailDialog').showModal();}};
+$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':(dashMode==='icn'?'บันทึกการรักษาเพื่อป้องกัน':'แก้ไข');$('#detailDialog').showModal();}};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
