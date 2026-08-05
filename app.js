@@ -556,7 +556,9 @@ $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
 form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDialog').showModal();};
 $('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
-$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } $('#warnDialog').close(); $('#previewBody').innerHTML=reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp.clientWidth-20; const scale=Math.min(1, avail/794); vp.querySelectorAll('.a4-page').forEach(pg=>{ pg.style.zoom=scale; }); }
+$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } $('#warnDialog').close(); $('#previewBody').innerHTML=reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); pendingSave=null; };
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
