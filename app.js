@@ -395,6 +395,19 @@ const rOpt = (val,o) => `<span class="opt">${rCk(rEq(val,o))} ${o}</span>`;
 const rLabRow = (no,label,val) => `<div class="lrow"><span class="llbl">${no} ${label}</span>${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>rOpt(val,o)).join('')}</div>`;
 const cbcCell = (label,val,unit,cls='') => `<div class="cbc-cell ${cls}"><span class="cl">${label}</span>${rFx(val)}<span class="cu">${unit}</span></div>`;
 const rDparts = v => { if(!rHas(v)) return {d:'',m:'',y:''}; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return {d:'',m:'',y:''}; return {d:d.getDate(), m:THAI_MONTHS[d.getMonth()], y:d.getFullYear()+543}; };
+// Keys already placed by hand in the official Form IC 1 layout. Any sheet key NOT here is a
+// field the user added later — it is auto-appended to the preview so nothing gets lost (realtime).
+const DOC_KEYS = new Set(['department','workGroup','staffName','staffName2','soundex','staffHn','phone','line','age','gender','workYears','workMonths','staffType','staffTypeOther','incidentDate','incidentTime','location','exposureType','sharpType','exposureOther','incidentDescription','bodySite','fingerSite','firstAid','sourceName','sourceHn','sourceHiv','sourceHbsAg','sourceHcv','sourceRisk','sourceRiskDetail','understandsTesting','consentBloodTest','consentHivPep','consentHbvPep','staffRisk','staffRiskDetail','consentDate','sign','hn','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepDose','pepStart','pepHours','pepEnd','pepOutcome','pepDays','pepNote','otherTreatment','noTreatmentReason','hemoglobin','hematocrit','redCellMorphology','plateletCount','wbc','neutrophil','lymphocyte','monocyte','basophil','eosinophil','bandForm','creatinine','sgpt','sgot','follow1Date','follow1Reason','follow1HIV','follow1HCV','follow3Date','follow3Reason','follow3HIV','follow6Date','follow6Reason','follow6HIV','follow6HbsAg','follow6HCV','notes','doctorName']);
+function extraFieldsBlock(r){
+  const rows = Object.entries(FIELD_CFG||{})
+    .filter(([k,c]) => c && c.type!=='section' && !DOC_KEYS.has(k) && !SOURCE_KEYS.has(k) && !/Other$/.test(k))
+    .map(([k,c]) => ({ key:k, label:c.label||k, section:c.section||'', order:parseFloat(c.order)||0 }))
+    .filter(f => { const v=r[f.key]; return rHas(v) && !(Array.isArray(v)&&v.length===0); })
+    .sort((a,b) => String(a.section).localeCompare(String(b.section)) || a.order-b.order);
+  if(!rows.length) return '';
+  return `<div class="ln sub" style="margin-top:6px">${rT('ข้อมูลเพิ่มเติม')}</div>`
+    + rows.map(f => { const v=r[f.key]; return `<div class="ln in1">${rT(f.label)}${rFx(Array.isArray(v)?v.join(', '):v,true)}</div>`; }).join('');
+}
 // Official document uses the committed same-origin logo assets so both A4 pages render reliably
 function docHead(sub){ return `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="assets/logo-sswh.png" alt="" loading="eager"></div><h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
 function docFoot(){ return `<div class="doc-logo-bottom"><img src="assets/logo-ic.png" alt="" loading="eager"><div class="ic-caption">กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ</div></div><div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`; }
@@ -407,6 +420,7 @@ function docPage1(r){
   const exposure = Array.isArray(r.exposureType) ? r.exposureType : (r.exposureType?[r.exposureType]:[]);
   const hasExp = s => exposure.some(e => String(e).includes(s));
   const body = Array.isArray(r.bodySite) ? r.bodySite.join(', ') : (r.bodySite||'');
+  const finger = Array.isArray(r.fingerSite) ? r.fingerSite.join(', ') : (r.fingerSite||'');
   const sharp = r.sharpType||'';
   const inc = rDparts(r.incidentDate), cd = rDparts(r.consentDate);
   const fullName = ((r.staffName||'')+' '+(r.staffName2||'')).trim();
@@ -436,6 +450,7 @@ function docPage1(r){
     + `<div class="ln in1">${fx(r.incidentDescription,true)}</div>`
     + `<div class="ln">${t('7. ตำแหน่งอวัยวะที่เกิดอุบัติเหตุฯ')}</div>`
     + `<div class="ln in1">${fx(body,true)}</div>`
+    + (rHas(finger) ? `<div class="ln in1">${t('ตำแหน่งนิ้ว')}${fx(finger,true)}</div>` : '')
     + `<div class="ln">${t('8. การปฐมพยาบาลที่ได้รับ คือ')}</div>`
     + `<div class="ln in1">${fx(r.firstAid,true)}</div>`
     + `<div class="ln">${t('9. ผู้ป่วย/ผู้รับบริการมีผลการตรวจเลือดและประวัติ หลังเกิดอุบัติเหตุ')}</div>`
@@ -479,7 +494,7 @@ function docPage2(r){
       + cbcCell('Hemoglobin',r.hemoglobin,'mg%') + cbcCell('Hematocrit',r.hematocrit,'vol%') + cbcCell('WBC Count',r.wbc,'/cu.mm.')
       + cbcCell('Neutrophil',r.neutrophil,'%') + cbcCell('Lymphocyte',r.lymphocyte,'%') + cbcCell('Monocyte',r.monocyte,'%')
       + cbcCell('Basophil',r.basophil,'%') + cbcCell('Eosinophil',r.eosinophil,'%') + cbcCell('Band form',r.bandForm,'%')
-      + cbcCell('Red cell morphology',r.redCellMorphology,'','free') + cbcCell('Creatinine',r.creatinine,'mg/dl (0.5–1.2)','free span2')
+      + cbcCell('Red cell morphology',r.redCellMorphology,'','free') + cbcCell('Platelet count',r.plateletCount,'/cu.mm.') + cbcCell('Creatinine',r.creatinine,'mg/dl (0.5–1.2)','free span2')
     + `</div>`
     + `<div class="ln in2 sub">${t('Liver function test')}</div>`
     + `<div class="cbc-grid">`
@@ -491,6 +506,7 @@ function docPage2(r){
     + `<div class="labs">${labRow('15.1','Anti HIV',r.follow3HIV)}</div>`
     + `<div class="ln">${t('16. ผลการตรวจเลือดบุคลากร ในเดือนที่ 6 หลังเกิดอุบัติเหตุ วันที่')}${fx(f6.d)}${t('เดือน')}${fx(f6.m)}${t('พ.ศ')}${fx(f6.y)}</div>`
     + `<div class="labs">${labRow('16.1','Anti HIV',r.follow6HIV)}${labRow('16.2','HBsAg',r.follow6HbsAg)}${labRow('16.3','Anti HCV',r.follow6HCV)}</div>`
+    + extraFieldsBlock(r)
     + docFoot()
     + `</div></div>`;
 }

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
   <header class="topbar">
@@ -62,7 +62,7 @@
             <label>อายุ (ปี)<input name="age" type="number" min="15" max="100"></label><label>เพศ<select name="gender"><option value="">เลือก</option><option>หญิง</option><option>ชาย</option><option>ไม่ระบุ</option></select></label>
             <label class="wide">Soundex code<input name="soundex" readonly placeholder="สร้างอัตโนมัติจากชื่อ-นามสกุล"></label>
             <div class="wide duration-field"><span class="dur-label">ระยะเวลาปฏิบัติงาน</span><div class="dur-inputs"><input name="workYears" type="number" min="0" placeholder="0"><span>ปี</span><input name="workMonths" type="number" min="0" max="11" placeholder="0"><span>เดือน</span></div><small class="dur-note" id="durNote"></small></div>
-            <label>ตำแหน่ง<select name="staffType"></select></label><label>ระบุตำแหน่งอื่น<input name="staffTypeOther"></label>
+            <label class="wide">ตำแหน่ง<select name="staffType"></select></label>
             <label>วันที่เกิดเหตุ<input name="incidentDate" type="date" required></label><label>เวลา<input name="incidentTime" type="time" required></label>
             <label class="wide">สถานที่เกิดเหตุ<input name="location" required></label>
           </div>
@@ -84,6 +84,7 @@
         <div class="form-page" data-page="2">
           <div class="section-title"><span>03</span><div><h2>ความยินยอมและผลตรวจ Day 0</h2><p>บันทึกข้อมูลทันทีหลังเกิดอุบัติเหตุ</p></div></div>
           <div class="consent-grid" id="consents"></div>
+          <div class="grid cols-2"><label>ประวัติพฤติกรรมเสี่ยง (บุคลากร)<select name="staffRisk"><option value="">เลือก</option><option>มี</option><option>ไม่มี</option><option>ไม่ทราบ</option><option>ไม่ได้ถาม</option></select></label><label>รายละเอียดความเสี่ยง (บุคลากร)<input name="staffRiskDetail"></label></div>
           <label class="wide">วันที่ให้ความยินยอม<input name="consentDate" type="date"></label>
           <div class="subsection sign-block"><h3>ลงชื่อผู้ให้ความยินยอม</h3><p class="sign-hint">เซ็นชื่อในกรอบด้านล่างด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="signPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="signClear">ล้างลายเซ็น</button></div><input type="hidden" name="sign"></div>
           <aside class="notice"><b>ควรให้ยาป้องกันเร็วที่สุด</b><span>ภายใน 1–4 ชั่วโมง และไม่ควรเกิน 48–72 ชั่วโมงหลังเกิดเหตุ</span></aside>
@@ -91,7 +92,7 @@
 
         <div class="form-page" data-page="3">
           <div class="section-title"><span>04</span><div><h2>การรักษาเพื่อป้องกัน</h2><p>สูตรยา ระยะเวลา ผลข้างเคียง และผลเลือดก่อนเริ่มยา</p></div></div>
-          <div class="subsection"><h3>ผลตรวจเลือดบุคลากรทันที (Day 0)</h3><div id="staffLabs" class="lab-grid"></div><div class="grid cols-2"><label>ประวัติพฤติกรรมเสี่ยง<select name="staffRisk"><option value="">เลือก</option><option>มี</option><option>ไม่มี</option><option>ไม่ทราบ</option><option>ไม่ได้ถาม</option></select></label><label>รายละเอียดความเสี่ยง<input name="staffRiskDetail"></label></div></div>
+          <div class="subsection"><h3>ผลตรวจเลือดบุคลากรทันที (Day 0)</h3><div id="staffLabs" class="lab-grid"></div></div>
           <div class="subsection"><h3>การรักษาป้องกันด้วยยา (PEP)</h3>
             <div class="grid cols-2"><label>สูตรยา<select name="pepRegimen"><option value="">ไม่ได้รับยา</option><option>TDF/3TC/DTG</option><option>AZT/3TC/DTG</option><option>อื่น ๆ</option></select></label><label>ขนาดยา / สูตรอื่น<input name="pepDose"></label><label>วันที่เริ่มยา<input name="pepStart" type="date"></label><label>หลังเกิดเหตุ (ชั่วโมง)<input name="pepHours" type="number" min="0" step="0.5"></label><label>วันที่สิ้นสุด<input name="pepEnd" type="date"></label><label>ผลการรับประทาน<select name="pepOutcome"><option value="">เลือก</option><option>ครบ 4 สัปดาห์ ไม่มีผลข้างเคียง</option><option>ครบ 4 สัปดาห์ มีผลข้างเคียง</option><option>รับประทานไม่ครบ</option></select></label><label>จำนวนวันที่รับประทาน<input name="pepDays" type="number" min="0"></label><label class="wide">ผลข้างเคียง / เหตุผลที่หยุดยา<input name="pepNote"></label></div>
           </div>
@@ -117,6 +118,6 @@
   <dialog id="warnDialog" class="warn-dialog"><div class="warn-box"><div class="warn-ico">⚠️</div><h3>ตรวจสอบข้อมูลก่อนบันทึก</h3><p>โปรดตรวจสอบข้อมูลให้ถูกต้องครบถ้วน เมื่อกด “ตกลง” ระบบจะแสดงตัวอย่างเอกสารเพื่อให้ตรวจทานก่อนยืนยันการบันทึก</p><div class="warn-actions"><button type="button" class="btn ghost dark" id="warnCancel">ยกเลิก</button><button type="button" class="btn primary" id="warnOk">ตกลง</button></div></div></dialog>
   <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody" class="a4-page"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
   <div id="printArea" aria-hidden="true"></div>
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
