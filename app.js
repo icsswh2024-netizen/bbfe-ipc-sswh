@@ -26,7 +26,7 @@ function parseFlowRows(rows){
   const H=rows[0].map(h=>String(h).trim()), cs=H.indexOf('ส่วนที่'), cn=H.indexOf('ลำดับ'), ci=H.indexOf('รายการ'), cd=H.indexOf('คำอธิบาย');
   if(ci<0)return null;
   const out=[];
-  for(let r=1;r<rows.length;r++){ const row=rows[r]||[]; let item=(row[ci]||'').trim(); if(!item)continue; const detail=cd>=0?(row[cd]||'').trim():''; if(detail&&!item.includes('|')) item=item+'|'+detail; out.push({ section:parseFloat(row[cs])||0, order:parseFloat(row[cn])||0, item }); }
+  for(let r=1;r<rows.length;r++){ const row=rows[r]||[]; let item=(row[ci]||'').trim(); if(!item)continue; const detail=cd>=0?(row[cd]||'').trim():''; if(detail&&!item.includes('|')) item=item+'|'+detail; out.push({ section:(cs>=0?(row[cs]||'').trim():'')||'1', order:parseFloat(row[cn])||0, item }); }
   return out.length?out:null;
 }
 async function loadFlowFromSheet(){
@@ -634,9 +634,19 @@ form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.tar
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
 function icnFlowHtml(){
-  const steps=(FLOW_STEPS&&FLOW_STEPS.length?FLOW_STEPS:DEFAULT_FLOW).slice().sort((a,b)=>(a.section-b.section)||(a.order-b.order));
+  const steps=(FLOW_STEPS&&FLOW_STEPS.length?FLOW_STEPS:DEFAULT_FLOW).slice()
+    .sort((a,b)=>((parseFloat(a.section)||0)-(parseFloat(b.section)||0))||(a.order-b.order));
   const cell=(n,item)=>{ const parts=String(item).split('|'); const t=(parts[0]||'').trim(), d=(parts[1]||'').trim(); return `<div class="flow-step"><span class="n">${n}</span><div><b>${esc(t)}</b>${d?`<small>${esc(d)}</small>`:''}</div></div>`; };
-  return `<div class="flow-title">ขั้นตอนการทำงาน ICN / เวรตรวจการ</div><div class="flow">${steps.map((s,i)=>cell(i+1,s.item)).join('<span class="flow-arrow">→</span>')}</div>`;
+  const groups=[], idx={};
+  steps.forEach(s=>{ const key=String(s.section); if(!(key in idx)){ idx[key]=groups.length; groups.push({section:s.section,items:[]}); } groups[idx[key]].items.push(s); });
+  const single=groups.length<=1;
+  const body=groups.map(g=>{
+    const flow=`<div class="flow">${g.items.map((s,i)=>cell(i+1,s.item)).join('<span class="flow-arrow">→</span>')}</div>`;
+    if(single) return flow;
+    const head=/^\d+$/.test(String(g.section).trim())?`ส่วนที่ ${esc(g.section)}`:esc(g.section);
+    return `<div class="flow-group"><div class="flow-sub">${head}</div>${flow}</div>`;
+  }).join('');
+  return `<div class="flow-title">ขั้นตอนการทำงาน ICN / เวรตรวจการ</div>${body}`;
 }
 function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn';
   $('#adminBar').classList.toggle('hidden',!admin);
