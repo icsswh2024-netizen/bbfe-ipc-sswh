@@ -388,13 +388,16 @@ const THAI_MONTHS=['มกราคม','กุมภาพันธ์','มี
 const rHas = x => x!=null && x!=='';
 const rT = s => `<span class="t">${s}</span>`;
 const rFx = (v,fill) => `<span class="fx${fill?' fill':''}">${rHas(v)?esc(String(v)):''}</span>`;
+const rFxN = v => `<span class="fx num">${rHas(v)?esc(String(v)):''}</span>`;
 const rCk = on => `<span class="ck">(${on?'✓':'&nbsp;&nbsp;'})</span>`;
 const rEq = (v,o) => String(v||'').trim()===o;
 const rOpt = (val,o) => `<span class="opt">${rCk(rEq(val,o))} ${o}</span>`;
 const rLabRow = (no,label,val) => `<div class="lrow"><span class="llbl">${no} ${label}</span>${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>rOpt(val,o)).join('')}</div>`;
+const cbcCell = (label,val,unit,cls='') => `<div class="cbc-cell ${cls}"><span class="cl">${label}</span>${rFx(val)}<span class="cu">${unit}</span></div>`;
 const rDparts = v => { if(!rHas(v)) return {d:'',m:'',y:''}; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return {d:'',m:'',y:''}; return {d:d.getDate(), m:THAI_MONTHS[d.getMonth()], y:d.getFullYear()+543}; };
-function docHead(sub){ return `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="assets/logo-sswh.png" alt=""></div><h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
-function docFoot(){ return `<div class="doc-logo-bottom"><img src="assets/logo-ic.png" alt=""></div><div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`; }
+function logoSrc(name){ const img=document.querySelector(`img[data-logo="${name}"]`); const s=img&&img.getAttribute('src'); return s||`assets/logo-${name}.png`; }
+function docHead(sub){ return `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="${logoSrc('sswh')}" alt=""></div><h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
+function docFoot(){ return `<div class="doc-logo-bottom"><img src="${logoSrc('ic')}" alt=""></div><div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`; }
 // scope 'admin' -> page 2 (items 11–16); anything else -> page 1 (items 1–10)
 function reportA4Html(r, scope){ return scope==='admin' ? docPage2(r) : docPage1(r); }
 // whole continuous case (both pages) for printing
@@ -463,8 +466,8 @@ function docPage2(r){
     + `<div class="ln in1">${t('11.5 ประวัติพฤติกรรมเสี่ยง')}<span class="opt">${ck(eq(r.staffRisk,'มี'))} มี ระบุ</span>${fx(r.staffRiskDetail,true)}<span class="opt">${ck(eq(r.staffRisk,'ไม่มี'))} ไม่มี</span><span class="opt">${ck(eq(r.staffRisk,'ไม่ทราบ'))} ไม่ทราบ</span><span class="opt">${ck(eq(r.staffRisk,'ไม่ได้ถาม'))} ไม่ได้ถาม</span></div>`
     + `<div class="ln">${t('12. บุคลากรได้รับการรักษาเพื่อป้องกันการติดเชื้อคือ')}</div>`
     + `<div class="ln in1">${t('12.1 ยาที่ได้รับ')}<span class="opt">${ck(eq(r.pepRegimen,'TDF/3TC/DTG'))} TDF/3TC/DTG</span><span class="opt">${ck(eq(r.pepRegimen,'AZT/3TC/DTG'))} AZT/3TC/DTG</span><span class="opt">${ck(eq(r.pepRegimen,'อื่น ๆ'))} อื่น ๆ</span>${t('ระบุขนาดยา')}${fx(r.pepDose,true)}</div>`
-    + `<div class="ln in2">${t('วันที่เริ่มรับประทานยา วันที่')}${fx(ps.d)}${t('เดือน')}${fx(ps.m)}${t('พ.ศ')}${fx(ps.y)}${t('หลังเกิดอุบัติเหตุ')}${fx(r.pepHours)}${t('ชม.')}</div>`
-    + `<div class="ln in2">${t('ถึง วันที่')}${fx(pe.d)}${t('เดือน')}${fx(pe.m)}${t('พ.ศ')}${fx(pe.y)}</div>`
+    + `<div class="ln in2 nowrap">${t('วันที่เริ่มรับประทานยา วันที่')}${rFxN(ps.d)}${t('เดือน')}${fx(ps.m)}${t('พ.ศ')}${rFxN(ps.y)}${t('หลังเกิดอุบัติเหตุ')}${rFxN(r.pepHours)}${t('ชม.')}</div>`
+    + `<div class="ln in2 nowrap">${t('ถึง วันที่')}${rFxN(pe.d)}${t('เดือน')}${fx(pe.m)}${t('พ.ศ')}${rFxN(pe.y)}</div>`
     + `<div class="ln in1">${t('12.2 ผลการรับประทานยา')}<span class="opt">${ck(complete4)} รับประทานครบ 4 สัปดาห์</span><span class="opt">${ck(eq(r.pepOutcome,'ครบ 4 สัปดาห์ ไม่มีผลข้างเคียง'))} ไม่มีผลข้างเคียง</span><span class="opt">${ck(sideEffect)} มีผลข้างเคียง ระบุ</span>${fx(sideEffect?r.pepNote:'',true)}</div>`
     + `<div class="ln in2">${ck(notComplete)} ${t('ไม่ครบ รับประทานได้')}${fx(notComplete?r.pepDays:'')}${t('วัน เหตุผลที่หยุดยา')}${fx(notComplete?r.pepNote:'',true)}</div>`
     + `<div class="ln in1">${t('12.3 การรักษาอื่น ๆ ระบุ')}${fx(r.otherTreatment,true)}</div>`
@@ -472,14 +475,18 @@ function docPage2(r){
     + `<div class="ln">${t('13. ในกรณีให้ยา ผลการตรวจเลือด')}</div>`
     + `<div class="ln in1">${t('13.1 เมื่อเริ่มได้รับยา (Day 0)')}</div>`
     + `<div class="ln in2 sub">${t('ผล CBC')}</div>`
-    + `<div class="ln in2">${t('Hemoglobin')}${fx(r.hemoglobin)}${t('mg%')}${t('Hematocrit')}${fx(r.hematocrit)}${t('vol%')}</div>`
-    + `<div class="ln in2">${t('Red cell morphology')}${fx(r.redCellMorphology,true)}</div>`
-    + `<div class="ln in2">${t('WBC Count')}${fx(r.wbc)}${t('per cu.mm.')}</div>`
-    + `<div class="ln in2">${t('Neutrophil')}${fx(r.neutrophil)}${t('%  Lymphocyte')}${fx(r.lymphocyte)}${t('%  Monocyte')}${fx(r.monocyte)}${t('%')}</div>`
-    + `<div class="ln in2">${t('Basophil')}${fx(r.basophil)}${t('%  Eosinophil')}${fx(r.eosinophil)}${t('%  Band form')}${fx(r.bandForm)}${t('%')}</div>`
-    + `<div class="ln in2">${t('Creatinine')}${fx(r.creatinine)}${t('mg/dl (0.5–1.2)')}</div>`
+    + `<div class="cbc-grid">`
+      + cbcCell('Hemoglobin',r.hemoglobin,'mg%') + cbcCell('Hematocrit',r.hematocrit,'vol%') + `<div class="cbc-cell"></div>`
+      + cbcCell('Red cell morphology',r.redCellMorphology,'','span3')
+      + cbcCell('WBC Count',r.wbc,'per cu.mm.','span3')
+      + cbcCell('Neutrophil',r.neutrophil,'%') + cbcCell('Lymphocyte',r.lymphocyte,'%') + cbcCell('Monocyte',r.monocyte,'%')
+      + cbcCell('Basophil',r.basophil,'%') + cbcCell('Eosinophil',r.eosinophil,'%') + cbcCell('Band form',r.bandForm,'%')
+      + cbcCell('Creatinine',r.creatinine,'mg/dl (0.5–1.2)','span3')
+    + `</div>`
     + `<div class="ln in2 sub">${t('Liver function test')}</div>`
-    + `<div class="ln in2">${t('SGPT (ALT)')}${fx(r.sgpt)}${t('U/L (0–41)')}${t('SGOT (AST)')}${fx(r.sgot)}${t('U/L (0–38)')}</div>`
+    + `<div class="cbc-grid">`
+      + cbcCell('SGPT (ALT)',r.sgpt,'U/L (0–41)') + cbcCell('SGOT (AST)',r.sgot,'U/L (0–38)') + `<div class="cbc-cell"></div>`
+    + `</div>`
     + `<div class="ln">${t('14. ผลการตรวจเลือดบุคลากร ในเดือนที่ 1 หลังเกิดอุบัติเหตุ วันที่')}${fx(f1.d)}${t('เดือน')}${fx(f1.m)}${t('พ.ศ')}${fx(f1.y)}</div>`
     + `<div class="labs">${labRow('14.1','Anti HIV',r.follow1HIV)}${labRow('14.2','Anti HCV',r.follow1HCV)}</div>`
     + `<div class="ln">${t('15. ผลการตรวจเลือดบุคลากร ในเดือนที่ 3 หลังเกิดอุบัติเหตุ วันที่')}${fx(f3.d)}${t('เดือน')}${fx(f3.m)}${t('พ.ศ')}${fx(f3.y)}</div>`
