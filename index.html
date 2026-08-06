@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=31">
+  <link rel="stylesheet" href="styles.css?v=32">
 </head>
 <body>
   <header class="topbar">
@@ -109,8 +109,7 @@
           <div class="review-card"><span>พร้อมบันทึก</span><h3>ตรวจสอบข้อมูลก่อนยืนยัน</h3><p>ข้อมูลจะถูกจัดเก็บเฉพาะในเบราว์เซอร์เครื่องนี้ โปรดสำรองเป็น JSON เป็นประจำ</p></div>
         </div>
 
-        <!-- DEMO: ปุ่มข้อมูลจำลองสำหรับทดสอบ — ลบออกภายหลัง (id=fillDemo, data-demo) -->
-        <div class="form-actions"><button type="button" class="btn ghost dark demo-btn" id="fillDemo" data-demo title="กรอกข้อมูลตัวอย่างเพื่อทดสอบ">🧪 ใส่ข้อมูลจำลอง</button><button type="button" class="btn ghost dark hidden" id="viewPrevDoc">📄 ดูเอกสารส่วนก่อนหน้า</button><button type="button" class="btn ghost dark" id="prevBtn">ย้อนกลับ</button><span id="stepLabel">ขั้นตอน 1 จาก 5</span><button type="button" class="btn primary" id="nextBtn">ถัดไป</button><button type="submit" class="btn primary hidden" id="saveBtn">บันทึกข้อมูล</button></div>
+        <div class="form-actions"><button type="button" class="btn ghost dark hidden" id="viewPrevDoc">📄 ดูเอกสารส่วนก่อนหน้า</button><button type="button" class="btn ghost dark" id="prevBtn">ย้อนกลับ</button><span id="stepLabel">ขั้นตอน 1 จาก 5</span><button type="button" class="btn primary" id="nextBtn">ถัดไป</button><button type="submit" class="btn primary hidden" id="saveBtn">บันทึกข้อมูล</button></div>
       </form>
     </section>
   </main>
@@ -120,6 +119,6 @@
   <dialog id="warnDialog" class="warn-dialog"><div class="warn-box"><div class="warn-ico">⚠️</div><h3>ตรวจสอบข้อมูลก่อนบันทึก</h3><p>โปรดตรวจสอบข้อมูลให้ถูกต้องครบถ้วน เมื่อกด “ตกลง” ระบบจะแสดงตัวอย่างเอกสารเพื่อให้ตรวจทานก่อนยืนยันการบันทึก</p><div class="warn-actions"><button type="button" class="btn ghost dark" id="warnCancel">ยกเลิก</button><button type="button" class="btn primary" id="warnOk">ตกลง</button></div></div></dialog>
   <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody" class="a4-page"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn ghost dark hidden" id="previewPrint">🖨 พิมพ์ / บันทึก PDF</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
   <div id="printArea" aria-hidden="true"></div>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>
