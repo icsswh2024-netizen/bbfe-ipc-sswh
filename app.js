@@ -46,7 +46,9 @@ function soundexCode(first, last) {
 }
 function updateSoundex() {
   const s = form.elements.soundex; if (!s) return;
-  s.value = soundexCode(form.elements.staffName ? form.elements.staffName.value : '', form.elements.staffName2 ? form.elements.staffName2.value : '');
+  const code = soundexCode(form.elements.staffName ? form.elements.staffName.value : '', form.elements.staffName2 ? form.elements.staffName2.value : '');
+  s.value = code;
+  const hn = form.elements.hn; if (hn && (!hn.value || hn.value === hn.dataset.auto)) { hn.value = code; hn.dataset.auto = code; }
 }
 async function loadSoundexFromSheet() {
   try {
@@ -402,6 +404,16 @@ function setupSignPad(){
   let rt; window.addEventListener('resize', ()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if($('#editor').classList.contains('active')&&formMode!=='admin') initSignPad(); },200); });
 }
 
+// Detail view for ICN / เวรตรวจการ — focuses on ส่วนที่ 4 (การรักษาเพื่อป้องกัน)
+function icnDetailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join('');
+  return `<span class="eyebrow">ICN / เวรตรวจการ • ส่วนที่ 4</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2>`
+    + `<div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div>`
+    + `<section class="detail-section"><h4>ข้อมูลบุคลากร</h4><div class="detail-grid">${item('HN soundex code',r.hn||r.soundex)}${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}</div></section>`
+    + `<section class="detail-section"><h4>ผลตรวจเลือดบุคลากรทันที (Day 0)</h4><div class="detail-grid">${labs(staffLabNames)}${item('ประวัติพฤติกรรมเสี่ยง',[r.staffRisk,r.staffRiskDetail].filter(Boolean).join(' — '))}</div></section>`
+    + `<section class="detail-section"><h4>การรักษาป้องกันด้วยยา (PEP)</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา / สูตรอื่น',r.pepDose)}${item('วันที่เริ่มยา',thaiDate(r.pepStart))}${item('หลังเกิดเหตุ (ชม.)',r.pepHours)}${item('วันที่สิ้นสุด',thaiDate(r.pepEnd))}${item('ผลการรับประทาน',r.pepOutcome)}${item('จำนวนวันที่รับประทาน',r.pepDays)}${item('ผลข้างเคียง / เหตุผลที่หยุดยา',r.pepNote)}</div></section>`
+    + `<section class="detail-section"><h4>การรักษาอื่น / กรณีไม่ได้รับยา</h4><div class="detail-grid">${item('การรักษาอื่น ๆ',r.otherTreatment)}${item('เหตุผลที่ไม่ได้รับการรักษา',r.noTreatmentReason)}</div></section>`
+    + `<section class="detail-section"><h4>ผล CBC และการทำงานของตับ/ไต</h4><div class="detail-grid">${baselineNames.map(([k,l])=>item(l,r[k])).join('')}</div></section>`;
+}
 function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ระยะเวลาปฏิบัติงาน',(r.workYears||r.workMonths)?`${r.workYears||0} ปี ${r.workMonths||0} เดือน`:'')}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section>${(()=>{const pl=(r.sourcePatients&&r.sourcePatients.length)?r.sourcePatients:[{name:r.sourceName,hn:r.sourceHn,hiv:r.sourceHiv,hbsAg:r.sourceHbsAg,hcv:r.sourceHcv,risk:r.sourceRisk,riskDetail:r.sourceRiskDetail}];return `<section class="detail-section"><h4>ผู้ป่วยต้นเหตุ (${pl.length})</h4>${pl.map((p,i)=>`<div class="detail-grid">${item('คนที่ '+(i+1)+' • ชื่อ/HN',[p.name,p.hn].filter(Boolean).join(' / '))}${item('Anti HIV',p.hiv)}${item('HBs Ag',p.hbsAg)}${item('Anti HCV',p.hcv)}${item('พฤติกรรมเสี่ยง',[p.risk,p.riskDetail].filter(Boolean).join(' — '))}</div>`).join('')}</section>`;})()}<section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>${r.sign?`<section class="detail-section sign-detail"><h4>ลงชื่อผู้ให้ความยินยอม</h4><img class="sign-img" src="${r.sign}" alt="ลายเซ็น">${r.consentDate?`<div class="detail-meta" style="margin-top:8px">วันที่ ${thaiDate(r.consentDate)}</div>`:''}</section>`:''}`; }
 
 // ---- Official A4 document (Form IC 1) — one continuous form: page 1 (items 1–10, staff) + page 2 (items 11–16, admin) ----
@@ -625,7 +637,7 @@ $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(!previewRef) pen
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':(dashMode==='icn'?'บันทึกการรักษาเพื่อป้องกัน':'แก้ไข');$('#detailDialog').showModal();}};
+$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=dashMode==='icn'?icnDetailHtml(r):detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':(dashMode==='icn'?'บันทึกการรักษาเพื่อป้องกัน':'แก้ไข');$('#detailDialog').showModal();}};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
