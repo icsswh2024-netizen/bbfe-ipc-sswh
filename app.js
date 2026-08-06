@@ -351,14 +351,21 @@ function isComplete(r) { return Boolean(r.follow6Date && (r.follow6HIV || r.foll
 function exposureLabel(r) { const value = Array.isArray(r.exposureType) ? r.exposureType.join(', ') : r.exposureType; return value || 'ไม่ระบุ'; }
 function toast(message) { const el=$('#toast'); el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600); }
 
+let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
+// section 4 (การรักษาเพื่อป้องกัน) not started yet -> a "new" incident awaiting ICN
+function icnPending(r){ return !(r.staffHiv||r.staffHbsAg||r.staffAntiHbs||r.staffHcv||r.pepRegimen||r.hemoglobin||r.otherTreatment||r.noTreatmentReason); }
 function renderDashboard(query='') {
-  const items = records().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
+  let items = records().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
+  if(dashMode==='icn') items = items.filter(icnPending); // ICN sees only new incidents needing section 4
   const q=query.trim().toLowerCase();
   const filtered=items.filter(r=>[r.staffName,r.staffHn,r.soundex,r.location,r.incidentDescription].join(' ').toLowerCase().includes(q));
   $('#statTotal').textContent=items.length;
   $('#statPending').textContent=items.filter(r=>!isComplete(r)).length;
   const ym=new Date().toISOString().slice(0,7); $('#statMonth').textContent=items.filter(r=>(r.createdAt||'').slice(0,7)===ym).length;
-  $('#recordRows').innerHTML=filtered.map(r=>`<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(r.staffName||'ไม่ระบุชื่อ')}</b><small>${esc(r.staffType||'')} ${r.staffHn?'• HN '+esc(r.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(r.location||'')}</small></td><td><span class="status ${isComplete(r)?'done':''}">${isComplete(r)?'ติดตามครบ':'รอติดตาม'}</span></td><td class="row-actions"><button data-view="${r.id}">ดูรายละเอียด →</button></td></tr>`).join('');
+  $('#recordRows').innerHTML=filtered.map(r=>`<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(r.staffName||'ไม่ระบุชื่อ')}</b><small>${esc(r.staffType||'')} ${r.staffHn?'• HN '+esc(r.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(r.location||'')}</small></td><td><span class="status ${isComplete(r)?'done':''}">${isComplete(r)?'ติดตามครบ':'รอติดตาม'}</span></td><td class="row-actions"><button data-view="${r.id}">${dashMode==='icn'?'กรอกส่วนที่ 4 →':'ดูรายละเอียด →'}</button></td></tr>`).join('');
+  $('#emptyState').innerHTML = dashMode==='icn'
+    ? '<b>ไม่มีรายการอุบัติเหตุรายใหม่</b><span>รายการที่กรอกส่วนที่ 4 แล้วจะถูกซ่อนจากรายการนี้</span>'
+    : '<b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span>';
   $('#emptyState').classList.toggle('show',filtered.length===0);
 }
 function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===name)); window.scrollTo({top:0}); }
@@ -555,15 +562,19 @@ function csvExport(){ const items=records(); if(!items.length)return toast('ย�
 buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
-let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
+function icnFlowHtml(){ const step=(n,t,d)=>`<div class="flow-step"><span class="n">${n}</span><div><b>${t}</b><small>${d}</small></div></div>`; return `<div class="flow-title">ขั้นตอนการทำงาน ICN / เวรตรวจการ</div><div class="flow">${step('1','เลือกรายการอุบัติเหตุรายใหม่','คลิกรายการด้านล่างเพื่อเข้าฟอร์มส่วนที่ 4 ทันที')}<span class="flow-arrow">→</span>${step('2','กรอกการรักษาเพื่อป้องกัน','ผลตรวจเลือด Day 0, การรักษา PEP และผล CBC/ตับ-ไต')}<span class="flow-arrow">→</span>${step('3','ตรวจทานและบันทึก','ดูใบรายงาน แล้วบันทึก / พิมพ์ / บันทึก PDF')}</div>`; }
 function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn';
   $('#adminBar').classList.toggle('hidden',!admin);
-  $('#adminHint').classList.toggle('hidden',dashMode==='records');
-  $('#adminHint').innerHTML = admin?'<b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span>':(icn?'<b>โหมด ICN / เวรตรวจการ</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)</span>':'');
+  const hint=$('#adminHint');
+  hint.classList.toggle('hidden',dashMode==='records');
+  hint.className = icn ? 'admin-hint icn-flow' : ('notice admin-hint'+(dashMode==='records'?' hidden':''));
+  hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span>' : (icn ? icnFlowHtml() : '');
   $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':'RECORDS');
   $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':'ทะเบียนอุบัติเหตุ');
+  $('#panelEyebrow').textContent=icn?'NEW':'RECORDS';
+  $('#panelTitle').textContent=icn?'รายการอุบัติเหตุรายใหม่':'รายการอุบัติเหตุ';
   showView('dashboard'); renderDashboard($('#search').value); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
