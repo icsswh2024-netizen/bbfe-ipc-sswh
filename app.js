@@ -626,13 +626,25 @@ $('#sourcePatients').onclick=e=>{ const btn=e.target.closest('.sp-remove'); if(!
 form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDialog').showModal();};
 $('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
 function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp.clientWidth-20; const scale=Math.min(1, avail/794); vp.querySelectorAll('.a4-page').forEach(pg=>{ pg.style.zoom=scale; }); }
-let previewRef=false; // true = read-only reference view (ICN viewing previous sections), no save
-function setPreviewMode(ref){ previewRef=ref; $('#previewConfirm').classList.toggle('hidden',ref); $('#previewEdit').textContent=ref?'ปิด':'← แก้ไข'; }
-$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode(false); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
-$('#viewPrevDoc').onclick=()=>{ setPreviewMode(true); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+// preview dialog states: 'save' (edit + confirm), 'ref' (read-only close), 'report' (edit + print/PDF + close)
+let previewState='save', reportRecord=null, reportEditFn=null;
+function setPreviewMode(state){ previewState=state; const report=state==='report', ref=state==='ref';
+  $('#previewPrint').classList.toggle('hidden',!report);
+  $('#previewConfirm').classList.toggle('hidden',ref);
+  $('#previewEdit').classList.toggle('hidden', report && !reportEditFn);
+  $('#previewEdit').textContent = report ? '✎ แก้ไขข้อมูล' : (ref ? 'ปิด' : '← แก้ไข');
+  $('#previewConfirm').textContent = report ? 'ปิด' : 'ยืนยันบันทึก';
+}
+function openReport(r, editFn){ reportRecord=r; reportEditFn=editFn||null; setPreviewMode('report'); $('#previewBody').innerHTML=fullDocHtml(r); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; }
+function printReport(){ if(!reportRecord)return; $('#printArea').innerHTML=fullDocHtml(reportRecord); $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
+$('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode('save'); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+$('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
+$('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
+$('#viewReportDetail').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; openReport(r, ()=>{ $('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r); }); };
+$('#previewPrint').onclick=()=>printReport();
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
-$('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(!previewRef) pendingSave=null; };
-$('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
+$('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='report'){ if(reportEditFn) reportEditFn(); } else if(previewState!=='ref'){ pendingSave=null; } };
+$('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':'แก้ไข';$('#detailDialog').showModal();};
