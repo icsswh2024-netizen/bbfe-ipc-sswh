@@ -164,7 +164,7 @@ function optionsFromRows(rows) {
   }
   return Object.keys(cols).length ? cols : null;
 }
-function refreshOptionUI() { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); }
+function refreshOptionUI() { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); }
 // "อื่นๆ" free-text: a select whose value — or a checkbox group whose "อื่นๆ" box —
 // is chosen reveals a companion text input ({name}Other)
 const OTHER_RE = /^อื่น\s*ๆ$/;
@@ -261,6 +261,27 @@ function applySectionTitles() {
     if (pEl && c.options && c.options.length) pEl.textContent = c.options.join(' ');
   });
 }
+// Reorder the field controls inside every grid to follow the sheet's ลำดับ (order) exactly.
+// Runs after fields are built so both static and dynamic fields end up in sheet sequence.
+function reorderFieldsBySheet() {
+  const ord = key => { const c = FIELD_CFG[key]; return (c && c.order != null) ? c.order : Infinity; };
+  $$('.form-page').forEach(page => {
+    $$('.grid', page).forEach(grid => {
+      const decorated = [...grid.children].map((el, i) => {
+        const named = el.matches('[name]') ? el : el.querySelector('[name]');
+        const key = named ? named.getAttribute('name') : null;
+        return { el, i, ord: key ? ord(key) : Infinity };
+      });
+      decorated.sort((a, b) => {
+        if (a.ord === b.ord) return a.i - b.i;
+        if (a.ord === Infinity) return 1;
+        if (b.ord === Infinity) return -1;
+        return a.ord - b.ord;
+      });
+      decorated.forEach(d => grid.appendChild(d.el));
+    });
+  });
+}
 function parseFieldsRows(rows) {
   if (!rows || rows.length < 2) return null;
   const H = rows[0].map(h => String(h).trim());
@@ -305,7 +326,7 @@ async function loadFieldsFromSheet() {
     if (!cfg) return;
     FIELD_CFG = cfg;
     localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
-    if (!$('#editor').classList.contains('active')) { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); }
+    if (!$('#editor').classList.contains('active')) { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); }
   } catch (e) { /* keep static labels / cached config */ }
 }
 async function loadOptionsFromSheet() {
@@ -521,7 +542,7 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet();
+buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
