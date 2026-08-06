@@ -665,50 +665,6 @@ function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
 function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
-// ---- DEMO data filler (temporary — remove together with the #fillDemo button) ----
-function drawDemoSignature(){
-  const c=signCanvas(); if(!c||!c.getContext) return;
-  initSignPad(); if(!signCtx) return;
-  const w=c.clientWidth||600, h=c.clientHeight||200;
-  signCtx.beginPath(); signCtx.moveTo(w*0.14,h*0.62);
-  signCtx.bezierCurveTo(w*0.26,h*0.15,w*0.34,h*0.9,w*0.46,h*0.5);
-  signCtx.bezierCurveTo(w*0.56,h*0.18,w*0.62,h*0.85,w*0.74,h*0.52);
-  signCtx.lineTo(w*0.84,h*0.4); signCtx.stroke();
-  signCtx.beginPath(); signCtx.moveTo(w*0.2,h*0.8); signCtx.lineTo(w*0.72,h*0.8); signCtx.stroke();
-  signHasInk=true; signSave();
-}
-function fillDemo(){
-  const el=n=>form.elements[n];
-  const setV=(n,v)=>{ const e=el(n); if(!e||!e.tagName)return; if(e.tagName==='SELECT'&&v&&![...e.options].some(o=>o.value===v))e.add(new Option(v,v)); e.value=v; };
-  const setRadio=(n,v)=>{ const g=el(n); if(!g)return; [...(g.length?g:[g])].forEach(x=>{ if(x.type==='radio')x.checked=(x.value===v); }); };
-  const setChecks=(n,vals)=>{ const g=el(n); if(!g)return; [...(g.length?g:[g])].forEach(x=>{ if(x.type==='checkbox')x.checked=vals.includes(x.value); }); };
-  const today=new Date().toISOString().slice(0,10);
-  const plus=d=>{ const t=new Date(); t.setDate(t.getDate()+d); return t.toISOString().slice(0,10); };
-  setV('department','ห้องผ่าตัด'); setV('workGroup','กลุ่มงานการพยาบาล'); setV('staffName','สมหญิง'); setV('staffName2','ใจดี');
-  setV('staffHn','456789'); setV('phone','081-234-5678'); setV('age','29'); setV('gender','หญิง');
-  setV('workYears','5'); setV('workMonths','3'); setV('staffType','พยาบาลวิชาชีพ');
-  setV('incidentDate',today); setV('incidentTime','14:20'); setV('location','ห้องผ่าตัดที่ 3');
-  setChecks('exposureType',['ของแหลมคม']); setV('sharpType','เข็มมีรู');
-  setV('incidentDescription','ถูกเข็มฉีดยาตำที่นิ้วหัวแม่มือขวาขณะปิดปลอกเข็มหลังทำหัตถการ');
-  setChecks('bodySite',['มือขวา']); setV('firstAid','บีบเลือดออก ล้างด้วยน้ำสะอาดและสบู่');
-  renderSourcePatients([{name:'ผู้ป่วยชาย ตัวอย่าง',hn:'778899',hiv:'บวก',hbsAg:'ลบ',hcv:'ลบ',risk:'ไม่ทราบ',riskDetail:'ไม่มีข้อมูลประวัติ'}]);
-  setRadio('understandsTesting','ใช่'); setRadio('consentBloodTest','ใช่'); setRadio('consentHivPep','ใช่'); setRadio('consentHbvPep','ใช่');
-  setV('doctorName','นพ.วิชัย รักษาดี'); setV('consentDate',today);
-  setRadio('staffHiv','ลบ'); setRadio('staffHbsAg','ลบ'); setRadio('staffAntiHbs','บวก'); setRadio('staffHcv','ลบ');
-  setV('staffRisk','ไม่มี'); setV('staffRiskDetail','-');
-  setV('pepRegimen','TDF/3TC/DTG'); setV('pepDose','1x1 หลังอาหารเช้า'); setV('pepStart',today); setV('pepHours','2');
-  setV('pepEnd',plus(28)); setV('pepOutcome','ครบ 4 สัปดาห์ ไม่มีผลข้างเคียง'); setV('pepDays','28');
-  setV('pepNote','ไม่มีผลข้างเคียง'); setV('otherTreatment','-');
-  const baseVals={hemoglobin:'12.5',hematocrit:'38',redCellMorphology:'ปกติ',plateletCount:'250000',wbc:'7500',neutrophil:'60',lymphocyte:'32',monocyte:'5',basophil:'1',eosinophil:'2',bandForm:'0',creatinine:'0.8',sgpt:'22',sgot:'25'};
-  Object.entries(baseVals).forEach(([k,v])=>setV(k,v));
-  setV('follow1Date',plus(30)); setRadio('follow1HIV','ลบ'); setRadio('follow1HCV','ลบ');
-  setV('follow3Date',plus(90)); setRadio('follow3HIV','ลบ');
-  setV('follow6Date',plus(180)); setRadio('follow6HIV','ลบ'); setRadio('follow6HbsAg','ลบ'); setRadio('follow6HCV','ลบ');
-  setV('notes','ข้อมูลจำลองสำหรับทดสอบระบบ (demo)');
-  updateAllOther(); updateSoundex(); drawDemoSignature();
-  toast('กรอกข้อมูลจำลองแล้ว — ตรวจสอบและกดบันทึกได้เลย');
-}
-$('#fillDemo').onclick=fillDemo;
 $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
