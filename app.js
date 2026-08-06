@@ -23,10 +23,10 @@ function loadCachedFlow(){ try { const v=JSON.parse(localStorage.getItem(FLOW_CA
 let FLOW_STEPS = loadCachedFlow();
 function parseFlowRows(rows){
   if(!rows||rows.length<2)return null;
-  const H=rows[0].map(h=>String(h).trim()), cs=H.indexOf('ส่วนที่'), cn=H.indexOf('ลำดับ'), ci=H.indexOf('รายการ');
+  const H=rows[0].map(h=>String(h).trim()), cs=H.indexOf('ส่วนที่'), cn=H.indexOf('ลำดับ'), ci=H.indexOf('รายการ'), cd=H.indexOf('คำอธิบาย');
   if(ci<0)return null;
   const out=[];
-  for(let r=1;r<rows.length;r++){ const row=rows[r]||[], item=(row[ci]||'').trim(); if(!item)continue; out.push({ section:parseFloat(row[cs])||0, order:parseFloat(row[cn])||0, item }); }
+  for(let r=1;r<rows.length;r++){ const row=rows[r]||[]; let item=(row[ci]||'').trim(); if(!item)continue; const detail=cd>=0?(row[cd]||'').trim():''; if(detail&&!item.includes('|')) item=item+'|'+detail; out.push({ section:parseFloat(row[cs])||0, order:parseFloat(row[cn])||0, item }); }
   return out.length?out:null;
 }
 async function loadFlowFromSheet(){
