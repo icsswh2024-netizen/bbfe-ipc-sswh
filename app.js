@@ -46,9 +46,7 @@ function soundexCode(first, last) {
 }
 function updateSoundex() {
   const s = form.elements.soundex; if (!s) return;
-  const code = soundexCode(form.elements.staffName ? form.elements.staffName.value : '', form.elements.staffName2 ? form.elements.staffName2.value : '');
-  s.value = code;
-  const hn = form.elements.hn; if (hn && (!hn.value || hn.value === hn.dataset.auto)) { hn.value = code; hn.dataset.auto = code; }
+  s.value = soundexCode(form.elements.staffName ? form.elements.staffName.value : '', form.elements.staffName2 ? form.elements.staffName2.value : '');
 }
 async function loadSoundexFromSheet() {
   try {
@@ -408,7 +406,7 @@ function setupSignPad(){
 function icnDetailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join('');
   return `<span class="eyebrow">ICN / เวรตรวจการ • ส่วนที่ 4</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2>`
     + `<div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div>`
-    + `<section class="detail-section"><h4>ข้อมูลบุคลากร</h4><div class="detail-grid">${item('HN soundex code',r.hn||r.soundex)}${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}</div></section>`
+    + `<section class="detail-section"><h4>ข้อมูลบุคลากร</h4><div class="detail-grid">${item('HN soundex code',r.hn)}${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}</div></section>`
     + `<section class="detail-section"><h4>ผลตรวจเลือดบุคลากรทันที (Day 0)</h4><div class="detail-grid">${labs(staffLabNames)}${item('ประวัติพฤติกรรมเสี่ยง',[r.staffRisk,r.staffRiskDetail].filter(Boolean).join(' — '))}</div></section>`
     + `<section class="detail-section"><h4>การรักษาป้องกันด้วยยา (PEP)</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา / สูตรอื่น',r.pepDose)}${item('วันที่เริ่มยา',thaiDate(r.pepStart))}${item('หลังเกิดเหตุ (ชม.)',r.pepHours)}${item('วันที่สิ้นสุด',thaiDate(r.pepEnd))}${item('ผลการรับประทาน',r.pepOutcome)}${item('จำนวนวันที่รับประทาน',r.pepDays)}${item('ผลข้างเคียง / เหตุผลที่หยุดยา',r.pepNote)}</div></section>`
     + `<section class="detail-section"><h4>การรักษาอื่น / กรณีไม่ได้รับยา</h4><div class="detail-grid">${item('การรักษาอื่น ๆ',r.otherTreatment)}${item('เหตุผลที่ไม่ได้รับการรักษา',r.noTreatmentReason)}</div></section>`
@@ -637,7 +635,7 @@ $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(!previewRef) pen
 $('#previewConfirm').onclick=()=>{ if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(r){$('#detailContent').innerHTML=dashMode==='icn'?icnDetailHtml(r):detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':(dashMode==='icn'?'บันทึกการรักษาเพื่อป้องกัน':'แก้ไข');$('#detailDialog').showModal();}};
+$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':'แก้ไข';$('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
