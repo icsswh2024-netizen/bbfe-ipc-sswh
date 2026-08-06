@@ -395,9 +395,9 @@ const rOpt = (val,o) => `<span class="opt">${rCk(rEq(val,o))} ${o}</span>`;
 const rLabRow = (no,label,val) => `<div class="lrow"><span class="llbl">${no} ${label}</span>${['บวก','ลบ','ไม่ทราบ','ไม่ได้ตรวจ'].map(o=>rOpt(val,o)).join('')}</div>`;
 const cbcCell = (label,val,unit,cls='') => `<div class="cbc-cell ${cls}"><span class="cl">${label}</span>${rFx(val)}<span class="cu">${unit}</span></div>`;
 const rDparts = v => { if(!rHas(v)) return {d:'',m:'',y:''}; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return {d:'',m:'',y:''}; return {d:d.getDate(), m:THAI_MONTHS[d.getMonth()], y:d.getFullYear()+543}; };
-function logoSrc(name){ const img=document.querySelector(`img[data-logo="${name}"]`); const s=img&&img.getAttribute('src'); return s||`assets/logo-${name}.png`; }
-function docHead(sub){ return `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="${logoSrc('sswh')}" alt=""></div><h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
-function docFoot(){ return `<div class="doc-logo-bottom"><img src="${logoSrc('ic')}" alt=""></div><div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`; }
+// Official document uses the committed same-origin logo assets so both A4 pages render reliably
+function docHead(sub){ return `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="assets/logo-sswh.png" alt="" loading="eager"></div><h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
+function docFoot(){ return `<div class="doc-logo-bottom"><img src="assets/logo-ic.png" alt="" loading="eager"><div class="ic-caption">กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ</div></div><div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`; }
 // scope 'admin' -> page 2 (items 11–16); anything else -> page 1 (items 1–10)
 function reportA4Html(r, scope){ return scope==='admin' ? docPage2(r) : docPage1(r); }
 // whole continuous case (both pages) for printing
@@ -476,12 +476,10 @@ function docPage2(r){
     + `<div class="ln in1">${t('13.1 เมื่อเริ่มได้รับยา (Day 0)')}</div>`
     + `<div class="ln in2 sub">${t('ผล CBC')}</div>`
     + `<div class="cbc-grid">`
-      + cbcCell('Hemoglobin',r.hemoglobin,'mg%') + cbcCell('Hematocrit',r.hematocrit,'vol%') + `<div class="cbc-cell"></div>`
-      + cbcCell('Red cell morphology',r.redCellMorphology,'','span3')
-      + cbcCell('WBC Count',r.wbc,'per cu.mm.','span3')
+      + cbcCell('Hemoglobin',r.hemoglobin,'mg%') + cbcCell('Hematocrit',r.hematocrit,'vol%') + cbcCell('WBC Count',r.wbc,'/cu.mm.')
       + cbcCell('Neutrophil',r.neutrophil,'%') + cbcCell('Lymphocyte',r.lymphocyte,'%') + cbcCell('Monocyte',r.monocyte,'%')
       + cbcCell('Basophil',r.basophil,'%') + cbcCell('Eosinophil',r.eosinophil,'%') + cbcCell('Band form',r.bandForm,'%')
-      + cbcCell('Creatinine',r.creatinine,'mg/dl (0.5–1.2)','span3')
+      + cbcCell('Red cell morphology',r.redCellMorphology,'','free') + cbcCell('Creatinine',r.creatinine,'mg/dl (0.5–1.2)','free span2')
     + `</div>`
     + `<div class="ln in2 sub">${t('Liver function test')}</div>`
     + `<div class="cbc-grid">`
