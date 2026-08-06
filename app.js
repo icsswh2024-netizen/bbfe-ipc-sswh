@@ -354,6 +354,46 @@ function toast(message) { const el=$('#toast'); el.textContent=message; el.class
 let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
 // section 4 (การรักษาเพื่อป้องกัน) not started yet -> a "new" incident awaiting ICN
 function icnPending(r){ return !(r.staffHiv||r.staffHbsAg||r.staffAntiHbs||r.staffHcv||r.pepRegimen||r.hemoglobin||r.otherTreatment||r.noTreatmentReason); }
+// ---- Overview charts (inline SVG/CSS, no external libraries) ----
+const THMON_SHORT=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const CAT_COLORS=['#c8102e','#f2857f','#f6b26b','#8e7cc3','#3d85c6','#2e9e5b','#e53935'];
+function svgBars(data,color='#c8102e'){
+  const w=460,h=210,pl=24,pr=12,pt=18,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length;
+  const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="${color}"/>`
+      +(d.value?`<text x="${(x+rw/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text>`:'')
+      +`<text x="${(x+rw/2).toFixed(1)}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet"><line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>${body}</svg>`;
+}
+function svgDonut(data,cap='รายการ'){
+  const size=170,thick=32,r=(size-thick)/2,cx=size/2,cy=size/2,C=2*Math.PI*r,total=data.reduce((s,d)=>s+d.value,0);
+  let off=0; const src=total?data:[{value:1,color:'#eee'}];
+  const segs=src.map(d=>{ const len=C*(total?d.value:1)/(total||1),s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-width="${thick}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`; off+=len; return s; }).join('');
+  return `<svg viewBox="0 0 ${size} ${size}" class="donut-svg">${segs}<text x="${cx}" y="${cy-2}" text-anchor="middle" class="donut-num">${total}</text><text x="${cx}" y="${cy+16}" text-anchor="middle" class="donut-cap">${cap}</text></svg>`;
+}
+function chartLegend(data){ return `<div class="legend">${data.map(d=>`<div class="li"><span class="sw" style="background:${d.color}"></span><span>${esc(d.label)}</span><span class="lv">${d.value}</span></div>`).join('')}</div>`; }
+function chartHBars(data,color='#c8102e'){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูล</p>'; const max=Math.max(1,...data.map(d=>d.value)); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(12,d.value/max*100)}%">${d.value}</div></div></div>`).join('')}</div>`; }
+function renderCharts(){
+  const box=$('#dashCharts'); if(!box)return; const items=records();
+  if(!items.length){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ยังไม่มีข้อมูลสำหรับสรุปภาพรวม</p></div>'; return; }
+  const now=new Date(), months=[];
+  for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1); months.push({y:d.getFullYear(),m:d.getMonth(),label:THMON_SHORT[d.getMonth()],value:0}); }
+  const expo=[['ของแหลมคม','แหลมคม'],['ผิวหนังมีบาดแผล','ผิวหนัง'],['เยื่อบุ/เนื้อเยื่ออ่อน','เยื่อบุ'],['อื่น ๆ','อื่น']].map(([label,kw],i)=>({label,kw,color:CAT_COLORS[i],value:0}));
+  const deptMap={};
+  items.forEach(r=>{
+    if(r.incidentDate){ const d=new Date(r.incidentDate+'T00:00:00'); if(!isNaN(d)){ const mo=months.find(x=>x.y===d.getFullYear()&&x.m===d.getMonth()); if(mo)mo.value++; } }
+    const arr=Array.isArray(r.exposureType)?r.exposureType:(r.exposureType?[r.exposureType]:[]); expo.forEach(e=>{ if(arr.some(a=>String(a).includes(e.kw))) e.value++; });
+    const dep=((r.department||'').trim())||'ไม่ระบุ'; deptMap[dep]=(deptMap[dep]||0)+1;
+  });
+  const topDept=Object.entries(deptMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([label,value])=>({label,value}));
+  const done=items.filter(isComplete).length;
+  const status=[{label:'ติดตามครบ',color:'#2e9e5b',value:done},{label:'รอติดตาม',color:'#f0a500',value:items.length-done}];
+  box.innerHTML =
+     `<div class="chart-card"><h3>แนวโน้มอุบัติเหตุรายเดือน (6 เดือน)</h3>${svgBars(months)}</div>`
+    +`<div class="chart-card"><h3>ชนิดการสัมผัส</h3><div class="donut-wrap">${svgDonut(expo,'ครั้ง')}${chartLegend(expo)}</div></div>`
+    +`<div class="chart-card"><h3>หน่วยงาน 5 อันดับ</h3>${chartHBars(topDept)}</div>`
+    +`<div class="chart-card"><h3>สถานะการติดตาม</h3><div class="donut-wrap">${svgDonut(status)}${chartLegend(status)}</div></div>`;
+}
 function renderDashboard(query='') {
   let items = records().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
   if(dashMode==='icn') items = items.filter(icnPending); // ICN sees only new incidents needing section 4
@@ -367,12 +407,15 @@ function renderDashboard(query='') {
     ? '<b>ไม่มีรายการอุบัติเหตุรายใหม่</b><span>รายการที่กรอกส่วนที่ 4 แล้วจะถูกซ่อนจากรายการนี้</span>'
     : '<b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span>';
   $('#emptyState').classList.toggle('show',filtered.length===0);
+  const showCharts = dashMode==='records';
+  $('#dashCharts').classList.toggle('hidden',!showCharts);
+  if(showCharts) renderCharts();
 }
 function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===name)); window.scrollTo({top:0}); }
-const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[3,4], ICN_PAGES=[3];
+const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[0,1,2,3,4], ICN_PAGES=[3];
 const PAGES_BY_MODE={staff:STAFF_PAGES,admin:ADMIN_PAGES,icn:ICN_PAGES};
 let formMode='staff';
-function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#viewPrevDoc').classList.toggle('hidden',mode!=='icn'); const eyebrow={admin:'ส่วนแอดมิน • ขั้นตอน 4-5',icn:'ICN / เวรตรวจการ • ส่วนที่ 4'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'การรักษาและติดตามผล (แอดมิน)',icn:'การรักษาเพื่อป้องกัน (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
+function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#viewPrevDoc').classList.toggle('hidden',mode!=='icn'); const eyebrow={admin:'ส่วนแอดมิน • ทุกส่วน (1-5)',icn:'ICN / เวรตรวจการ • ส่วนที่ 4'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'แก้ไข/จัดการข้อมูลได้ทุกส่วน (แอดมิน)',icn:'การรักษาเพื่อป้องกัน (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
 function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); }
 let MULTI_FIELDS = new Set(['exposureType', 'bodySite']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); out.sourcePatients=collectSourcePatients(); const p0=out.sourcePatients[0]||{}; out.sourceName=p0.name||''; out.sourceHn=p0.hn||''; out.sourceHiv=p0.hiv||''; out.sourceHbsAg=p0.hbsAg||''; out.sourceHcv=p0.hcv||''; out.sourceRisk=p0.risk||''; out.sourceRiskDetail=p0.riskDetail||''; return out; }
@@ -570,7 +613,7 @@ function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='
   const hint=$('#adminHint');
   hint.classList.toggle('hidden',dashMode==='records');
   hint.className = icn ? 'admin-hint icn-flow' : ('notice admin-hint'+(dashMode==='records'?' hidden':''));
-  hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span>' : (icn ? icnFlowHtml() : '');
+  hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>แสดงรายการทั้งหมด เลือกรายการเพื่อแก้ไข/จัดการข้อมูลได้ทุกส่วน (1-5)</span>' : (icn ? icnFlowHtml() : '');
   $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':'RECORDS');
   $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':'ทะเบียนอุบัติเหตุ');
   $('#panelEyebrow').textContent=icn?'NEW':'RECORDS';
@@ -578,7 +621,7 @@ function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='
   showView('dashboard'); renderDashboard($('#search').value); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
-function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='บันทึกการรักษาและติดตามผล'; showView('editor'); }
+function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
 function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
 // ---- DEMO data filler (temporary — remove together with the #fillDemo button) ----
@@ -658,7 +701,7 @@ $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='
 $('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'บันทึกการรักษา/ติดตาม':'แก้ไข';$('#detailDialog').showModal();};
+$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';$('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
