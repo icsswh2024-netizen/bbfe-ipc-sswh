@@ -539,7 +539,7 @@ function docPage1(r){
     + `<div class="doc-body">`
     + `<div class="ln">${t('1. ชื่อหน่วยงาน')}${fx(r.department,true)}${t('โรงพยาบาลศรีสังวรสุโขทัย')}</div>`
     + `<div class="ln">${t('2. ชื่อบุคลากร')}${fx(r.staffName,true)}${t('นามสกุล')}${fx(r.staffName2,true)}</div>`
-    + `<div class="ln in1">${t('Soundex code')}${fx(r.soundex)}${t('HN')}${fx(r.staffHn,true)}</div>`
+    + `<div class="ln in1">${t('Soundex code')}${fx(r.soundex)}${t('HN บุคลากร (ถ้าทราบ)')}${fx(r.staffHn)}${t('HN soundex code')}${fx(r.hn)}</div>`
     + `<div class="ln in1">${t('อายุ')}${fx(r.age)}${t('ปี  เพศ')}${fx(r.gender)}${t('ระยะเวลาปฏิบัติงาน')}${fx(r.workYears)}${t('ปี')}${fx(r.workMonths)}${t('เดือน')}</div>`
     + `<div class="ln in1">${t('เบอร์โทรศัพท์')}${fx(r.phone)}${t('ID Line')}${fx(r.line,true)}</div>`
     + `<div class="ln">${t('3. ประเภทบุคลากร')}</div>`
