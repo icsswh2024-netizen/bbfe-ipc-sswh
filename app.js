@@ -422,15 +422,19 @@ function renderCharts(){
 }
 function renderDashboard(query='') {
   let items = records().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
-  if(dashMode==='icn') items = items.filter(icnPending); // ICN sees only new incidents needing section 4
+  if(dashMode==='icn') items = items.slice().sort((a,b)=>(icnPending(b)?1:0)-(icnPending(a)?1:0)); // ICN: unsaved (new) first, saved stay in list
   const q=query.trim().toLowerCase();
   const filtered=items.filter(r=>[r.staffName,r.staffHn,r.soundex,r.location,r.incidentDescription].join(' ').toLowerCase().includes(q));
   $('#statTotal').textContent=items.length;
   $('#statPending').textContent=items.filter(r=>!isComplete(r)).length;
   const ym=new Date().toISOString().slice(0,7); $('#statMonth').textContent=items.filter(r=>(r.createdAt||'').slice(0,7)===ym).length;
-  $('#recordRows').innerHTML=filtered.map(r=>`<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(r.staffName||'ไม่ระบุชื่อ')}</b><small>${esc(r.staffType||'')} ${r.staffHn?'• HN '+esc(r.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(r.location||'')}</small></td><td><span class="status ${isComplete(r)?'done':''}">${isComplete(r)?'ติดตามครบ':'รอติดตาม'}</span></td><td class="row-actions"><button data-view="${r.id}">${dashMode==='icn'?'กรอกส่วนที่ 4 →':'ดูรายละเอียด →'}</button></td></tr>`).join('');
+  const statusCell=r=>dashMode==='icn'
+    ? (icnPending(r)?'<span class="status">รอบันทึก</span>':'<span class="status done">บันทึกแล้ว</span>')
+    : `<span class="status ${isComplete(r)?'done':''}">${isComplete(r)?'ติดตามครบ':'รอติดตาม'}</span>`;
+  const actionLabel=r=>dashMode==='icn'?(icnPending(r)?'กรอกส่วนที่ 4 →':'แก้ไขส่วนที่ 4 →'):'ดูรายละเอียด →';
+  $('#recordRows').innerHTML=filtered.map(r=>`<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(r.staffName||'ไม่ระบุชื่อ')}</b><small>${esc(r.staffType||'')} ${r.staffHn?'• HN '+esc(r.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(r.location||'')}</small></td><td>${statusCell(r)}</td><td class="row-actions"><button data-view="${r.id}">${actionLabel(r)}</button></td></tr>`).join('');
   $('#emptyState').innerHTML = dashMode==='icn'
-    ? '<b>ไม่มีรายการอุบัติเหตุรายใหม่</b><span>รายการที่กรอกส่วนที่ 4 แล้วจะถูกซ่อนจากรายการนี้</span>'
+    ? '<b>ยังไม่มีรายการอุบัติเหตุ</b><span>เมื่อเจ้าหน้าที่บันทึกเหตุการณ์ใหม่ จะปรากฏที่นี่</span>'
     : '<b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span>';
   $('#emptyState').classList.toggle('show',filtered.length===0);
   const showCharts = dashMode==='records';
@@ -656,8 +660,8 @@ function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='
   hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>แสดงรายการทั้งหมด เลือกรายการเพื่อแก้ไข/จัดการข้อมูลได้ทุกส่วน (1-5)</span>' : (icn ? icnFlowHtml() : '');
   $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':'RECORDS');
   $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':'ทะเบียนอุบัติเหตุ');
-  $('#panelEyebrow').textContent=icn?'NEW':'RECORDS';
-  $('#panelTitle').textContent=icn?'รายการอุบัติเหตุรายใหม่':'รายการอุบัติเหตุ';
+  $('#panelEyebrow').textContent=icn?'ICN':'RECORDS';
+  $('#panelTitle').textContent=icn?'รายการอุบัติเหตุ (ส่วนที่ 4)':'รายการอุบัติเหตุ';
   $('.stats').classList.toggle('hidden',icn); // hide the overview stat tiles in ICN mode
   showView('dashboard'); renderDashboard($('#search').value); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); }
