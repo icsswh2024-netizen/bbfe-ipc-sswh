@@ -658,6 +658,7 @@ function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='
   $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':'ทะเบียนอุบัติเหตุ');
   $('#panelEyebrow').textContent=icn?'NEW':'RECORDS';
   $('#panelTitle').textContent=icn?'รายการอุบัติเหตุรายใหม่':'รายการอุบัติเหตุ';
+  $('.stats').classList.toggle('hidden',icn); // hide the overview stat tiles in ICN mode
   showView('dashboard'); renderDashboard($('#search').value); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
