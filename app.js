@@ -11,7 +11,33 @@ const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/t
 const FIELDS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=fields`;
 const SOUNDEX_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=code`;
 const LOGO_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=logo`;
-const LOGO_CACHE_KEY = 'icsswh-logo-cache-v1';
+const FLOW_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=flow`;
+const FLOW_CACHE_KEY = 'icsswh-flow-cache-v1';
+// ICN workflow steps from the "flow" tab (คอลัมน์: ส่วนที่ | ลำดับ | รายการ). Falls back to DEFAULT_FLOW.
+const DEFAULT_FLOW = [
+  { section:1, order:1, item:'เลือกรายการอุบัติเหตุรายใหม่|คลิกรายการด้านล่างเพื่อเข้าฟอร์มส่วนที่ 4 ทันที' },
+  { section:1, order:2, item:'กรอกการรักษาเพื่อป้องกัน|ผลตรวจเลือด Day 0, การรักษา PEP และผล CBC/ตับ-ไต' },
+  { section:1, order:3, item:'ตรวจทานและบันทึก|ดูใบรายงาน แล้วบันทึก / พิมพ์ / บันทึก PDF' },
+];
+function loadCachedFlow(){ try { const v=JSON.parse(localStorage.getItem(FLOW_CACHE_KEY)); return (Array.isArray(v)&&v.length)?v:null; } catch { return null; } }
+let FLOW_STEPS = loadCachedFlow();
+function parseFlowRows(rows){
+  if(!rows||rows.length<2)return null;
+  const H=rows[0].map(h=>String(h).trim()), cs=H.indexOf('ส่วนที่'), cn=H.indexOf('ลำดับ'), ci=H.indexOf('รายการ');
+  if(ci<0)return null;
+  const out=[];
+  for(let r=1;r<rows.length;r++){ const row=rows[r]||[], item=(row[ci]||'').trim(); if(!item)continue; out.push({ section:parseFloat(row[cs])||0, order:parseFloat(row[cn])||0, item }); }
+  return out.length?out:null;
+}
+async function loadFlowFromSheet(){
+  try {
+    const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),6000);
+    const res=await fetch(FLOW_CSV_URL,{signal:ctrl.signal}); clearTimeout(timer);
+    if(!res.ok)return;
+    const flow=parseFlowRows(parseCSV(await res.text()));
+    if(flow){ FLOW_STEPS=flow; localStorage.setItem(FLOW_CACHE_KEY,JSON.stringify(flow)); if(dashMode==='icn'&&$('#dashboard').classList.contains('active')) $('#adminHint').innerHTML=icnFlowHtml(); }
+  } catch { /* keep DEFAULT_FLOW / cache */ }
+}
 // Header logos from the "logo" tab (col A=name, col B=file). Keeps the static assets/ images as fallback.
 function driveImg(u) { u = String(u || '').trim(); const m = u.match(/\/d\/([\w-]+)/) || u.match(/[?&]id=([\w-]+)/); return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w480` : u; }
 function applyLogos(map) { if (!map) return; Object.entries(map).forEach(([name, url]) => { const img = document.querySelector(`img[data-logo="${name}"]`); if (img && url) img.src = driveImg(url); }); }
@@ -602,12 +628,16 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet();
+buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
 function goHome(){ showView('home'); }
-function icnFlowHtml(){ const step=(n,t,d)=>`<div class="flow-step"><span class="n">${n}</span><div><b>${t}</b><small>${d}</small></div></div>`; return `<div class="flow-title">ขั้นตอนการทำงาน ICN / เวรตรวจการ</div><div class="flow">${step('1','เลือกรายการอุบัติเหตุรายใหม่','คลิกรายการด้านล่างเพื่อเข้าฟอร์มส่วนที่ 4 ทันที')}<span class="flow-arrow">→</span>${step('2','กรอกการรักษาเพื่อป้องกัน','ผลตรวจเลือด Day 0, การรักษา PEP และผล CBC/ตับ-ไต')}<span class="flow-arrow">→</span>${step('3','ตรวจทานและบันทึก','ดูใบรายงาน แล้วบันทึก / พิมพ์ / บันทึก PDF')}</div>`; }
+function icnFlowHtml(){
+  const steps=(FLOW_STEPS&&FLOW_STEPS.length?FLOW_STEPS:DEFAULT_FLOW).slice().sort((a,b)=>(a.section-b.section)||(a.order-b.order));
+  const cell=(n,item)=>{ const parts=String(item).split('|'); const t=(parts[0]||'').trim(), d=(parts[1]||'').trim(); return `<div class="flow-step"><span class="n">${n}</span><div><b>${esc(t)}</b>${d?`<small>${esc(d)}</small>`:''}</div></div>`; };
+  return `<div class="flow-title">ขั้นตอนการทำงาน ICN / เวรตรวจการ</div><div class="flow">${steps.map((s,i)=>cell(i+1,s.item)).join('<span class="flow-arrow">→</span>')}</div>`;
+}
 function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn';
   $('#adminBar').classList.toggle('hidden',!admin);
   const hint=$('#adminHint');
