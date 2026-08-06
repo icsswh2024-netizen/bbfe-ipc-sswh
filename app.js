@@ -520,7 +520,7 @@ function extraFieldsBlock(r){
     + rows.map(f => { const v=r[f.key]; return `<div class="ln in1">${rT(f.label)}${rFx(Array.isArray(v)?v.join(', '):v,true)}</div>`; }).join('');
 }
 // Official document uses the committed same-origin logo assets so both A4 pages render reliably
-function docHead(sub){ return `<div class="doc-head"><span class="doc-formno">Form IC 1</span><img class="doc-logo-top" src="assets/logo-sswh.png" alt="" loading="eager"></div><h1 class="doc-title">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
+function docHead(sub){ const cont=!!sub; return `<div class="doc-head"><span class="doc-formno">Form IC 1</span>${cont?'':'<img class="doc-logo-top" src="assets/logo-sswh.png" alt="" loading="eager">'}</div><h1 class="doc-title${cont?' cont':''}">แบบบันทึกและรายงานอุบัติเหตุในการให้บริการทางการแพทย์และสาธารณสุข${sub?` <span class="doc-sub">(${sub})</span>`:''}</h1>`; }
 function docFoot(){ return `<div class="doc-logo-bottom"><img src="assets/logo-ic.png" alt="" loading="eager"><div class="ic-caption">กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ</div></div><div class="doc-foot">Version 2.0 วันที่ 04 สิงหาคม 2568</div>`; }
 // scope 'admin' -> page 2 (items 11–16); anything else -> page 1 (items 1–10)
 function reportA4Html(r, scope){ return scope==='admin' ? docPage2(r) : docPage1(r); }
