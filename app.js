@@ -13,6 +13,43 @@ const SOUNDEX_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz
 const LOGO_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=logo`;
 const FLOW_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=flow`;
 const FLOW_CACHE_KEY = 'icsswh-flow-cache-v1';
+const MENU_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=menu`;
+const MENU_CACHE_KEY = 'icsswh-menu-cache-v1';
+// Home menu cards from the "menu" tab (ลำดับ | ไอคอน | หัวข้อ | คำอธิบาย | ข้อความปุ่ม | การทำงาน | เด่น)
+const DEFAULT_MENU = [
+  { order:1, icon:'+', title:'บันทึกเหตุการณ์', desc:'สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว', arrow:'เริ่มบันทึก →', go:'new', feature:true },
+  { order:2, icon:'✚', title:'ICN / เวรตรวจการ', desc:'เลือกรายการเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)', arrow:'เข้าโหมด ICN →', go:'icn', feature:false },
+  { order:3, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', feature:false },
+  { order:4, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', feature:false },
+];
+function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
+function loadCachedMenu(){ try { const v=JSON.parse(localStorage.getItem(MENU_CACHE_KEY)); return (Array.isArray(v)&&v.length)?v:null; } catch { return null; } }
+let MENU_ITEMS = loadCachedMenu();
+function parseMenuRows(rows){
+  if(!rows||rows.length<2)return null;
+  const H=rows[0].map(h=>String(h).trim());
+  const idx=n=>H.indexOf(n);
+  const co=idx('ลำดับ'), ci=idx('ไอคอน'), ct=idx('หัวข้อ'), cd=idx('คำอธิบาย'), cb=idx('ข้อความปุ่ม'), ca=idx('การทำงาน'), cf=idx('เด่น');
+  if(ct<0||ca<0)return null;
+  const out=[];
+  for(let r=1;r<rows.length;r++){ const row=rows[r]||[], title=(row[ct]||'').trim(); if(!title)continue; const go=menuAction(row[ca]); if(!go)continue;
+    out.push({ order:parseFloat(row[co])||0, icon:(ci>=0?(row[ci]||'').trim():'')||'•', title, desc:(cd>=0?(row[cd]||'').trim():''), arrow:(cb>=0?(row[cb]||'').trim():'')||'เปิด →', go, feature:cf>=0?/^(✓|ใช่|yes|true|1|y)$/i.test((row[cf]||'').trim()):false }); }
+  return out.length?out:null;
+}
+function renderMenu(){
+  const box=$('.menu-grid'); if(!box)return;
+  const items=(MENU_ITEMS&&MENU_ITEMS.length?MENU_ITEMS:DEFAULT_MENU).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+  box.innerHTML=items.map(m=>`<button type="button" class="menu-card${m.feature?' feature':''}" data-go="${esc(m.go)}"><span class="menu-icon">${esc(m.icon)}</span><b>${esc(m.title)}</b><small>${esc(m.desc)}</small><span class="menu-arrow">${esc(m.arrow)}</span></button>`).join('');
+}
+async function loadMenuFromSheet(){
+  try {
+    const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),6000);
+    const res=await fetch(MENU_CSV_URL,{signal:ctrl.signal}); clearTimeout(timer);
+    if(!res.ok)return;
+    const menu=parseMenuRows(parseCSV(await res.text()));
+    if(menu){ MENU_ITEMS=menu; localStorage.setItem(MENU_CACHE_KEY,JSON.stringify(menu)); renderMenu(); }
+  } catch { /* keep DEFAULT_MENU / cache */ }
+}
 // ICN workflow steps from the "flow" tab (คอลัมน์: ส่วนที่ | ลำดับ | รายการ). Falls back to DEFAULT_FLOW.
 const DEFAULT_FLOW = [
   { section:1, order:1, item:'เลือกรายการอุบัติเหตุรายใหม่|คลิกรายการด้านล่างเพื่อเข้าฟอร์มส่วนที่ 4 ทันที' },
@@ -632,7 +669,7 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet();
+buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
@@ -722,7 +759,8 @@ $('#fillDemo').onclick=fillDemo;
 $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
-$$('.menu-card').forEach(card=>card.onclick=()=>{const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');}});
+renderMenu();
+$('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');}};
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
