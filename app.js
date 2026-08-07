@@ -22,7 +22,7 @@ const DEFAULT_MENU = [
   { order:3, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', feature:false },
   { order:4, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', feature:false },
 ];
-function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
+function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/hero|แสดง|display|banner/.test(s))return'hero'; if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
 function loadCachedMenu(){ try { const v=JSON.parse(localStorage.getItem(MENU_CACHE_KEY)); return (Array.isArray(v)&&v.length)?v:null; } catch { return null; } }
 let MENU_ITEMS = loadCachedMenu();
 function parseMenuRows(rows){
@@ -33,13 +33,25 @@ function parseMenuRows(rows){
   if(ct<0||ca<0)return null;
   const out=[];
   for(let r=1;r<rows.length;r++){ const row=rows[r]||[], title=(row[ct]||'').trim(); if(!title)continue; const go=menuAction(row[ca]); if(!go)continue;
-    out.push({ order:parseFloat(row[co])||0, icon:(ci>=0?(row[ci]||'').trim():'')||'•', title, desc:(cd>=0?(row[cd]||'').trim():''), arrow:(cb>=0?(row[cb]||'').trim():'')||'เปิด →', go, feature:cf>=0?/^(✓|ใช่|yes|true|1|y)$/i.test((row[cf]||'').trim()):false }); }
+    const g=v=>v>=0?(row[v]||'').trim():'';
+    if(go==='hero'){ out.push({ order:parseFloat(row[co])||0, go:'hero', eyebrow:g(ci), title, desc:g(cd), art:g(cb) }); continue; }
+    out.push({ order:parseFloat(row[co])||0, icon:g(ci)||'•', title, desc:g(cd), arrow:g(cb)||'เปิด →', go, feature:cf>=0?/^(✓|ใช่|yes|true|1|y)$/i.test((row[cf]||'').trim()):false }); }
   return out.length?out:null;
+}
+// Display-only hero banner (การทำงาน = แสดง). Only overrides parts that are provided.
+function applyHero(h){
+  const hero=$('.hero'); if(!hero||!h)return;
+  if(h.eyebrow){ const e=hero.querySelector('.eyebrow'); if(e)e.textContent=h.eyebrow; }
+  if(h.title){ const el=hero.querySelector('h1'); if(el){ const parts=String(h.title).split('|'); el.innerHTML = parts.length>1 ? `${esc(parts[0].trim())}<br><em>${esc(parts.slice(1).join('|').trim())}</em>` : esc(parts[0].trim()); } }
+  if(h.desc){ const el=hero.querySelector('p'); if(el)el.textContent=h.desc; }
+  if(h.art){ const el=hero.querySelector('.hero-art span'); if(el)el.innerHTML=String(h.art).split('|').map(s=>esc(s.trim())).join('<br>'); }
 }
 function renderMenu(){
   const box=$('.menu-grid'); if(!box)return;
   const items=(MENU_ITEMS&&MENU_ITEMS.length?MENU_ITEMS:DEFAULT_MENU).slice().sort((a,b)=>(a.order||0)-(b.order||0));
-  box.innerHTML=items.map(m=>`<button type="button" class="menu-card${m.feature?' feature':''}" data-go="${esc(m.go)}"><span class="menu-icon">${esc(m.icon)}</span><b>${esc(m.title)}</b><small>${esc(m.desc)}</small><span class="menu-arrow">${esc(m.arrow)}</span></button>`).join('');
+  const cards=items.filter(m=>m.go!=='hero');
+  box.innerHTML=cards.map(m=>`<button type="button" class="menu-card${m.feature?' feature':''}" data-go="${esc(m.go)}"><span class="menu-icon">${esc(m.icon)}</span><b>${esc(m.title)}</b><small>${esc(m.desc)}</small><span class="menu-arrow">${esc(m.arrow)}</span></button>`).join('');
+  const hero=items.find(m=>m.go==='hero'); if(hero) applyHero(hero);
 }
 async function loadMenuFromSheet(){
   try {
