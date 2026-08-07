@@ -17,11 +17,12 @@ const MENU_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq
 const MENU_CACHE_KEY = 'icsswh-menu-cache-v1';
 // Home menu cards from the "menu" tab (ลำดับ | ไอคอน | หัวข้อ | คำอธิบาย | ข้อความปุ่ม | การทำงาน | เด่น)
 const DEFAULT_MENU = [
-  { order:1, icon:'+', title:'บันทึกเหตุการณ์', desc:'สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว', arrow:'เริ่มบันทึก →', go:'new', feature:true },
-  { order:2, icon:'✚', title:'ICN / เวรตรวจการ', desc:'เลือกรายการเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)', arrow:'เข้าโหมด ICN →', go:'icn', feature:false },
-  { order:3, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', feature:false },
-  { order:4, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', feature:false },
+  { order:1, icon:'+', title:'บันทึกเหตุการณ์', desc:'สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว', arrow:'เริ่มบันทึก →', go:'new', level:1 },
+  { order:2, icon:'✚', title:'ICN / เวรตรวจการ', desc:'เลือกรายการเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)', arrow:'เข้าโหมด ICN →', go:'icn', level:0 },
+  { order:3, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', level:0 },
+  { order:4, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', level:0 },
 ];
+function menuLevel(v){ const s=String(v||'').trim().toLowerCase(); if(!s)return 0; if(/^(✓|ใช่|yes|true|y|เด่น|มาก|1)$/.test(s))return 1; if(/^(2|กลาง|ปานกลาง|medium|mid)$/.test(s))return 2; if(/^(3|อ่อน|น้อย|light|เฟด|fade)$/.test(s))return 3; return 0; }
 function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/hero|แสดง|display|banner/.test(s))return'hero'; if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
 function loadCachedMenu(){ try { const v=JSON.parse(localStorage.getItem(MENU_CACHE_KEY)); return (Array.isArray(v)&&v.length)?v:null; } catch { return null; } }
 let MENU_ITEMS = loadCachedMenu();
@@ -35,7 +36,7 @@ function parseMenuRows(rows){
   for(let r=1;r<rows.length;r++){ const row=rows[r]||[], title=(row[ct]||'').trim(); if(!title)continue; const go=menuAction(row[ca]); if(!go)continue;
     const g=v=>v>=0?(row[v]||'').trim():'';
     if(go==='hero'){ out.push({ order:parseFloat(row[co])||0, go:'hero', eyebrow:g(ci), title, desc:g(cd), art:g(cb) }); continue; }
-    out.push({ order:parseFloat(row[co])||0, icon:g(ci)||'•', title, desc:g(cd), arrow:g(cb)||'เปิด →', go, feature:cf>=0?/^(✓|ใช่|yes|true|1|y)$/i.test((row[cf]||'').trim()):false }); }
+    out.push({ order:parseFloat(row[co])||0, icon:g(ci)||'•', title, desc:g(cd), arrow:g(cb)||'เปิด →', go, level:cf>=0?menuLevel(row[cf]):0 }); }
   return out.length?out:null;
 }
 // Display-only hero banner (การทำงาน = แสดง). Only overrides parts that are provided.
@@ -50,7 +51,8 @@ function renderMenu(){
   const box=$('.menu-grid'); if(!box)return;
   const items=(MENU_ITEMS&&MENU_ITEMS.length?MENU_ITEMS:DEFAULT_MENU).slice().sort((a,b)=>(a.order||0)-(b.order||0));
   const cards=items.filter(m=>m.go!=='hero');
-  box.innerHTML=cards.map(m=>`<button type="button" class="menu-card${m.feature?' feature':''}" data-go="${esc(m.go)}"><span class="menu-icon">${esc(m.icon)}</span><b>${esc(m.title)}</b><small>${esc(m.desc)}</small><span class="menu-arrow">${esc(m.arrow)}</span></button>`).join('');
+  const lvClass=m=>{ const lv=m.level!=null?m.level:(m.feature?1:0); return lv===1?' feature':(lv===2?' tint2':(lv===3?' tint3':'')); };
+  box.innerHTML=cards.map(m=>`<button type="button" class="menu-card${lvClass(m)}" data-go="${esc(m.go)}"><span class="menu-icon">${esc(m.icon)}</span><b>${esc(m.title)}</b><small>${esc(m.desc)}</small><span class="menu-arrow">${esc(m.arrow)}</span></button>`).join('');
   const hero=items.find(m=>m.go==='hero'); if(hero) applyHero(hero);
 }
 async function loadMenuFromSheet(){
