@@ -908,7 +908,9 @@ $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
 $('#vctBack').onclick=()=>openDashboard('vct');
 $('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); openDashboard('vct'); };
-$('#vctPreview').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; const draft={...r,vct:collectVct()}; reportRecord=draft; openReportHtml(vctPagesHtml(draft), ()=>openVct(r), 'a5'); };
+function vctDraft(){ const r=records().find(x=>x.id===vctRecordId); if(!r)return null; return {r, draft:{...r,vct:collectVct()}}; }
+$('#vctPreview1').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page">${vctPage1(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
+$('#vctPreview2').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page land">${vctPage2(c.draft)}</div><div class="a5-page land">${vctPage3(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
