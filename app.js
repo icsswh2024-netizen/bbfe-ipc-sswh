@@ -19,11 +19,12 @@ const MENU_CACHE_KEY = 'icsswh-menu-cache-v1';
 const DEFAULT_MENU = [
   { order:1, icon:'+', title:'บันทึกเหตุการณ์', desc:'สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว', arrow:'เริ่มบันทึก →', go:'new', level:1 },
   { order:2, icon:'✚', title:'ICN / เวรตรวจการ', desc:'เลือกรายการเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)', arrow:'เข้าโหมด ICN →', go:'icn', level:0 },
-  { order:3, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', level:0 },
-  { order:4, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', level:0 },
+  { order:3, icon:'🧪', title:'VCT / คัดกรอง Z114', desc:'เอกสารแนบ VCT — ดึงข้อมูลจากรายการที่กรอกไว้ พร้อมพิมพ์/บันทึก PDF', arrow:'เปิด VCT →', go:'vct', level:2 },
+  { order:4, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', level:0 },
+  { order:5, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', level:0 },
 ];
 function menuLevel(v){ const s=String(v||'').trim().toLowerCase(); if(!s)return 0; if(/^(✓|ใช่|yes|true|y|เด่น|มาก|1)$/.test(s))return 1; if(/^(2|กลาง|ปานกลาง|medium|mid)$/.test(s))return 2; if(/^(3|อ่อน|น้อย|light|เฟด|fade)$/.test(s))return 3; return 0; }
-function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/hero|แสดง|display|banner/.test(s))return'hero'; if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
+function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/hero|แสดง|display|banner/.test(s))return'hero'; if(/vct|z114|คัดกรอง/.test(s))return'vct'; if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
 function loadCachedMenu(){ try { const v=JSON.parse(localStorage.getItem(MENU_CACHE_KEY)); return (Array.isArray(v)&&v.length)?v:null; } catch { return null; } }
 let MENU_ITEMS = loadCachedMenu();
 function parseMenuRows(rows){
@@ -481,8 +482,10 @@ function renderDashboard(query='') {
   const ym=new Date().toISOString().slice(0,7); $('#statMonth').textContent=items.filter(r=>(r.createdAt||'').slice(0,7)===ym).length;
   const statusCell=r=>dashMode==='icn'
     ? (icnPending(r)?'<span class="status">รอบันทึก</span>':'<span class="status done">บันทึกแล้ว</span>')
+    : dashMode==='vct'
+    ? (hasVct(r)?'<span class="status done">แนบแล้ว</span>':'<span class="status">ยังไม่แนบ</span>')
     : `<span class="status ${isComplete(r)?'done':''}">${isComplete(r)?'ติดตามครบ':'รอติดตาม'}</span>`;
-  const actionLabel=r=>dashMode==='icn'?(icnPending(r)?'กรอกส่วนที่ 4 →':'แก้ไขส่วนที่ 4 →'):'ดูรายละเอียด →';
+  const actionLabel=r=>dashMode==='icn'?(icnPending(r)?'กรอกส่วนที่ 4 →':'แก้ไขส่วนที่ 4 →'):(dashMode==='vct'?(hasVct(r)?'แก้ไข VCT →':'กรอก VCT →'):'ดูรายละเอียด →');
   $('#recordRows').innerHTML=filtered.map(r=>`<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(r.staffName||'ไม่ระบุชื่อ')}</b><small>${esc(r.staffType||'')} ${r.staffHn?'• HN '+esc(r.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(r.location||'')}</small></td><td>${statusCell(r)}</td><td class="row-actions"><button data-view="${r.id}">${actionLabel(r)}</button></td></tr>`).join('');
   $('#emptyState').innerHTML = dashMode==='icn'
     ? '<b>ยังไม่มีรายการอุบัติเหตุ</b><span>เมื่อเจ้าหน้าที่บันทึกเหตุการณ์ใหม่ จะปรากฏที่นี่</span>'
@@ -576,7 +579,8 @@ function docFoot(){ return `<div class="doc-logo-bottom"><img src="assets/logo-i
 // scope 'admin' -> page 2 (items 11–16); anything else -> page 1 (items 1–10)
 function reportA4Html(r, scope){ return scope==='admin' ? docPage2(r) : docPage1(r); }
 // whole continuous case (both pages) for printing
-function fullDocHtml(r){ return `<div class="a4-page">${docPage1(r)}</div><div class="a4-page">${docPage2(r)}</div>`; }
+function hasVct(r){ return !!(r && r.vct && Object.keys(r.vct).length); }
+function fullDocHtml(r){ return `<div class="a4-page">${docPage1(r)}</div><div class="a4-page">${docPage2(r)}</div>${hasVct(r)?`<div class="a4-page">${vctDoc(r)}</div>`:''}`; }
 function docPage1(r){
   const t=rT, fx=rFx, ck=rCk, eq=rEq, has=rHas, opt=rOpt, labRow=rLabRow;
   const exposure = Array.isArray(r.exposureType) ? r.exposureType : (r.exposureType?[r.exposureType]:[]);
@@ -704,22 +708,129 @@ function icnFlowHtml(){
   }).join('');
   return `<div class="flow-title">ขั้นตอนการทำงาน ICN / เวรตรวจการ</div>${body}`;
 }
-function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn';
+function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
   $('#adminBar').classList.toggle('hidden',!admin);
   const hint=$('#adminHint');
   hint.classList.toggle('hidden',dashMode==='records');
   hint.className = icn ? 'admin-hint icn-flow' : ('notice admin-hint'+(dashMode==='records'?' hidden':''));
-  hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>แสดงรายการทั้งหมด เลือกรายการเพื่อแก้ไข/จัดการข้อมูลได้ทุกส่วน (1-5)</span>' : (icn ? icnFlowHtml() : '');
-  $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':'RECORDS');
-  $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':'ทะเบียนอุบัติเหตุ');
-  $('#panelEyebrow').textContent=icn?'ICN':'RECORDS';
-  $('#panelTitle').textContent=icn?'รายการอุบัติเหตุ (ส่วนที่ 4)':'รายการอุบัติเหตุ';
-  $('.stats').classList.toggle('hidden',icn); // hide the overview stat tiles in ICN mode
+  hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>แสดงรายการทั้งหมด เลือกรายการเพื่อแก้ไข/จัดการข้อมูลได้ทุกส่วน (1-5)</span>' : (icn ? icnFlowHtml() : (vct ? '<b>VCT / คัดกรอง Z114</b><span>เลือกผู้รับบริการเพื่อกรอกเอกสารแนบ VCT — ข้อมูลชื่อ/HN/อายุ/ผลตรวจจะดึงจากรายการอัตโนมัติ</span>' : ''));
+  $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':(vct?'VCT':'RECORDS'));
+  $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':(vct?'VCT / คัดกรอง Z114 — เอกสารแนบ':'ทะเบียนอุบัติเหตุ'));
+  $('#panelEyebrow').textContent=icn?'ICN':(vct?'VCT':'RECORDS');
+  $('#panelTitle').textContent=icn?'รายการอุบัติเหตุ (ส่วนที่ 4)':(vct?'เลือกผู้รับบริการ':'รายการอุบัติเหตุ');
+  $('.stats').classList.toggle('hidden',icn||vct); // hide the overview stat tiles in ICN/VCT mode
   showView('dashboard'); renderDashboard($('#search').value); setTab(icn?'icn':(dashMode==='records'?'records':'')); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); setTab('new'); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
+// ---- VCT / คัดกรอง Z114 (เอกสารแนบ) ----
+const VCT_RISKS=['เสพยาเสพติดชนิดฉีดเข้าเส้น','ผู้ป่วยวัณโรค','คู่สมรส/คนอื่นติดเชื้อ HIV','คลอดจากมารดาติดเชื้อ','เที่ยวหญิงบริการ','มีเพศสัมพันธ์ไม่ใช้ถุงยาง','ชายรักชาย','เข็มทิ่มตำ','อื่น ๆ'];
+const VCT_ACKS=['อ่านด้วยตนเอง','ได้รับคำอธิบายจากแพทย์/เจ้าหน้าที่','มีผู้อ่านให้ฟัง','มีโอกาสซักถามและได้รับคำตอบที่พอใจ'];
+const VCT_NOTIFY=['ข้าพเจ้าแต่เพียงผู้เดียว','คู่สมรสของข้าพเจ้า','อื่น ๆ'];
+const VCT_MULTI=new Set(['riskTypes','ackMethods','notifyTo']);
+let vctRecordId=null;
+function openVct(r){
+  vctRecordId=r.id; const v=r.vct||{};
+  const full=((r.staffName||'')+' '+(r.staffName2||'')).trim();
+  const today=new Date().toISOString().slice(0,10);
+  const g=(k,d='')=>(v[k]!=null&&v[k]!=='')?v[k]:d;
+  const on=(k,x)=>Array.isArray(v[k])&&v[k].includes(x);
+  const resultDef=g('finalResult', r.staffHiv==='บวก'?'Positive':(r.staffHiv==='ลบ'?'Negative':''));
+  const inp=(n,val,type='text')=>`<label>${''}<input name="${n}" type="${type}" value="${esc(val)}"></label>`;
+  const lab=(txt,n,val,type='text')=>`<label>${txt}<input name="${n}" type="${type}" value="${esc(val)}"></label>`;
+  const selL=(txt,n,opts,cur)=>`<label>${txt}<select name="${n}"><option value="">เลือก</option>${opts.map(o=>`<option${o===cur?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
+  const chk=(n,val,checked)=>`<label class="choice"><input type="checkbox" name="${n}" value="${esc(val)}"${checked?' checked':''}><span><b>${esc(val)}</b></span></label>`;
+  const rad=(n,val,cur)=>`<label class="choice"><input type="radio" name="${n}" value="${esc(val)}"${val===cur?' checked':''}><span><b>${esc(val)}</b></span></label>`;
+  $('#vctForm').innerHTML =
+    `<div class="form-page active">
+       <div class="section-title"><span>ก</span><div><h2>ข้อมูลผู้รับบริการ</h2><p>ดึงจากรายการที่กรอกไว้อัตโนมัติ (แก้ไขได้)</p></div></div>
+       <div class="grid cols-2">
+         ${lab('วันที่ให้คำปรึกษา','counselDate',g('counselDate',r.consentDate||r.incidentDate||today),'date')}
+         ${lab('หน่วยงานที่ให้คำปรึกษา','unit',g('unit',r.department||'งาน IC'))}
+         ${selL('ประเภทหน่วยงาน','unitType',['ด้านหน้า','ผู้ป่วยใน'],g('unitType','ด้านหน้า'))}
+         ${lab('เลขประจำตัวประชาชน','citizenId',g('citizenId'))}
+         ${lab('ชื่อ - สกุล','name',g('name',full))}
+         ${lab('H.N.','hn',g('hn',r.staffHn||''))}
+         ${lab('อายุ (ปี)','age',g('age',r.age||''),'number')}
+         ${selL('สิทธิการรักษา','rights',['อนาถา (สงเคราะห์)','กรมบัญชีกลาง','บัตรทอง','ประกันสังคม','เบิกต้นสังกัด','ชำระเงินเอง'],g('rights'))}
+         ${selL('สถานภาพ','marital',['โสด','สมรส','หม้าย','แยกกันอยู่'],g('marital'))}
+       </div>
+     </div>
+     <div class="form-page active">
+       <div class="section-title"><span>ข</span><div><h2>ความเสี่ยงและการตรวจเลือด</h2><p>ประเภทความเสี่ยงและผลการตรวจ</p></div></div>
+       <fieldset><legend>ประเภทความเสี่ยง (เลือกได้มากกว่า 1)</legend><div class="choice-grid">${VCT_RISKS.map(x=>chk('riskTypes',x,on('riskTypes',x))).join('')}</div></fieldset>
+       <div class="grid cols-2">
+         ${lab('รายละเอียดความเสี่ยงอื่น ๆ','riskOther',g('riskOther'))}
+         ${selL('ประวัติการส่งตรวจเลือด','testHistory',['เคย','ไม่เคย'],g('testHistory'))}
+         ${lab('เคย ครั้งที่','testHistoryCount',g('testHistoryCount'))}
+         ${selL('การส่งตรวจเลือด','testOrder',['ตรวจ','ไม่ตรวจ','ตรวจ Confirm'],g('testOrder'))}
+         ${selL('ผลการตรวจ','testResult',['Positive','Negative','Inconclusive: แปลผลไม่ได้'],g('testResult',resultDef))}
+         ${lab('วันที่ตรวจเลือด','testDate',g('testDate'),'date')}
+         ${lab('ผู้ตรวจเลือด','tester',g('tester'))}
+         ${lab('ผู้ให้คำปรึกษา','counselor',g('counselor'))}
+         ${lab('ผู้ลงข้อมูล VCT','vctRecorder',g('vctRecorder'))}
+       </div>
+     </div>
+     <div class="form-page active">
+       <div class="section-title"><span>ค</span><div><h2>ความยินยอมตรวจเอดส์</h2><p>การรับทราบและความประสงค์</p></div></div>
+       <div class="grid cols-2">${lab('วันที่ให้ความยินยอม','consentDate',g('consentDate',r.consentDate||today),'date')}${lab('เวลา','consentTime',g('consentTime'),'time')}</div>
+       <fieldset><legend>การรับทราบข้อควรรู้ก่อนตรวจ</legend><div class="choice-grid">${VCT_ACKS.map(x=>chk('ackMethods',x,on('ackMethods',x))).join('')}</div></fieldset>
+       <div class="grid cols-2">
+         ${selL('ความประสงค์ขอรับการตรวจเอดส์','wantTest',['ประสงค์','ไม่ประสงค์'],g('wantTest','ประสงค์'))}
+         ${lab('ยินยอมแทนผู้เยาว์ (ระบุชื่อ ถ้ามี)','minorName',g('minorName'))}
+       </div>
+     </div>
+     <div class="form-page active">
+       <div class="section-title"><span>ง</span><div><h2>การแจ้งผลตรวจ</h2><p>ยินยอมให้แจ้งผลแก่ และผลการตรวจ</p></div></div>
+       <fieldset><legend>ยินยอมให้แจ้งผลแก่</legend><div class="choice-grid">${VCT_NOTIFY.map(x=>chk('notifyTo',x,on('notifyTo',x))).join('')}</div></fieldset>
+       <div class="grid cols-2">
+         ${lab('คู่สมรส (ระบุชื่อ)','notifySpouse',g('notifySpouse'))}
+         ${lab('อื่น ๆ (ระบุ)','notifyOther',g('notifyOther'))}
+         ${selL('ผลการตรวจ (สรุป)','finalResult',['Negative','Positive','อื่น ๆ'],g('finalResult',resultDef))}
+         ${lab('ผลอื่น ๆ (ระบุ)','finalOther',g('finalOther'))}
+       </div>
+     </div>`;
+  $('#vctHint').textContent='แนบกับ: '+(full||'ไม่ระบุชื่อ')+(r.staffHn?(' • HN '+r.staffHn):'');
+  showView('vct');
+}
+function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val]of fd){ if(VCT_MULTI.has(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
+function vctDoc(r){
+  const t=rT,fx=rFx,ck=rCk,eq=rEq; const v=r.vct||{}; const d=rDparts(v.consentDate);
+  const on=(k,x)=>Array.isArray(v[k])&&v[k].includes(x);
+  const o=(cond,label)=>`<span class="opt">${ck(!!cond)} ${label}</span>`;
+  const sigLine=(cap)=>`<div class="vct-sig"><div class="vct-sigline"></div><div class="vct-sigcap">(...........................................) ${cap}</div></div>`;
+  return `<div class="doc">`
+    + `<div class="doc-head"><img class="doc-logo-top" src="assets/logo-sswh.png" alt="" loading="eager"></div>`
+    + `<h1 class="doc-title">แบบบันทึกการให้บริการตรวจคัดกรอง Z114<br><span class="doc-sub">และการให้การปรึกษา (Voluntary Counseling and Testing : VCT)</span></h1>`
+    + `<div class="doc-body">`
+    + `<div class="ln">${t('วันที่ให้คำปรึกษา')}${fx(v.counselDate,true)}${t('หน่วยงานที่ให้คำปรึกษา')}${fx(v.unit,true)}</div>`
+    + `<div class="ln in1">${o(eq(v.unitType,'ด้านหน้า'),'ด้านหน้า')}${o(eq(v.unitType,'ผู้ป่วยใน'),'ผู้ป่วยใน')}${t('เลขประจำตัวประชาชน')}${fx(v.citizenId,true)}</div>`
+    + `<div class="ln">${t('ชื่อ - สกุล')}${fx(v.name,true)}${t('H.N.')}${fx(v.hn)}${t('อายุ')}${fx(v.age)}${t('ปี')}</div>`
+    + `<div class="ln in1">${t('สิทธิ')}${['อนาถา (สงเคราะห์)','กรมบัญชีกลาง','บัตรทอง','ประกันสังคม','เบิกต้นสังกัด','ชำระเงินเอง'].map(x=>o(eq(v.rights,x),x)).join('')}</div>`
+    + `<div class="ln in1">${t('สถานภาพ')}${['โสด','สมรส','หม้าย','แยกกันอยู่'].map(x=>o(eq(v.marital,x),x)).join('')}</div>`
+    + `<div class="ln">${t('ประเภทความเสี่ยง')}</div>`
+    + `<div class="ln in1">${VCT_RISKS.map(x=>o(on('riskTypes',x),x)).join('')}${v.riskOther?fx(v.riskOther,true):''}</div>`
+    + `<div class="ln">${t('ประวัติการส่งตรวจเลือด')}${o(eq(v.testHistory,'เคย'),'เคย ครั้งที่')}${fx(v.testHistoryCount)}${o(eq(v.testHistory,'ไม่เคย'),'ไม่เคย')}</div>`
+    + `<div class="ln">${t('การส่งตรวจเลือด')}${['ตรวจ','ไม่ตรวจ','ตรวจ Confirm'].map(x=>o(eq(v.testOrder,x),x)).join('')}${t('ผลการตรวจ')}${['Positive','Negative','Inconclusive: แปลผลไม่ได้'].map(x=>o(eq(v.testResult,x),x)).join('')}</div>`
+    + `<div class="ln">${t('วันที่ตรวจเลือด')}${fx(v.testDate)}${t('ผู้ตรวจเลือด')}${fx(v.tester,true)}</div>`
+    + `<div class="ln">${t('ผู้ให้คำปรึกษา')}${fx(v.counselor,true)}${t('ผู้ลงข้อมูล VCT')}${fx(v.vctRecorder,true)}</div>`
+    + `<div class="ln sub" style="margin-top:6px">หนังสือแสดงความยินยอมตรวจเอดส์</div>`
+    + `<div class="ln">${t('ชื่อ - สกุล')}${fx(v.name,true)}${t('H.N.')}${fx(v.hn)}${t('อายุ')}${fx(v.age)}${t('ปี')}${t('วันที่')}${fx(d.d)}${t('เดือน')}${fx(d.m)}${t('พ.ศ.')}${fx(d.y)}${t('เวลา')}${fx(v.consentTime)}${t('น.')}</div>`
+    + `<div class="ln in1">${t('การรับทราบข้อควรรู้ก่อนตรวจ')}</div>`
+    + `<div class="ln in1">${VCT_ACKS.map(x=>o(on('ackMethods',x),x)).join('')}</div>`
+    + `<div class="ln in1" style="margin-top:2px">ข้าพเจ้าได้รับการยืนยันว่าข้อมูลส่วนบุคคลในการตรวจเอดส์นี้จะถูกเก็บเป็นความลับ ไม่เปิดเผยโดยปราศจากความยินยอม เว้นแต่เป็นการเปิดเผยตามที่กฎหมายกำหนด หรือมีข้อบ่งชี้และความจำเป็นในการวินิจฉัยรักษาโรค</div>`
+    + `<div class="ln in1">${o(eq(v.wantTest,'ประสงค์'),'มีความประสงค์ขอรับการตรวจเอดส์จากโรงพยาบาลศรีสังวรสุโขทัย')}</div>`
+    + `<div class="ln in1">${o(rHas(v.minorName),'ยินยอมให้ผู้เยาว์/ผู้ในปกครองเข้ารับการตรวจ')}${fx(v.minorName,true)}</div>`
+    + `<div class="vct-sigs">${sigLine('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรม')}${sigLine('แพทย์/เจ้าหน้าที่ทางการแพทย์')}${sigLine('พยาน')}</div>`
+    + `<div class="ln sub" style="margin-top:8px">คำยินยอมให้แจ้งผลตรวจเอดส์</div>`
+    + `<div class="ln in1">${t('ยินยอมให้แจ้งผลการตรวจเลือดแก่')}${o(on('notifyTo','ข้าพเจ้าแต่เพียงผู้เดียว'),'ข้าพเจ้าแต่เพียงผู้เดียว')}${o(on('notifyTo','คู่สมรสของข้าพเจ้า'),'คู่สมรส')}${fx(v.notifySpouse,true)}${o(on('notifyTo','อื่น ๆ'),'อื่น ๆ')}${fx(v.notifyOther,true)}</div>`
+    + `<div class="ln in1">${t('ผลการตรวจ')}${['Negative','Positive','อื่น ๆ'].map(x=>o(eq(v.finalResult,x),x)).join('')}${fx(v.finalOther,true)}</div>`
+    + `<div class="vct-sigs">${sigLine('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรม')}${sigLine('แพทย์/เจ้าหน้าที่ทางการแพทย์')}${sigLine('พยาน')}</div>`
+    + `</div>`
+    + `<div class="doc-foot">โรงพยาบาลศรีสังวรสุโขทัย • งาน IC — เอกสารแนบ VCT (Z114)</div>`
+    + `</div>`;
+}
 function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
 // ---- Sample-data filler (fills ONLY the sections active in the current mode) ----
 function drawDemoSignature(){
@@ -775,8 +886,11 @@ $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
 renderMenu();
-$('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');}};
+$('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
+$('#vctBack').onclick=()=>openDashboard('vct');
+$('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); openDashboard('vct'); };
+$('#vctPreview').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; const draft={...r,vct:collectVct()}; reportRecord=draft; openReportHtml(`<div class="a4-page">${vctDoc(draft)}</div>`, ()=>openVct(r)); };
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
@@ -786,7 +900,7 @@ form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDial
 $('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
 function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp.clientWidth-20; const scale=Math.min(1, avail/794); vp.querySelectorAll('.a4-page').forEach(pg=>{ pg.style.zoom=scale; }); }
 // preview dialog states: 'save' (edit + confirm), 'ref' (read-only close), 'report' (edit + print/PDF + close)
-let previewState='save', reportRecord=null, reportEditFn=null;
+let previewState='save', reportRecord=null, reportEditFn=null, reportHtml='';
 function setPreviewMode(state){ previewState=state; const report=state==='report', ref=state==='ref';
   $('#previewPrint').classList.toggle('hidden',!report);
   $('#previewConfirm').classList.toggle('hidden',ref);
@@ -794,8 +908,9 @@ function setPreviewMode(state){ previewState=state; const report=state==='report
   $('#previewEdit').textContent = report ? '✎ แก้ไขข้อมูล' : (ref ? 'ปิด' : '← แก้ไข');
   $('#previewConfirm').textContent = report ? 'ปิด' : 'ยืนยันบันทึก';
 }
-function openReport(r, editFn){ reportRecord=r; reportEditFn=editFn||null; setPreviewMode('report'); $('#previewBody').innerHTML=fullDocHtml(r); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; }
-function printReport(){ if(!reportRecord)return; $('#printArea').innerHTML=fullDocHtml(reportRecord); $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
+function openReportHtml(html, editFn){ reportEditFn=editFn||null; reportHtml=html; setPreviewMode('report'); $('#previewBody').innerHTML=html; $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; }
+function openReport(r, editFn){ reportRecord=r; openReportHtml(fullDocHtml(r), editFn); }
+function printReport(){ if(!reportHtml)return; $('#printArea').innerHTML=reportHtml; $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
 $('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode('save'); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
@@ -806,7 +921,7 @@ $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='
 $('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';$('#detailDialog').showModal();};
+$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}if(dashMode==='vct'){openVct(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';$('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
