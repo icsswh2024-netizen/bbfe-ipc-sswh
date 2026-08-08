@@ -687,7 +687,8 @@ buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); r
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
-function goHome(){ showView('home'); }
+function setTab(name){ $$('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); }
+function goHome(){ showView('home'); setTab('home'); }
 function icnFlowHtml(){
   const steps=(FLOW_STEPS&&FLOW_STEPS.length?FLOW_STEPS:DEFAULT_FLOW).slice()
     .sort((a,b)=>((parseFloat(a.section)||0)-(parseFloat(b.section)||0))||(a.order-b.order));
@@ -714,8 +715,8 @@ function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='
   $('#panelEyebrow').textContent=icn?'ICN':'RECORDS';
   $('#panelTitle').textContent=icn?'รายการอุบัติเหตุ (ส่วนที่ 4)':'รายการอุบัติเหตุ';
   $('.stats').classList.toggle('hidden',icn); // hide the overview stat tiles in ICN mode
-  showView('dashboard'); renderDashboard($('#search').value); }
-function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); }
+  showView('dashboard'); renderDashboard($('#search').value); setTab(icn?'icn':(dashMode==='records'?'records':'')); }
+function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); setTab('new'); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
@@ -775,6 +776,7 @@ $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault()
 $('#dashHome').onclick=goHome;
 renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');}};
+$('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
