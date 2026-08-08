@@ -19,9 +19,8 @@ const MENU_CACHE_KEY = 'icsswh-menu-cache-v1';
 const DEFAULT_MENU = [
   { order:1, icon:'+', title:'บันทึกเหตุการณ์', desc:'สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว', arrow:'เริ่มบันทึก →', go:'new', level:1 },
   { order:2, icon:'✚', title:'ICN / เวรตรวจการ', desc:'เลือกรายการเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)', arrow:'เข้าโหมด ICN →', go:'icn', level:0 },
-  { order:3, icon:'🧪', title:'VCT / คัดกรอง Z114', desc:'เอกสารแนบ VCT — ดึงข้อมูลจากรายการที่กรอกไว้ พร้อมพิมพ์/บันทึก PDF', arrow:'เปิด VCT →', go:'vct', level:2 },
-  { order:4, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', level:0 },
-  { order:5, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', level:0 },
+  { order:3, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', level:0 },
+  { order:4, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', level:0 },
 ];
 function menuLevel(v){ const s=String(v||'').trim().toLowerCase(); if(!s)return 0; if(/^(✓|ใช่|yes|true|y|เด่น|มาก|1)$/.test(s))return 1; if(/^(2|กลาง|ปานกลาง|medium|mid)$/.test(s))return 2; if(/^(3|อ่อน|น้อย|light|เฟด|fade)$/.test(s))return 3; return 0; }
 function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/hero|แสดง|display|banner/.test(s))return'hero'; if(/vct|z114|คัดกรอง/.test(s))return'vct'; if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
@@ -736,9 +735,9 @@ const VCT_RIGHTS=['อนุเคราะห์','กรมบัญชีก�
 const VCT_ACKS=['อ่านด้วยตนเอง','ได้รับคำอธิบายจากแพทย์/เจ้าหน้าที่','มีผู้อ่านให้ฟัง','มีโอกาสซักถามและได้รับคำตอบที่พอใจ'];
 const VCT_NOTIFY=['ข้าพเจ้าแต่เพียงผู้เดียว','คู่สมรสของข้าพเจ้า','อื่น ๆ'];
 const VCT_MULTI=new Set(['riskTypes','ackMethods','notifyTo']);
-let vctRecordId=null;
+let vctRecordId=null; let vctReturnMode='records';
 function openVct(r){
-  vctRecordId=r.id; const v=r.vct||{};
+  vctRecordId=r.id; vctReturnMode=(dashMode==='admin')?'admin':'records'; const v=r.vct||{};
   const full=((r.staffName||'')+' '+(r.staffName2||'')).trim();
   const today=new Date().toISOString().slice(0,10);
   const g=(k,d='')=>(v[k]!=null&&v[k]!=='')?v[k]:d;
@@ -912,8 +911,8 @@ $('#dashHome').onclick=goHome;
 renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
-$('#vctBack').onclick=()=>openDashboard('vct');
-$('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); openDashboard('vct'); };
+$('#vctBack').onclick=()=>openDashboard(vctReturnMode||'records');
+$('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); openDashboard(vctReturnMode||'records'); };
 function vctDraft(){ const r=records().find(x=>x.id===vctRecordId); if(!r)return null; return {r, draft:{...r,vct:collectVct()}}; }
 $('#vctPreview1').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page">${vctPage1(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
 $('#vctPreview2').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page land">${vctPage2(c.draft)}</div><div class="a5-page land">${vctPage3(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
@@ -952,6 +951,7 @@ $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}if(dashMode==='vct'){openVct(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';$('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
+$('#attachVct').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); openVct(r);}};
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
 $('#printRecord').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(r); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
