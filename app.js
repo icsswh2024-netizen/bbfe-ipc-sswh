@@ -50,7 +50,13 @@ function applyHero(h){
 }
 function renderMenu(){
   const box=$('.menu-grid'); if(!box)return;
-  const items=(MENU_ITEMS&&MENU_ITEMS.length?MENU_ITEMS:DEFAULT_MENU).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+  let items=(MENU_ITEMS&&MENU_ITEMS.length?MENU_ITEMS:DEFAULT_MENU).slice();
+  if(MENU_ITEMS&&MENU_ITEMS.length){ // keep built-in feature cards reachable even if a custom sheet omits them
+    const have=new Set(items.map(m=>m.go));
+    let mx=items.reduce((a,m)=>Math.max(a,m.order||0),0);
+    DEFAULT_MENU.forEach(d=>{ if(!have.has(d.go)) items.push({...d, order:++mx}); });
+  }
+  items=items.sort((a,b)=>(a.order||0)-(b.order||0));
   const cards=items.filter(m=>m.go!=='hero');
   const lvClass=m=>{ const lv=m.level!=null?m.level:(m.feature?1:0); return lv===1?' feature':(lv===2?' tint2':(lv===3?' tint3':'')); };
   box.innerHTML=cards.map(m=>`<button type="button" class="menu-card${lvClass(m)}" data-go="${esc(m.go)}"><span class="menu-icon">${esc(m.icon)}</span><b>${esc(m.title)}</b><small>${esc(m.desc)}</small><span class="menu-arrow">${esc(m.arrow)}</span></button>`).join('');
