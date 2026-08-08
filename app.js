@@ -580,7 +580,7 @@ function docFoot(){ return `<div class="doc-logo-bottom"><img src="assets/logo-i
 function reportA4Html(r, scope){ return scope==='admin' ? docPage2(r) : docPage1(r); }
 // whole continuous case (both pages) for printing
 function hasVct(r){ return !!(r && r.vct && Object.keys(r.vct).length); }
-function fullDocHtml(r){ return `<div class="a4-page">${docPage1(r)}</div><div class="a4-page">${docPage2(r)}</div>${hasVct(r)?`<div class="a4-page">${vctDoc(r)}</div>`:''}`; }
+function fullDocHtml(r){ return `<div class="a4-page">${docPage1(r)}</div><div class="a4-page">${docPage2(r)}</div>${hasVct(r)?vctPagesHtml(r):''}`; }
 function docPage1(r){
   const t=rT, fx=rFx, ck=rCk, eq=rEq, has=rHas, opt=rOpt, labRow=rLabRow;
   const exposure = Array.isArray(r.exposureType) ? r.exposureType : (r.exposureType?[r.exposureType]:[]);
@@ -725,7 +725,8 @@ function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
 // ---- VCT / คัดกรอง Z114 (เอกสารแนบ) ----
-const VCT_RISKS=['เสพยาเสพติดชนิดฉีดเข้าเส้น','ผู้ป่วยวัณโรค','คู่สมรส/คนอื่นติดเชื้อ HIV','คลอดจากมารดาติดเชื้อ','เที่ยวหญิงบริการ','มีเพศสัมพันธ์ไม่ใช้ถุงยาง','ชายรักชาย','เข็มทิ่มตำ','อื่น ๆ'];
+const VCT_RISKS=['เสพยาเสพติดชนิดฉีดเข้าเส้น','ผู้ป่วยวัณโรค','คู่สมรส/คู่นอนติดเชื้อเอชไอวี','คลอดจากมารดาติดเชื้อ','เที่ยวหญิงบริการ','มีเพศสัมพันธ์ไม่ใช้ถุงยาง','ชายรักชาย','เข็มทิ่มตำ','อื่นๆ'];
+const VCT_RIGHTS=['อนุเคราะห์','กรมบัญชีกลาง','บัตรทอง','ประกันสังคม','เบิกต้นสังกัด','ชำระเงินเอง'];
 const VCT_ACKS=['อ่านด้วยตนเอง','ได้รับคำอธิบายจากแพทย์/เจ้าหน้าที่','มีผู้อ่านให้ฟัง','มีโอกาสซักถามและได้รับคำตอบที่พอใจ'];
 const VCT_NOTIFY=['ข้าพเจ้าแต่เพียงผู้เดียว','คู่สมรสของข้าพเจ้า','อื่น ๆ'];
 const VCT_MULTI=new Set(['riskTypes','ackMethods','notifyTo']);
@@ -753,7 +754,7 @@ function openVct(r){
          ${lab('ชื่อ - สกุล','name',g('name',full))}
          ${lab('H.N.','hn',g('hn',r.staffHn||''))}
          ${lab('อายุ (ปี)','age',g('age',r.age||''),'number')}
-         ${selL('สิทธิการรักษา','rights',['อนาถา (สงเคราะห์)','กรมบัญชีกลาง','บัตรทอง','ประกันสังคม','เบิกต้นสังกัด','ชำระเงินเอง'],g('rights'))}
+         ${selL('สิทธิการรักษา','rights',VCT_RIGHTS,g('rights'))}
          ${selL('สถานภาพ','marital',['โสด','สมรส','หม้าย','แยกกันอยู่'],g('marital'))}
        </div>
      </div>
@@ -795,42 +796,59 @@ function openVct(r){
   showView('vct');
 }
 function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val]of fd){ if(VCT_MULTI.has(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
-function vctDoc(r){
-  const t=rT,fx=rFx,ck=rCk,eq=rEq; const v=r.vct||{}; const d=rDparts(v.consentDate);
-  const on=(k,x)=>Array.isArray(v[k])&&v[k].includes(x);
-  const o=(cond,label)=>`<span class="opt">${ck(!!cond)} ${label}</span>`;
-  const sigLine=(cap)=>`<div class="vct-sig"><div class="vct-sigline"></div><div class="vct-sigcap">(...........................................) ${cap}</div></div>`;
-  return `<div class="doc">`
-    + `<div class="doc-head"><img class="doc-logo-top" src="assets/logo-sswh.png" alt="" loading="eager"></div>`
-    + `<h1 class="doc-title">แบบบันทึกการให้บริการตรวจคัดกรอง Z114<br><span class="doc-sub">และการให้การปรึกษา (Voluntary Counseling and Testing : VCT)</span></h1>`
-    + `<div class="doc-body">`
-    + `<div class="ln">${t('วันที่ให้คำปรึกษา')}${fx(v.counselDate,true)}${t('หน่วยงานที่ให้คำปรึกษา')}${fx(v.unit,true)}</div>`
-    + `<div class="ln in1">${o(eq(v.unitType,'ด้านหน้า'),'ด้านหน้า')}${o(eq(v.unitType,'ผู้ป่วยใน'),'ผู้ป่วยใน')}${t('เลขประจำตัวประชาชน')}${fx(v.citizenId,true)}</div>`
-    + `<div class="ln">${t('ชื่อ - สกุล')}${fx(v.name,true)}${t('H.N.')}${fx(v.hn)}${t('อายุ')}${fx(v.age)}${t('ปี')}</div>`
-    + `<div class="ln in1">${t('สิทธิ')}${['อนาถา (สงเคราะห์)','กรมบัญชีกลาง','บัตรทอง','ประกันสังคม','เบิกต้นสังกัด','ชำระเงินเอง'].map(x=>o(eq(v.rights,x),x)).join('')}</div>`
-    + `<div class="ln in1">${t('สถานภาพ')}${['โสด','สมรส','หม้าย','แยกกันอยู่'].map(x=>o(eq(v.marital,x),x)).join('')}</div>`
-    + `<div class="ln">${t('ประเภทความเสี่ยง')}</div>`
-    + `<div class="ln in1">${VCT_RISKS.map(x=>o(on('riskTypes',x),x)).join('')}${v.riskOther?fx(v.riskOther,true):''}</div>`
-    + `<div class="ln">${t('ประวัติการส่งตรวจเลือด')}${o(eq(v.testHistory,'เคย'),'เคย ครั้งที่')}${fx(v.testHistoryCount)}${o(eq(v.testHistory,'ไม่เคย'),'ไม่เคย')}</div>`
-    + `<div class="ln">${t('การส่งตรวจเลือด')}${['ตรวจ','ไม่ตรวจ','ตรวจ Confirm'].map(x=>o(eq(v.testOrder,x),x)).join('')}${t('ผลการตรวจ')}${['Positive','Negative','Inconclusive: แปลผลไม่ได้'].map(x=>o(eq(v.testResult,x),x)).join('')}</div>`
-    + `<div class="ln">${t('วันที่ตรวจเลือด')}${fx(v.testDate)}${t('ผู้ตรวจเลือด')}${fx(v.tester,true)}</div>`
-    + `<div class="ln">${t('ผู้ให้คำปรึกษา')}${fx(v.counselor,true)}${t('ผู้ลงข้อมูล VCT')}${fx(v.vctRecorder,true)}</div>`
-    + `<div class="ln sub" style="margin-top:6px">หนังสือแสดงความยินยอมตรวจเอดส์</div>`
-    + `<div class="ln">${t('ชื่อ - สกุล')}${fx(v.name,true)}${t('H.N.')}${fx(v.hn)}${t('อายุ')}${fx(v.age)}${t('ปี')}${t('วันที่')}${fx(d.d)}${t('เดือน')}${fx(d.m)}${t('พ.ศ.')}${fx(d.y)}${t('เวลา')}${fx(v.consentTime)}${t('น.')}</div>`
-    + `<div class="ln in1">${t('การรับทราบข้อควรรู้ก่อนตรวจ')}</div>`
-    + `<div class="ln in1">${VCT_ACKS.map(x=>o(on('ackMethods',x),x)).join('')}</div>`
-    + `<div class="ln in1" style="margin-top:2px">ข้าพเจ้าได้รับการยืนยันว่าข้อมูลส่วนบุคคลในการตรวจเอดส์นี้จะถูกเก็บเป็นความลับ ไม่เปิดเผยโดยปราศจากความยินยอม เว้นแต่เป็นการเปิดเผยตามที่กฎหมายกำหนด หรือมีข้อบ่งชี้และความจำเป็นในการวินิจฉัยรักษาโรค</div>`
-    + `<div class="ln in1">${o(eq(v.wantTest,'ประสงค์'),'มีความประสงค์ขอรับการตรวจเอดส์จากโรงพยาบาลศรีสังวรสุโขทัย')}</div>`
-    + `<div class="ln in1">${o(rHas(v.minorName),'ยินยอมให้ผู้เยาว์/ผู้ในปกครองเข้ารับการตรวจ')}${fx(v.minorName,true)}</div>`
-    + `<div class="vct-sigs">${sigLine('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรม')}${sigLine('แพทย์/เจ้าหน้าที่ทางการแพทย์')}${sigLine('พยาน')}</div>`
-    + `<div class="ln sub" style="margin-top:8px">คำยินยอมให้แจ้งผลตรวจเอดส์</div>`
-    + `<div class="ln in1">${t('ยินยอมให้แจ้งผลการตรวจเลือดแก่')}${o(on('notifyTo','ข้าพเจ้าแต่เพียงผู้เดียว'),'ข้าพเจ้าแต่เพียงผู้เดียว')}${o(on('notifyTo','คู่สมรสของข้าพเจ้า'),'คู่สมรส')}${fx(v.notifySpouse,true)}${o(on('notifyTo','อื่น ๆ'),'อื่น ๆ')}${fx(v.notifyOther,true)}</div>`
-    + `<div class="ln in1">${t('ผลการตรวจ')}${['Negative','Positive','อื่น ๆ'].map(x=>o(eq(v.finalResult,x),x)).join('')}${fx(v.finalOther,true)}</div>`
-    + `<div class="vct-sigs">${sigLine('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรม')}${sigLine('แพทย์/เจ้าหน้าที่ทางการแพทย์')}${sigLine('พยาน')}</div>`
-    + `</div>`
-    + `<div class="doc-foot">โรงพยาบาลศรีสังวรสุโขทัย • งาน IC — เอกสารแนบ VCT (Z114)</div>`
+function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
+function vSig(cap,cap2){ return `<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap">(...........................................)${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}`; }
+function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
+  const op=(c,l)=>`<span class="v-op">${ck(!!c)} ${l}</span>`;
+  const cell=(lb,val)=>`<td><div class="v-lb">${lb}</div><div class="v-cellval">${esc(val||'')}</div></td>`;
+  return `<div class="vct">`
+    + `<div class="v-tt">แบบบันทึกการให้บริการตรวจคัดกรอง Z114 และการให้การปรึกษา<br><span>(Voluntary Counseling and Testing: VCT)</span></div>`
+    + `<div class="v-r"><b>วันที่ให้คำปรึกษา</b>${fx(v.counselDate,true)}</div>`
+    + `<div class="v-r"><b>หน่วยงานที่ให้คำปรึกษา</b></div>`
+    + `<div class="v-r v-ind">${ck(eq(v.unitType,'ด่านหน้า'))} ด่านหน้า ระบุหน่วยงาน${fx(eq(v.unitType,'ด่านหน้า')?v.unit:'',true)}</div>`
+    + `<div class="v-r v-ind">${ck(eq(v.unitType,'ผู้ป่วยใน'))} ผู้ป่วยใน ระบุหน่วยงาน${fx(eq(v.unitType,'ผู้ป่วยใน')?v.unit:'',true)}</div>`
+    + `<div class="v-r"><b>เลขประจำตัวประชาชน</b></div>${vctIdBoxes(v.citizenId)}`
+    + `<div class="v-r"><b>ชื่อ - สกุล</b>${fx(v.name,true)}<b>H.N.</b>${fx(v.hn)}<b>อายุ</b>${fx(v.age)}ปี</div>`
+    + `<div class="v-r"><b>สิทธิ</b>${op(eq(v.rights,'อนุเคราะห์'),'อนุเคราะห์')}${op(eq(v.rights,'กรมบัญชีกลาง'),'กรมบัญชีกลาง')}${op(eq(v.rights,'บัตรทอง'),'บัตรทอง')}</div>`
+    + `<div class="v-r v-ind">${op(eq(v.rights,'ประกันสังคม'),'ประกันสังคม')}${op(eq(v.rights,'เบิกต้นสังกัด'),'เบิกต้นสังกัด')}${op(eq(v.rights,'ชำระเงินเอง'),'ชำระเงินเอง')}</div>`
+    + `<div class="v-r"><b>สถานภาพ</b>${['โสด','สมรส','หม้าย','แยกกันอยู่'].map(x=>op(eq(v.marital,x),x)).join('')}</div>`
+    + `<div class="v-r"><b>ประเภทความเสี่ยง</b>${op(on(VCT_RISKS[0]),VCT_RISKS[0])}${op(on(VCT_RISKS[1]),VCT_RISKS[1])}</div>`
+    + `<div class="v-r">${op(on(VCT_RISKS[2]),VCT_RISKS[2])}${op(on(VCT_RISKS[3]),VCT_RISKS[3])}${op(on(VCT_RISKS[4]),VCT_RISKS[4])}</div>`
+    + `<div class="v-r">${op(on(VCT_RISKS[5]),VCT_RISKS[5])}${op(on(VCT_RISKS[6]),VCT_RISKS[6])}${op(on(VCT_RISKS[7]),VCT_RISKS[7])}${op(on(VCT_RISKS[8]),VCT_RISKS[8])}${fx(v.riskOther)}</div>`
+    + `<div class="v-r"><b>ประวัติการส่งตรวจเลือด</b> <span class="v-note">(ถามผู้ป่วยว่าเคยตรวจหรือไม่)</span> ${op(eq(v.testHistory,'เคย'),'เคยครั้งที่')}${fx(v.testHistoryCount)}${op(eq(v.testHistory,'ไม่เคย'),'ไม่เคย')}</div>`
+    + `<div class="v-r"><b>การส่งตรวจเลือด</b>${op(eq(v.testOrder,'ตรวจ'),'ตรวจ')}${op(eq(v.testOrder,'ไม่ตรวจ'),'ไม่ตรวจ')}${op(eq(v.testOrder,'ตรวจ Confirm'),'ตรวจ Confirm')}</div>`
+    + `<div class="v-r"><b>ผลการตรวจ</b>${op(eq(v.testResult,'Positive'),'Positive')}${op(eq(v.testResult,'Negative'),'Negative')}${op(/Inconclusive/.test(v.testResult||''),'Inconclusive: แปลผลไม่ได้')}</div>`
+    + `<table class="v-tbl"><tr>${cell('วันที่ตรวจเลือด',v.testDate)}${cell('ผู้ตรวจเลือด',v.tester)}</tr><tr>${cell('ผู้ให้คำปรึกษา',v.counselor)}${cell('ผู้ลงข้อมูล VCT',v.vctRecorder)}</tr></table>`
     + `</div>`;
 }
+function vctPage2(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const ao=x=>Array.isArray(v.ackMethods)&&v.ackMethods.includes(x);
+  const sq=on=>`<span class="v-sq">${on?'☑':'☐'}</span>`;
+  return `<div class="vct">`
+    + `<div class="v-r"><b>ชื่อ - สกุล</b>${fx(v.name,true)}<b>H.N.</b>${fx(v.hn)}<b>อายุ</b>${fx(v.age)}ปี</div>`
+    + `<div class="v-hr"></div>`
+    + `<div class="v-tt">หนังสือแสดงความยินยอมตรวจเอดส์</div>`
+    + `<div class="v-r"><b>วันที่</b>${fx(v.consentDate,true)}<b>เวลา</b>${fx(v.consentTime)}น.</div>`
+    + `<div class="v-r">ข้าพเจ้า (นาย/นาง/น.ส./อื่นๆ${fx(v.name,true)}) ได้รับทราบข้อควรรู้ก่อนรับการตรวจเอดส์ โดย</div>`
+    + `<div class="v-two"><div class="v-r v-ind">${sq(ao('อ่านด้วยตนเอง'))} อ่านด้วยตนเอง</div><div class="v-r">${sq(ao('ได้รับคำอธิบายจากแพทย์/เจ้าหน้าที่'))} ได้รับคำอธิบายจากแพทย์หรือเจ้าหน้าที่ทางการแพทย์แล้ว</div></div>`
+    + `<div class="v-two"><div class="v-r v-ind">${sq(ao('มีผู้อ่านให้ฟัง'))} มีผู้อ่านให้ฟังคือ${fx(v.readerName,true)}(อ่านให้ฟัง)</div><div class="v-r">${sq(ao('มีโอกาสซักถามและได้รับคำตอบที่พอใจ'))} มีโอกาสซักถามและได้รับคำตอบเป็นที่พอใจ</div></div>`
+    + `<div class="v-r v-just">ข้าพเจ้าได้รับการยืนยันว่า ข้อมูลส่วนบุคคลของข้าพเจ้าในการตรวจเอดส์นี้ จะได้รับการเก็บไว้เป็นความลับ ไม่มีการเปิดเผยโดยปราศจากความยินยอมของข้าพเจ้า เว้นแต่เป็นการเปิดเผยตามที่กฎหมายกำหนด หรือมีข้อบ่งชี้และความจำเป็นในการวินิจฉัยรักษาโรคและฟื้นฟูสภาพของข้าพเจ้า</div>`
+    + `<div class="v-r v-ind">ข้าพเจ้า ${sq(eq(v.wantTest,'ประสงค์'))} มีความประสงค์จะขอรับการตรวจเอดส์จากโรงพยาบาลศรีสังวรสุโขทัย</div>`
+    + `<div class="v-r v-just v-ind">${sq(rHas(v.minorName))} ยินยอมให้ ( ด.ช. / ด.ญ. / นาย / น.ส. /${fx(v.minorName,true)}) ซึ่งเป็นเด็กอายุต่ำกว่าสิบแปดปีบริบูรณ์ หรือยังไม่บรรลุนิติภาวะด้วยการสมรส หรือเป็นผู้บกพร่องทางกายหรือจิต และเป็นผู้อยู่ในปกครองของข้าพเจ้าเข้ารับการตรวจเอดส์จากโรงพยาบาลศรีสังวรสุโขทัย</div>`
+    + `<div class="v-r v-ind">ข้าพเจ้าทราบและเข้าใจดีถึงผลกระทบต่าง ๆ ที่อาจเกิดจากการตรวจเอดส์ครั้งนี้ดี จึงลงลายมือชื่อเป็นหลักฐาน</div>`
+    + `<div class="v-two v-sigrow">${vSig('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('พยาน')}</div>`
+    + `<div class="v-two v-sigrow">${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์')}${vSig('พยาน')}</div>`
+    + `</div>`;
+}
+function vctPage3(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const no=x=>Array.isArray(v.notifyTo)&&v.notifyTo.includes(x);
+  const sq=on=>`<span class="v-sq">${on?'☑':'☐'}</span>`;
+  return `<div class="vct">`
+    + `<div class="v-tt">คำยินยอมให้แจ้งผลตรวจเอดส์</div>`
+    + `<div class="v-r" style="margin-top:6px">ข้าพเจ้ายินยอมให้แจ้งผลการตรวจเลือดแก่</div>`
+    + `<div class="v-two"><div><div class="v-r">${sq(no('ข้าพเจ้าแต่เพียงผู้เดียว'))} ข้าพเจ้าแต่เพียงผู้เดียว</div><div class="v-r">${sq(no('อื่น ๆ'))} อื่น ๆ (ระบุ)${fx(v.notifyOther,true)}</div></div><div><div class="v-r">${sq(no('คู่สมรสของข้าพเจ้า'))} คู่สมรสของข้าพเจ้าคือ${fx(v.notifySpouse,true)}</div></div></div>`
+    + `<div class="v-two" style="margin-top:14px"><div class="v-res"><div class="v-r"><b>ผลการตรวจ</b></div><div class="v-r">${sq(eq(v.finalResult,'Negative'))} Negative</div><div class="v-r">${sq(eq(v.finalResult,'Positive'))} Positive</div><div class="v-r">${sq(eq(v.finalResult,'อื่น ๆ'))} อื่นๆ${fx(v.finalOther,true)}</div></div><div>${vSig('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์ / ผู้ให้คำปรึกษาแนะนำ')}${vSig('พยาน')}${vSig('พยาน')}</div></div>`
+    + `</div>`;
+}
+function vctPagesHtml(r){ return `<div class="a5-page">${vctPage1(r)}</div><div class="a5-page land">${vctPage2(r)}</div><div class="a5-page land">${vctPage3(r)}</div>`; }
 function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
 // ---- Sample-data filler (fills ONLY the sections active in the current mode) ----
 function drawDemoSignature(){
@@ -890,7 +908,7 @@ $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
 $('#vctBack').onclick=()=>openDashboard('vct');
 $('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); openDashboard('vct'); };
-$('#vctPreview').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; const draft={...r,vct:collectVct()}; reportRecord=draft; openReportHtml(`<div class="a4-page">${vctDoc(draft)}</div>`, ()=>openVct(r)); };
+$('#vctPreview').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; const draft={...r,vct:collectVct()}; reportRecord=draft; openReportHtml(vctPagesHtml(draft), ()=>openVct(r), 'a5'); };
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
@@ -898,7 +916,7 @@ $('#addPatient').onclick=()=>{ const l=collectSourcePatients(); l.push({}); rend
 $('#sourcePatients').onclick=e=>{ const btn=e.target.closest('.sp-remove'); if(!btn)return; const l=collectSourcePatients(); l.splice(+btn.closest('.patient-card').dataset.idx,1); renderSourcePatients(l); };
 form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDialog').showModal();};
 $('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
-function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp.clientWidth-20; const scale=Math.min(1, avail/794); vp.querySelectorAll('.a4-page').forEach(pg=>{ pg.style.zoom=scale; }); }
+function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp.clientWidth-20; vp.querySelectorAll('.a4-page,.a5-page').forEach(pg=>{ const w=pg.classList.contains('a5-page')?(pg.classList.contains('land')?794:559):794; pg.style.zoom=Math.min(1, avail/w); }); }
 // preview dialog states: 'save' (edit + confirm), 'ref' (read-only close), 'report' (edit + print/PDF + close)
 let previewState='save', reportRecord=null, reportEditFn=null, reportHtml='';
 function setPreviewMode(state){ previewState=state; const report=state==='report', ref=state==='ref';
@@ -908,9 +926,11 @@ function setPreviewMode(state){ previewState=state; const report=state==='report
   $('#previewEdit').textContent = report ? '✎ แก้ไขข้อมูล' : (ref ? 'ปิด' : '← แก้ไข');
   $('#previewConfirm').textContent = report ? 'ปิด' : 'ยืนยันบันทึก';
 }
-function openReportHtml(html, editFn){ reportEditFn=editFn||null; reportHtml=html; setPreviewMode('report'); $('#previewBody').innerHTML=html; $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; }
-function openReport(r, editFn){ reportRecord=r; openReportHtml(fullDocHtml(r), editFn); }
-function printReport(){ if(!reportHtml)return; $('#printArea').innerHTML=reportHtml; $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
+let reportPaper='a4';
+const A5_PAGE_CSS='@page{size:148mm 210mm;margin:8mm}@page vctland{size:210mm 148mm;margin:8mm}#printArea .a5-page.land{page:vctland}';
+function openReportHtml(html, editFn, paper){ reportEditFn=editFn||null; reportHtml=html; reportPaper=paper||'a4'; setPreviewMode('report'); $('#previewBody').innerHTML=html; $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; }
+function openReport(r, editFn){ reportRecord=r; openReportHtml(fullDocHtml(r), editFn, hasVct(r)?'mix':'a4'); }
+function printReport(){ if(!reportHtml)return; $('#pageStyle').textContent = (reportPaper==='a5') ? A5_PAGE_CSS : ''; $('#printArea').innerHTML=reportHtml; $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
 $('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode('save'); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
