@@ -103,3 +103,18 @@ input,select,textarea,button,.search input{font-family:inherit}
 .dm-seg button.on.hide{background:#6a6a6a;color:#fff}
 .dm-seg button:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
 #dmOpenSheet{text-decoration:none;display:inline-flex;align-items:center}
+
+.setup-dialog{width:min(680px,94vw);max-height:92vh;border:0;border-radius:16px;padding:0;box-shadow:0 25px 90px #0005;color:var(--ink)}
+.setup-dialog::backdrop{background:#3b1115aa}
+.setup-body{padding:26px 28px;overflow:auto;max-height:92vh}
+.setup-body h3{margin:0 0 6px;font-size:21px;color:var(--ink)}
+.setup-lede{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.6}
+.setup-steps{margin:0 0 18px;padding-left:22px;font-size:14px;line-height:1.75}
+.setup-steps b{color:var(--teal)}
+.code-box{position:relative;background:#1e1418;border-radius:12px;padding:16px;margin-bottom:18px;overflow:auto}
+.code-box pre{margin:0;color:#ffe;font:12px/1.55 "SFMono-Regular",Menlo,Consolas,monospace;white-space:pre;overflow-x:auto}
+.code-copy{position:absolute;top:10px;right:10px;padding:6px 12px;font-size:12px}
+.setup-url{display:block;font-size:13px;font-weight:600;color:#5c3a40;margin-bottom:18px}
+.setup-url input{margin-top:7px}
+.setup-actions{display:flex;align-items:center;gap:10px}
+@media(max-width:780px){.setup-body{padding:20px 16px}}
