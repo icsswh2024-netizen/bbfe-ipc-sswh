@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=53">
+  <link rel="stylesheet" href="styles.css?v=54">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -44,7 +44,7 @@
     </section>
 
     <section id="editor" class="view">
-      <div class="editor-head"><button class="back" id="backBtn" aria-label="กลับ"><span class="back-ico">←</span><span class="back-txt">กลับ</span></button><div><span class="eyebrow" id="formEyebrow">FORM IC 1 • VERSION 2.0</span><h1 id="formTitle">บันทึกเหตุการณ์ใหม่</h1></div><button type="button" class="btn ghost dark" id="viewReport" style="margin-left:auto">📄 ดูใบรายงาน</button><div class="save-state" id="saveState">ยังไม่บันทึก</div></div>
+      <div class="editor-head"><button class="back" id="backBtn" aria-label="กลับ"><span class="back-ico">←</span><span class="back-txt">กลับ</span></button><div><span class="eyebrow" id="formEyebrow">FORM IC 1 • VERSION 2.0</span><h1 id="formTitle">บันทึกเหตุการณ์ใหม่</h1></div><button type="button" class="btn ghost dark" id="attachVctBtn" style="margin-left:auto">🧪 เอกสารแนบ VCT</button><button type="button" class="btn ghost dark" id="viewReport">📄 ดูใบรายงาน</button><div class="save-state" id="saveState">ยังไม่บันทึก</div></div>
       <form id="accidentForm">
         <input type="hidden" name="id">
         <nav class="steps" id="steps">
@@ -122,7 +122,7 @@
   </main>
 
   <div id="toast" class="toast" role="status"></div>
-  <dialog id="detailDialog"><button class="dialog-close" aria-label="ปิด">×</button><button type="button" class="btn ghost dark" id="viewReportDetail" style="float:right;margin-right:12px">📄 ดูใบรายงาน</button><div id="detailContent"></div><div class="dialog-actions"><button class="btn ghost dark" id="attachVct">🧪 เอกสารแนบ VCT / ยินยอมตรวจเลือด</button><button class="btn ghost dark" id="printRecord">พิมพ์</button><button class="btn ghost dark" id="editRecord">แก้ไข</button><button class="btn danger" id="deleteRecord">ลบรายการ</button></div></dialog>
+  <dialog id="detailDialog"><button class="dialog-close" aria-label="ปิด">×</button><button type="button" class="btn ghost dark" id="viewReportDetail" style="float:right;margin-right:12px">📄 ดูใบรายงาน</button><div id="detailContent"></div><div class="dialog-actions"><button class="btn ghost dark" id="printRecord">พิมพ์</button><button class="btn ghost dark" id="editRecord">แก้ไข</button><button class="btn danger" id="deleteRecord">ลบรายการ</button></div></dialog>
   <dialog id="warnDialog" class="warn-dialog"><div class="warn-box"><div class="warn-ico">⚠️</div><h3>ตรวจสอบข้อมูลก่อนบันทึก</h3><p>โปรดตรวจสอบข้อมูลให้ถูกต้องครบถ้วน เมื่อกด “ตกลง” ระบบจะแสดงตัวอย่างเอกสารเพื่อให้ตรวจทานก่อนยืนยันการบันทึก</p><div class="warn-actions"><button type="button" class="btn ghost dark" id="warnCancel">ยกเลิก</button><button type="button" class="btn primary" id="warnOk">ตกลง</button></div></div></dialog>
   <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn ghost dark hidden" id="previewPrint">🖨 พิมพ์ / บันทึก PDF</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
   <div id="printArea" aria-hidden="true"></div>
@@ -132,6 +132,6 @@
     <button type="button" data-tab="icn"><span class="ti">✚</span><span>ICN</span></button>
     <button type="button" data-tab="records"><span class="ti">▤</span><span>ทะเบียน</span></button>
   </nav>
-  <script src="app.js?v=53"></script>
+  <script src="app.js?v=54"></script>
 </body>
 </html>

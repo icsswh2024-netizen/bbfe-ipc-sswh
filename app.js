@@ -735,9 +735,9 @@ const VCT_RIGHTS=['อนุเคราะห์','กรมบัญชีก�
 const VCT_ACKS=['อ่านด้วยตนเอง','ได้รับคำอธิบายจากแพทย์/เจ้าหน้าที่','มีผู้อ่านให้ฟัง','มีโอกาสซักถามและได้รับคำตอบที่พอใจ'];
 const VCT_NOTIFY=['ข้าพเจ้าแต่เพียงผู้เดียว','คู่สมรสของข้าพเจ้า','อื่น ๆ'];
 const VCT_MULTI=new Set(['riskTypes','ackMethods','notifyTo']);
-let vctRecordId=null; let vctReturnMode='records';
+let vctRecordId=null; let vctReturn=null;
 function openVct(r){
-  vctRecordId=r.id; vctReturnMode=(dashMode==='admin')?'admin':'records'; const v=r.vct||{};
+  vctRecordId=r.id; const v=r.vct||{};
   const full=((r.staffName||'')+' '+(r.staffName2||'')).trim();
   const today=new Date().toISOString().slice(0,10);
   const g=(k,d='')=>(v[k]!=null&&v[k]!=='')?v[k]:d;
@@ -911,8 +911,8 @@ $('#dashHome').onclick=goHome;
 renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
-$('#vctBack').onclick=()=>openDashboard(vctReturnMode||'records');
-$('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); openDashboard(vctReturnMode||'records'); };
+$('#vctBack').onclick=()=>{ if(vctReturn){const f=vctReturn;vctReturn=null;f();} else openDashboard('records'); };
+$('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); if(vctReturn){const f=vctReturn;vctReturn=null;f();} else openDashboard('records'); };
 function vctDraft(){ const r=records().find(x=>x.id===vctRecordId); if(!r)return null; return {r, draft:{...r,vct:collectVct()}}; }
 $('#vctPreview1').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page">${vctPage1(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
 $('#vctPreview2').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page land">${vctPage2(c.draft)}</div><div class="a5-page land">${vctPage3(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
@@ -951,7 +951,7 @@ $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}if(dashMode==='vct'){openVct(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';$('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
-$('#attachVct').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); openVct(r);}};
+$('#attachVctBtn').onclick=()=>{ const mode=formMode; let data=formDataObject(); commitSave(data); form.id.value=data.id; $('#saveState').textContent='บันทึกแล้ว'; const rid=data.id; vctReturn=()=>{ const r=records().find(x=>x.id===rid); if(!r){editorBack();return;} if(mode==='admin')openAdminEdit(r); else if(mode==='icn')openIcnEdit(r); else openStaffEdit(r); }; openVct(records().find(x=>x.id===rid)); };
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
 $('#printRecord').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(r); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
