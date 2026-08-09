@@ -1018,3 +1018,53 @@ $('#dmList').onclick=e=>{ const b=e.target.closest('.dm-seg button'); if(!b)retu
   applyStatusVal(FIELD_CFG[key], val); saveFieldStatus(); applyFieldConfig(); renderDataMgr(); };
 $('#dmReset').onclick=()=>{ if(!Object.keys(FIELD_STATUS).length) return toast('ไม่มีการปรับเฉพาะเครื่อง'); if(!confirm('ล้างการตั้งค่าเฉพาะเครื่องนี้ ให้กลับไปใช้ค่าตามชีตทั้งหมด?'))return; FIELD_STATUS={}; saveFieldStatus(); Object.entries(FIELD_CFG).forEach(([k,c])=>applyStatusVal(c, FIELD_SHEET_STATUS[k]||'')); applyFieldConfig(); renderDataMgr(); toast('รีเซ็ตให้ตรงกับชีตแล้ว'); };
 $('#dmCopy').onclick=async()=>{ const col=['สถานะ'].concat(Object.keys(FIELD_CFG).map(k=>effStatus(k))).join('\n'); try{await navigator.clipboard.writeText(col);}catch{const ta=document.createElement('textarea');ta.value=col;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกคอลัมน์ สถานะ แล้ว — วางที่เซลล์ H1 ในแท็บ fields'); };
+
+// ---- บันทึกลงชีตอัตโนมัติ ผ่าน Google Apps Script Web App ----
+const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
+const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||'';}catch{return '';} };
+const APPS_SCRIPT_CODE=`function doPost(e){
+  try{
+    var body = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActive();
+    var sh = ss.getSheetByName('fields');
+    var data = sh.getDataRange().getValues();
+    var head = data[0];
+    var keyCol = head.indexOf('key');
+    var stCol = head.indexOf('สถานะ');
+    if (stCol < 0){ stCol = head.length; sh.getRange(1, stCol+1).setValue('สถานะ'); }
+    var statuses = body.statuses || {};
+    for (var r=1; r<data.length; r++){
+      var k = data[r][keyCol];
+      if (k && statuses.hasOwnProperty(k)) sh.getRange(r+1, stCol+1).setValue(statuses[k]||'');
+    }
+    return ContentService.createTextOutput(JSON.stringify({ok:true}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err){
+    return ContentService.createTextOutput(JSON.stringify({ok:false,error:String(err)}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+function openDmSetup(){ $('#dmScript').textContent=APPS_SCRIPT_CODE; $('#dmUrl').value=getSheetHook(); const d=$('#dmSetup'); if(d.open)d.close(); d.showModal(); }
+$('#dmSetupBtn').onclick=openDmSetup;
+$('#dmCopyCode').onclick=async()=>{ try{await navigator.clipboard.writeText(APPS_SCRIPT_CODE);}catch{const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกโค้ดแล้ว — ไปวางใน Apps Script'); };
+$('#dmSetupCancel').onclick=()=>$('#dmSetup').close();
+$('#dmSetupClear').onclick=()=>{ localStorage.removeItem(SHEET_HOOK_KEY); $('#dmUrl').value=''; toast('ลบการเชื่อมต่อแล้ว'); };
+$('#dmSetupSave').onclick=()=>{ const u=$('#dmUrl').value.trim(); if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(u)){ if(!confirm('URL ไม่ตรงรูปแบบ Web App ปกติ ต้องการบันทึกต่อหรือไม่?'))return; } if(u)localStorage.setItem(SHEET_HOOK_KEY,u); else localStorage.removeItem(SHEET_HOOK_KEY); $('#dmSetup').close(); toast(u?'บันทึกการเชื่อมต่อแล้ว':'ลบการเชื่อมต่อแล้ว'); };
+async function saveStatusToSheet(){
+  const url=getSheetHook();
+  if(!url){ toast('ยังไม่ได้ตั้งค่าการเชื่อมต่อชีต — เปิดตัวช่วยตั้งค่า'); openDmSetup(); return; }
+  const statuses={}; Object.entries(FIELD_CFG).forEach(([k,c])=>{ if(c.type!=='section') statuses[k]=effStatus(k); });
+  const btn=$('#dmSave'); const orig=btn.textContent; btn.disabled=true; btn.textContent='กำลังบันทึก...';
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'setFieldStatus',statuses})});
+    const data=await res.json().catch(()=>({ok:res.ok}));
+    if(data && data.ok===false) throw new Error(data.error||'sheet error');
+    // sheet now holds these values — make the app's snapshot match and drop local overrides
+    Object.keys(statuses).forEach(k=>{ FIELD_SHEET_STATUS[k]=statuses[k]; });
+    FIELD_STATUS={}; saveFieldStatus(); renderDataMgr();
+    toast('บันทึกลงชีตเรียบร้อย ✓');
+  }catch(err){
+    toast('บันทึกลงชีตไม่สำเร็จ — ตรวจสอบการตั้งค่า/สิทธิ์การเข้าถึง แล้วลองใหม่');
+  }finally{ btn.disabled=false; btn.textContent=orig; }
+}
+$('#dmSave').onclick=saveStatusToSheet;

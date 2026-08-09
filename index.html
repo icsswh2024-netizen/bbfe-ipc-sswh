@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=58">
+  <link rel="stylesheet" href="styles.css?v=59">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -121,9 +121,26 @@
     </dialog>
 
     <dialog id="dataMgr" class="vct-dialog dm-dialog">
-      <div class="vct-head"><button class="back" id="dmClose" aria-label="ปิด"><span class="back-ico">←</span><span class="back-txt">ปิด</span></button><div><span class="eyebrow">ส่วนแอดมิน</span><h1>การจัดการข้อมูล</h1></div><div class="vct-head-actions"><a class="btn ghost dark" id="dmOpenSheet" target="_blank" rel="noopener">↗ เปิดชีต fields</a></div></div>
+      <div class="vct-head"><button class="back" id="dmClose" aria-label="ปิด"><span class="back-ico">←</span><span class="back-txt">ปิด</span></button><div><span class="eyebrow">ส่วนแอดมิน</span><h1>การจัดการข้อมูล</h1></div><div class="vct-head-actions"><button type="button" class="btn ghost dark" id="dmSetupBtn">⚙ ตั้งค่าเชื่อมต่อ</button><a class="btn ghost dark" id="dmOpenSheet" target="_blank" rel="noopener">↗ เปิดชีต fields</a></div></div>
       <div class="vct-body"><div id="dmIntro" class="dm-intro"></div><div id="dmList"></div></div>
-      <div class="form-actions vct-foot"><span id="dmHint" style="margin-right:auto;color:var(--muted);font-size:13px"></span><button type="button" class="btn ghost dark" id="dmReset">↺ รีเซ็ตให้ตรงกับชีต</button><button type="button" class="btn primary" id="dmCopy">📋 คัดลอกคอลัมน์ สถานะ → วางในชีต (H1)</button></div>
+      <div class="form-actions vct-foot"><span id="dmHint" style="margin-right:auto;color:var(--muted);font-size:13px"></span><button type="button" class="btn ghost dark" id="dmReset">↺ รีเซ็ตให้ตรงกับชีต</button><button type="button" class="btn ghost dark" id="dmCopy">📋 คัดลอก</button><button type="button" class="btn primary" id="dmSave">💾 บันทึกลงชีต</button></div>
+    </dialog>
+
+    <dialog id="dmSetup" class="setup-dialog">
+      <div class="setup-body">
+        <h3>เชื่อมต่อเพื่อ “บันทึกลงชีต” อัตโนมัติ</h3>
+        <p class="setup-lede">ทำครั้งเดียวเท่านั้น หลังจากนี้กดปุ่มบันทึกได้ทันที ระบบจะเขียนคอลัมน์ <b>สถานะ</b> ลงแท็บ fields ให้เอง</p>
+        <ol class="setup-steps">
+          <li>เปิดชีต → เมนู <b>ส่วนขยาย (Extensions)</b> → <b>Apps Script</b></li>
+          <li>ลบโค้ดเดิมทั้งหมด แล้ววางโค้ดด้านล่างนี้ (กดปุ่มคัดลอกโค้ด) → บันทึก</li>
+          <li>กด <b>Deploy → New deployment</b> → เลือกชนิด <b>Web app</b></li>
+          <li>ตั้ง <b>Execute as: Me</b> และ <b>Who has access: Anyone</b> → <b>Deploy</b> แล้วคัดลอก <b>Web app URL</b></li>
+          <li>วาง URL ในช่องด้านล่าง → กด “บันทึกการเชื่อมต่อ”</li>
+        </ol>
+        <div class="code-box"><button type="button" class="btn ghost dark code-copy" id="dmCopyCode">คัดลอกโค้ด</button><pre id="dmScript"></pre></div>
+        <label class="setup-url">Web app URL<input id="dmUrl" placeholder="https://script.google.com/macros/s/.../exec"></label>
+        <div class="setup-actions"><button type="button" class="btn ghost dark" id="dmSetupClear">ลบการเชื่อมต่อ</button><span style="flex:1"></span><button type="button" class="btn ghost dark" id="dmSetupCancel">ยกเลิก</button><button type="button" class="btn primary" id="dmSetupSave">บันทึกการเชื่อมต่อ</button></div>
+      </div>
     </dialog>
   </main>
 
@@ -138,6 +155,6 @@
     <button type="button" data-tab="icn"><span class="ti">✚</span><span>ICN</span></button>
     <button type="button" data-tab="records"><span class="ti">▤</span><span>ทะเบียน</span></button>
   </nav>
-  <script src="app.js?v=58"></script>
+  <script src="app.js?v=59"></script>
 </body>
 </html>
