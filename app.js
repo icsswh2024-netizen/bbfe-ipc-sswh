@@ -684,7 +684,7 @@ function docPage2(r){
 let pendingSave = null;
 function commitSave(data){
   const list = records(), now = new Date().toISOString();
-  if (data.id) { const i = list.findIndex(r => r.id === data.id); data.createdAt = list[i]?.createdAt || now; data.updatedAt = now; if (i >= 0) list[i] = data; else list.push(data); }
+  if (data.id) { const i = list.findIndex(r => r.id === data.id); const prev = i>=0?list[i]:null; data.createdAt = prev?.createdAt || now; data.updatedAt = now; if (data.vct===undefined && prev?.vct) data.vct = prev.vct; if (i >= 0) list[i] = data; else list.push(data); }
   else { data.id = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`; data.createdAt = now; data.updatedAt = now; list.push(data); }
   persist(list);
 }
@@ -735,8 +735,8 @@ const VCT_RIGHTS=['อนุเคราะห์','กรมบัญชีก�
 const VCT_ACKS=['อ่านด้วยตนเอง','ได้รับคำอธิบายจากแพทย์/เจ้าหน้าที่','มีผู้อ่านให้ฟัง','มีโอกาสซักถามและได้รับคำตอบที่พอใจ'];
 const VCT_NOTIFY=['ข้าพเจ้าแต่เพียงผู้เดียว','คู่สมรสของข้าพเจ้า','อื่น ๆ'];
 const VCT_MULTI=new Set(['riskTypes','ackMethods','notifyTo']);
-let vctRecordId=null; let vctReturn=null;
-function openVctFromEditor(){ const mode=formMode, prevReturn=editorReturn; const data=formDataObject(); commitSave(data); form.id.value=data.id; $('#saveState').textContent='บันทึกแล้ว'; const rid=data.id; vctReturn=()=>{ const r=records().find(x=>x.id===rid); if(!r){editorBack();return;} if(mode==='admin')openAdminEdit(r); else if(mode==='icn')openIcnEdit(r); else openStaffEdit(r); editorReturn=prevReturn; }; openVct(records().find(x=>x.id===rid)); }
+let vctRecordId=null;
+function openVctFromEditor(){ const data=formDataObject(); commitSave(data); form.id.value=data.id; $('#saveState').textContent='บันทึกแล้ว'; openVct(records().find(x=>x.id===data.id)); }
 function openVct(r){
   vctRecordId=r.id; const v=r.vct||{};
   const full=((r.staffName||'')+' '+(r.staffName2||'')).trim();
@@ -799,7 +799,7 @@ function openVct(r){
        </div>
      </div>`;
   $('#vctHint').textContent='แนบกับ: '+(full||'ไม่ระบุชื่อ')+(r.staffHn?(' • HN '+r.staffHn):'');
-  showView('vct');
+  const dlg=$('#vct'); if(dlg.open)dlg.close(); dlg.showModal(); dlg.querySelector('.vct-body').scrollTop=0;
 }
 function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val]of fd){ if(VCT_MULTI.has(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
 function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
@@ -912,8 +912,8 @@ $('#dashHome').onclick=goHome;
 renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
-$('#vctBack').onclick=()=>{ if(vctReturn){const f=vctReturn;vctReturn=null;f();} else openDashboard('records'); };
-$('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); if(vctReturn){const f=vctReturn;vctReturn=null;f();} else openDashboard('records'); };
+$('#vctBack').onclick=()=>$('#vct').close();
+$('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); $('#vct').close(); };
 function vctDraft(){ const r=records().find(x=>x.id===vctRecordId); if(!r)return null; return {r, draft:{...r,vct:collectVct()}}; }
 $('#vctPreview1').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page">${vctPage1(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
 $('#vctPreview2').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page land">${vctPage2(c.draft)}</div><div class="a5-page land">${vctPage3(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
