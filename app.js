@@ -181,6 +181,26 @@ function loadCachedFields() { try { return JSON.parse(localStorage.getItem(FIELD
 let FIELD_CFG = loadCachedFields();
 function fieldOptions(name) { const c = FIELD_CFG[name]; return (c && c.options && c.options.length) ? c.options : null; }
 
+// ---- Field status control (การจัดการข้อมูล) ----
+// Local admin overrides for a field's สถานะ, kept in sync with the sheet's own สถานะ column.
+const FIELD_STATUS_KEY = 'icsswh-field-status-v1';
+function loadFieldStatus() { try { return JSON.parse(localStorage.getItem(FIELD_STATUS_KEY)) || {}; } catch { return {}; } }
+function saveFieldStatus() { localStorage.setItem(FIELD_STATUS_KEY, JSON.stringify(FIELD_STATUS)); }
+let FIELD_STATUS = loadFieldStatus();     // { key: 'ยังไม่กรอก' | 'ซ่อน' | '' }  (only keys the admin touched)
+let FIELD_SHEET_STATUS = {};              // snapshot of the status coming from the sheet itself
+const statusOfCfg = c => c ? (c.hidden ? 'ซ่อน' : (c.locked ? 'ยังไม่กรอก' : '')) : '';
+function applyStatusVal(c, v) { if (!c) return; c.hidden = (v === 'ซ่อน'); c.locked = (v === 'ยังไม่กรอก'); }
+// Snapshot the sheet's own สถานะ, drop local overrides that already match it, then apply the rest.
+function reconcileFieldStatus() {
+  FIELD_SHEET_STATUS = {};
+  Object.keys(FIELD_CFG).forEach(k => { FIELD_SHEET_STATUS[k] = statusOfCfg(FIELD_CFG[k]); });
+  Object.keys(FIELD_STATUS).forEach(k => { if ((FIELD_SHEET_STATUS[k] || '') === (FIELD_STATUS[k] || '')) delete FIELD_STATUS[k]; });
+  saveFieldStatus();
+  Object.entries(FIELD_STATUS).forEach(([k, v]) => applyStatusVal(FIELD_CFG[k], v));
+}
+// Effective สถานะ shown/used right now (override wins, else the sheet's value)
+const effStatus = k => (k in FIELD_STATUS) ? FIELD_STATUS[k] : (FIELD_SHEET_STATUS[k] || '');
+
 const sourceLabNames =[['sourceHiv','Anti HIV'],['sourceHbsAg','HBs Ag'],['sourceHcv','Anti HCV']];
 const staffLabNames = [['staffHiv','Anti HIV'],['staffHbsAg','HBs Ag'],['staffAntiHbs','Anti HBs'],['staffHcv','Anti HCV']];
 const consentNames = [['understandsTesting','ทราบข้อดีและข้อเสียของการตรวจเลือด'],['consentBloodTest','ยินยอมให้ตรวจเลือด'],['consentHivPep','ยินดีรับการรักษาเบื้องต้นเพื่อป้องกัน HIV'],['consentHbvPep','ยินดีรับการรักษาเบื้องต้นเพื่อป้องกัน Hepatitis B']];
@@ -422,6 +442,8 @@ async function loadFieldsFromSheet() {
     if (!cfg) return;
     FIELD_CFG = cfg;
     localStorage.setItem(FIELDS_CACHE_KEY, JSON.stringify(cfg));
+    reconcileFieldStatus();
+    if (dataMgrOpen()) renderDataMgr();
     if (!$('#editor').classList.contains('active')) { buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); }
   } catch (e) { /* keep static labels / cached config */ }
 }
@@ -705,7 +727,7 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet();
+reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
@@ -972,3 +994,27 @@ $('#printRecord').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
 $('#exportCsv').onclick=csvExport;
+
+// ---- การจัดการข้อมูล (admin field-status manager) ----
+function dataMgrOpen(){ const d=$('#dataMgr'); return !!(d && d.open); }
+function dmSeg(key){ const cur=effStatus(key); return `<div class="dm-seg" data-key="${key}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${cur===v?'on '+ (v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
+function renderDataMgr(){
+  let html='', any=false;
+  Object.entries(FIELD_CFG).forEach(([key,c])=>{
+    if(c.type==='section'){ html+=`<div class="dm-sec">${esc(c.label||key)}</div>`; return; }
+    const ov=(key in FIELD_STATUS);
+    html+=`<div class="dm-row"><div class="dm-info"><b>${esc(c.label||key)}</b><code>${esc(key)}</code>${ov?'<span class="dm-badge">ต่างจากชีต</span>':''}</div>${dmSeg(key)}</div>`;
+  });
+  $('#dmList').innerHTML=html;
+  const n=Object.keys(FIELD_STATUS).length;
+  $('#dmIntro').innerHTML='ควบคุมว่าช่องไหน <b>ยังไม่ต้องกรอก</b> ได้ทันที — แก้ที่นี่มีผลกับฟอร์มบนเครื่องนี้เดี๋ยวนี้ · กด “คัดลอกคอลัมน์ สถานะ” ไปวางในชีตเพื่อให้มีผลถาวรกับทุกคน · เมื่อชีตเปลี่ยน ระบบจะดึงมาปรับให้ตรงกันอัตโนมัติ';
+  $('#dmHint').textContent = n?`ปรับเฉพาะเครื่องนี้ ${n} ช่อง (ยังไม่ได้บันทึกลงชีต)`:'ตรงกับชีตทั้งหมด';
+}
+function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
+$('#openDataMgr').onclick=openDataMgr;
+$('#dmClose').onclick=()=>$('#dataMgr').close();
+$('#dmList').onclick=e=>{ const b=e.target.closest('.dm-seg button'); if(!b)return; const key=b.closest('.dm-seg').dataset.key, val=b.dataset.val;
+  if((FIELD_SHEET_STATUS[key]||'')===val) delete FIELD_STATUS[key]; else FIELD_STATUS[key]=val;
+  applyStatusVal(FIELD_CFG[key], val); saveFieldStatus(); applyFieldConfig(); renderDataMgr(); };
+$('#dmReset').onclick=()=>{ if(!Object.keys(FIELD_STATUS).length) return toast('ไม่มีการปรับเฉพาะเครื่อง'); if(!confirm('ล้างการตั้งค่าเฉพาะเครื่องนี้ ให้กลับไปใช้ค่าตามชีตทั้งหมด?'))return; FIELD_STATUS={}; saveFieldStatus(); Object.entries(FIELD_CFG).forEach(([k,c])=>applyStatusVal(c, FIELD_SHEET_STATUS[k]||'')); applyFieldConfig(); renderDataMgr(); toast('รีเซ็ตให้ตรงกับชีตแล้ว'); };
+$('#dmCopy').onclick=async()=>{ const col=['สถานะ'].concat(Object.keys(FIELD_CFG).map(k=>effStatus(k))).join('\n'); try{await navigator.clipboard.writeText(col);}catch{const ta=document.createElement('textarea');ta.value=col;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกคอลัมน์ สถานะ แล้ว — วางที่เซลล์ H1 ในแท็บ fields'); };
