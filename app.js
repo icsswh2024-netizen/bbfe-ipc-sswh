@@ -834,6 +834,7 @@ function openVct(r){
        </div>
      </div>`;
   $('#vctHint').textContent='แนบกับ: '+(full||'ไม่ระบุชื่อ')+(r.staffHn?(' • HN '+r.staffHn):'');
+  applyVctStatus();
   const dlg=$('#vct'); if(dlg.open)dlg.close(); dlg.showModal(); dlg.querySelector('.vct-body').scrollTop=0;
 }
 function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val]of fd){ if(VCT_MULTI.has(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
@@ -997,27 +998,60 @@ $('#exportCsv').onclick=csvExport;
 
 // ---- การจัดการข้อมูล (admin field-status manager) ----
 function dataMgrOpen(){ const d=$('#dataMgr'); return !!(d && d.open); }
-function dmSeg(key){ const cur=effStatus(key); return `<div class="dm-seg" data-key="${key}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${cur===v?'on '+ (v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
+
+// ---- VCT / consent status control (local, applied when the VCT dialog renders) ----
+const VCT_STATUS_KEY='icsswh-vct-status-v1';
+function loadVctStatus(){ try{ return JSON.parse(localStorage.getItem(VCT_STATUS_KEY))||{}; }catch{ return {}; } }
+let VCT_STATUS=loadVctStatus();
+function saveVctStatus(){ localStorage.setItem(VCT_STATUS_KEY, JSON.stringify(VCT_STATUS)); }
+const VCT_FIELDS=[
+  ['counselDate','วันที่ให้คำปรึกษา'],['unit','หน่วยงานที่ให้คำปรึกษา'],['unitType','ประเภทหน่วยงาน'],['citizenId','เลขประจำตัวประชาชน'],
+  ['name','ชื่อ - สกุล'],['hn','H.N.'],['age','อายุ (ปี)'],['rights','สิทธิการรักษา'],['marital','สถานภาพ'],
+  ['riskTypes','ประเภทความเสี่ยง'],['riskOther','รายละเอียดความเสี่ยงอื่น ๆ'],['testHistory','ประวัติการส่งตรวจเลือด'],['testHistoryCount','เคย ครั้งที่'],
+  ['testOrder','การส่งตรวจเลือด'],['testResult','ผลการตรวจ'],['testDate','วันที่ตรวจเลือด'],['tester','ผู้ตรวจเลือด'],['counselor','ผู้ให้คำปรึกษา'],['vctRecorder','ผู้ลงข้อมูล VCT'],
+  ['consentDate','วันที่ให้ความยินยอม'],['consentTime','เวลา (ยินยอม)'],['ackMethods','การรับทราบข้อควรรู้ก่อนตรวจ'],['wantTest','ความประสงค์ขอรับการตรวจเอดส์'],['minorName','ยินยอมแทนผู้เยาว์'],
+  ['notifyTo','ยินยอมให้แจ้งผลแก่'],['notifySpouse','คู่สมรส (ระบุชื่อ)'],['notifyOther','อื่น ๆ (ระบุ)'],['finalResult','ผลการตรวจ (สรุป)'],['finalOther','ผลอื่น ๆ (ระบุ)']
+];
+function applyVctStatus(){ const f=$('#vctForm'); if(!f)return; f.querySelectorAll('.field-hidden,.field-locked').forEach(el=>el.classList.remove('field-hidden','field-locked')); Object.entries(VCT_STATUS).forEach(([k,v])=>{ f.querySelectorAll(`[name="${CSS.escape(k)}"]`).forEach(el=>{ const w=el.closest('label,fieldset'); if(!w)return; if(v==='ซ่อน')w.classList.add('field-hidden'); else if(v==='ยังไม่กรอก')w.classList.add('field-locked'); }); }); }
+
+// ---- Full-column field editor ----
+const DM_TYPES=['text','textarea','number','date','time','select','radio','checkbox','picture','section'];
+let DM_EDIT={};
+function dmClone(){ const o={}; Object.entries(FIELD_CFG).forEach(([k,c])=>{ o[k]={label:c.label||'',type:c.type||'text',options:(c.options||[]).join('|'),required:!!c.required,section:c.section!=null?String(c.section):'',order:c.order!=null?c.order:'',hidden:!!c.hidden,locked:!!c.locked}; }); return o; }
+const dmStatusOf=e=>e.hidden?'ซ่อน':(e.locked?'ยังไม่กรอก':'');
+function dmSegHtml(key,val,cls){ return `<div class="dm-seg ${cls||''}" data-key="${esc(key)}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${val===v?'on '+(v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
+function dmSegSet(seg,val){ [...seg.children].forEach(x=>{ x.className = x.dataset.val===val ? ('on '+(val==='ซ่อน'?'hide':(val==='ยังไม่กรอก'?'lock':''))) : ''; }); }
 function renderDataMgr(){
-  let html='', any=false;
-  Object.entries(FIELD_CFG).forEach(([key,c])=>{
-    if(c.type==='section'){ html+=`<div class="dm-sec">${esc(c.label||key)}</div>`; return; }
-    const ov=(key in FIELD_STATUS);
-    html+=`<div class="dm-row"><div class="dm-info"><b>${esc(c.label||key)}</b><code>${esc(key)}</code>${ov?'<span class="dm-badge">ต่างจากชีต</span>':''}</div>${dmSeg(key)}</div>`;
+  let html='';
+  Object.entries(DM_EDIT).forEach(([key,e])=>{
+    if(e.type==='section'){ html+=`<div class="dm-sec"><input class="dm-secname" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}"><code>${esc(key)}</code></div>`; return; }
+    html+=`<div class="dm-card" data-key="${esc(key)}">
+      <div class="dm-l1"><input class="dm-label" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}" placeholder="คำถาม"><code class="dm-key">${esc(key)}</code></div>
+      <div class="dm-l2">
+        <label class="dm-mini">ประเภท<select data-key="${esc(key)}" data-f="type">${DM_TYPES.map(t=>`<option${t===e.type?' selected':''}>${t}</option>`).join('')}</select></label>
+        <label class="dm-mini dm-grow">ตัวเลือก (คั่นด้วย |)<input data-key="${esc(key)}" data-f="options" value="${esc(e.options)}" placeholder="—"></label>
+        <label class="dm-mini dm-num">ลำดับ<input type="number" step="0.1" data-key="${esc(key)}" data-f="order" value="${esc(e.order)}"></label>
+        <label class="dm-chk"><input type="checkbox" data-key="${esc(key)}" data-f="required"${e.required?' checked':''}> จำเป็น</label>
+      </div>
+      <div class="dm-l3"><span class="dm-stlbl">สถานะ</span>${dmSegHtml(key,dmStatusOf(e))}</div>
+    </div>`;
   });
   $('#dmList').innerHTML=html;
-  const n=Object.keys(FIELD_STATUS).length;
-  $('#dmIntro').innerHTML='ควบคุมว่าช่องไหน <b>ยังไม่ต้องกรอก</b> ได้ทันที — แก้ที่นี่มีผลกับฟอร์มบนเครื่องนี้เดี๋ยวนี้ · กด “คัดลอกคอลัมน์ สถานะ” ไปวางในชีตเพื่อให้มีผลถาวรกับทุกคน · เมื่อชีตเปลี่ยน ระบบจะดึงมาปรับให้ตรงกันอัตโนมัติ';
-  $('#dmHint').textContent = n?`ปรับเฉพาะเครื่องนี้ ${n} ช่อง (ยังไม่ได้บันทึกลงชีต)`:'ตรงกับชีตทั้งหมด';
+  let vhtml='<div class="dm-sec dm-sec-vct">VCT / เอกสารแนบ · ใบยินยอมตรวจเลือด <span class="dm-note-inline">(คุมซ่อน/ล็อก · เฉพาะเครื่องนี้)</span></div>';
+  VCT_FIELDS.forEach(([key,label])=>{ vhtml+=`<div class="dm-row dm-vrow"><div class="dm-info"><b>${esc(label)}</b><code>${esc(key)}</code></div>${dmSegHtml(key,VCT_STATUS[key]||'','dm-vseg')}</div>`; });
+  $('#dmVct').innerHTML=vhtml;
+  $('#dmIntro').innerHTML='แก้ไขได้ทุกคอลัมน์ของช่องกรอก (คำถาม · ประเภท · ตัวเลือก · ลำดับ · จำเป็น · สถานะ) แล้วกด <b>บันทึกลงชีต</b> เพื่อบันทึกถาวรและปรับใช้ทันที · ส่วน VCT / ใบยินยอม คุมการซ่อน/ล็อกได้ (เฉพาะเครื่องนี้)';
+  $('#dmHint').textContent='แก้แล้วกด “บันทึกลงชีต” เพื่อยืนยัน';
 }
-function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
+function dmApplyToCfg(){ const cfg={}; Object.entries(DM_EDIT).forEach(([k,e])=>{ const c={label:e.label,type:e.type||'text'}; const opts=(e.options||'').split('|').map(s=>s.trim()).filter(Boolean); if(opts.length)c.options=opts; c.required=!!e.required; if(e.section!=='')c.section=e.section; if(e.order!=='')c.order=Number(e.order)||0; c.hidden=!!e.hidden; c.locked=!!e.locked; cfg[k]=c; }); FIELD_CFG=cfg; localStorage.setItem(FIELDS_CACHE_KEY,JSON.stringify(cfg)); reconcileFieldStatus(); refreshOptionUI(); }
+function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; DM_EDIT=dmClone(); VCT_STATUS=loadVctStatus(); renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
 $('#openDataMgr').onclick=openDataMgr;
 $('#dmClose').onclick=()=>$('#dataMgr').close();
-$('#dmList').onclick=e=>{ const b=e.target.closest('.dm-seg button'); if(!b)return; const key=b.closest('.dm-seg').dataset.key, val=b.dataset.val;
-  if((FIELD_SHEET_STATUS[key]||'')===val) delete FIELD_STATUS[key]; else FIELD_STATUS[key]=val;
-  applyStatusVal(FIELD_CFG[key], val); saveFieldStatus(); applyFieldConfig(); renderDataMgr(); };
-$('#dmReset').onclick=()=>{ if(!Object.keys(FIELD_STATUS).length) return toast('ไม่มีการปรับเฉพาะเครื่อง'); if(!confirm('ล้างการตั้งค่าเฉพาะเครื่องนี้ ให้กลับไปใช้ค่าตามชีตทั้งหมด?'))return; FIELD_STATUS={}; saveFieldStatus(); Object.entries(FIELD_CFG).forEach(([k,c])=>applyStatusVal(c, FIELD_SHEET_STATUS[k]||'')); applyFieldConfig(); renderDataMgr(); toast('รีเซ็ตให้ตรงกับชีตแล้ว'); };
-$('#dmCopy').onclick=async()=>{ const col=['สถานะ'].concat(Object.keys(FIELD_CFG).map(k=>effStatus(k))).join('\n'); try{await navigator.clipboard.writeText(col);}catch{const ta=document.createElement('textarea');ta.value=col;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกคอลัมน์ สถานะ แล้ว — วางที่เซลล์ H1 ในแท็บ fields'); };
+$('#dmList').addEventListener('input',e=>{ const el=e.target, key=el.dataset.key, f=el.dataset.f; if(!key||!f||!DM_EDIT[key])return; if(f==='required')DM_EDIT[key].required=el.checked; else DM_EDIT[key][f]=el.value; });
+$('#dmList').addEventListener('click',e=>{ const b=e.target.closest('.dm-seg button'); if(!b)return; const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(!DM_EDIT[key])return; DM_EDIT[key].hidden=(val==='ซ่อน'); DM_EDIT[key].locked=(val==='ยังไม่กรอก'); dmSegSet(seg,val); });
+$('#dmVct').addEventListener('click',e=>{ const b=e.target.closest('.dm-seg button'); if(!b)return; const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(val)VCT_STATUS[key]=val; else delete VCT_STATUS[key]; saveVctStatus(); if($('#vct').open)applyVctStatus(); dmSegSet(seg,val); });
+$('#dmReset').onclick=()=>{ DM_EDIT=dmClone(); renderDataMgr(); toast('คืนค่าตามที่บันทึกไว้แล้ว'); };
+$('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']; const rows=Object.entries(DM_EDIT).map(([k,e])=>[e.section,e.order,k,e.label,e.type,e.options,e.required?'✓':'',dmStatusOf(e)].join('\t')); const tsv=[head.join('\t')].concat(rows).join('\n'); try{await navigator.clipboard.writeText(tsv);}catch{const ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกทั้งตารางแล้ว — วางที่ A1 ในแท็บ fields'); };
 
 // ---- บันทึกลงชีตอัตโนมัติ ผ่าน Google Apps Script Web App ----
 const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
@@ -1026,22 +1060,48 @@ const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||DEFAUL
 const APPS_SCRIPT_CODE=`function doPost(e){
   try{
     var body = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.getActive();
-    var sh = ss.getSheetByName('fields');
+    var sh = SpreadsheetApp.getActive().getSheetByName('fields');
     var data = sh.getDataRange().getValues();
     var head = data[0];
+    function col(name){ var i = head.indexOf(name); if(i<0){ i = head.length; head.push(name); sh.getRange(1, i+1).setValue(name); } return i; }
     var keyCol = head.indexOf('key');
-    var stCol = head.indexOf('สถานะ');
-    if (stCol < 0){ stCol = head.length; sh.getRange(1, stCol+1).setValue('สถานะ'); }
-    var statuses = body.statuses || {};
-    for (var r=1; r<data.length; r++){
-      var k = data[r][keyCol];
-      if (k && statuses.hasOwnProperty(k)) sh.getRange(r+1, stCol+1).setValue(statuses[k]||'');
+
+    // 1) update only the สถานะ column (matched by key)
+    if (body.action === 'setFieldStatus'){
+      var stCol = col('สถานะ'), st = body.statuses || {};
+      for (var r=1; r<data.length; r++){
+        var k = data[r][keyCol];
+        if (k && st.hasOwnProperty(k)) sh.getRange(r+1, stCol+1).setValue(st[k]||'');
+      }
+      return ContentService.createTextOutput(JSON.stringify({ok:true}))
+        .setMimeType(ContentService.MimeType.JSON);
     }
-    return ContentService.createTextOutput(JSON.stringify({ok:true}))
+
+    // 2) upsert every column for each field (matched by key; new keys appended)
+    if (body.action === 'saveFields'){
+      var cSec=col('ส่วน'), cOrd=col('ลำดับ'), cQ=col('คำถาม'), cType=col('ประเภท'), cOpt=col('ตัวเลือก'), cReq=col('จำเป็น'), cSt=col('สถานะ');
+      var idx = {};
+      for (var r=1; r<data.length; r++){ var kk=data[r][keyCol]; if(kk) idx[kk]=r+1; }
+      var fields = body.fields || [];
+      fields.forEach(function(f){
+        var row = idx[f.key];
+        if (!row){ row = sh.getLastRow()+1; sh.getRange(row, keyCol+1).setValue(f.key); }
+        sh.getRange(row, cSec+1).setValue(f.section==null?'':f.section);
+        sh.getRange(row, cOrd+1).setValue(f.order==null?'':f.order);
+        sh.getRange(row, cQ+1).setValue(f.label||'');
+        sh.getRange(row, cType+1).setValue(f.type||'');
+        sh.getRange(row, cOpt+1).setValue(f.options||'');
+        sh.getRange(row, cReq+1).setValue(f.required?'✓':'');
+        sh.getRange(row, cSt+1).setValue(f.status||'');
+      });
+      return ContentService.createTextOutput(JSON.stringify({ok:true, updated:fields.length}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ok:false, error:'unknown action'}))
       .setMimeType(ContentService.MimeType.JSON);
   } catch(err){
-    return ContentService.createTextOutput(JSON.stringify({ok:false,error:String(err)}))
+    return ContentService.createTextOutput(JSON.stringify({ok:false, error:String(err)}))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }`;
@@ -1051,21 +1111,20 @@ $('#dmCopyCode').onclick=async()=>{ try{await navigator.clipboard.writeText(APPS
 $('#dmSetupCancel').onclick=()=>$('#dmSetup').close();
 $('#dmSetupClear').onclick=()=>{ localStorage.removeItem(SHEET_HOOK_KEY); $('#dmUrl').value=''; toast('ลบการเชื่อมต่อแล้ว'); };
 $('#dmSetupSave').onclick=()=>{ const u=$('#dmUrl').value.trim(); if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(u)){ if(!confirm('URL ไม่ตรงรูปแบบ Web App ปกติ ต้องการบันทึกต่อหรือไม่?'))return; } if(u)localStorage.setItem(SHEET_HOOK_KEY,u); else localStorage.removeItem(SHEET_HOOK_KEY); $('#dmSetup').close(); toast(u?'บันทึกการเชื่อมต่อแล้ว':'ลบการเชื่อมต่อแล้ว'); };
-async function saveStatusToSheet(){
+async function dmSaveToSheet(){
   const url=getSheetHook();
-  if(!url){ toast('ยังไม่ได้ตั้งค่าการเชื่อมต่อชีต — เปิดตัวช่วยตั้งค่า'); openDmSetup(); return; }
-  const statuses={}; Object.entries(FIELD_CFG).forEach(([k,c])=>{ if(c.type!=='section') statuses[k]=effStatus(k); });
-  const btn=$('#dmSave'); const orig=btn.textContent; btn.disabled=true; btn.textContent='กำลังบันทึก...';
+  const fields=Object.entries(DM_EDIT).map(([k,e])=>({key:k,section:e.section,order:e.order,label:e.label,type:e.type,options:e.options,required:!!e.required,status:dmStatusOf(e)}));
+  const btn=$('#dmSave'), orig=btn.textContent; btn.disabled=true; btn.textContent='กำลังบันทึก...';
+  dmApplyToCfg();   // apply to this device immediately (survives even if the sheet write fails)
   try{
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'setFieldStatus',statuses})});
+    if(!url) throw new Error('no-url');
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveFields',fields})});
     const data=await res.json().catch(()=>({ok:res.ok}));
     if(data && data.ok===false) throw new Error(data.error||'sheet error');
-    // sheet now holds these values — make the app's snapshot match and drop local overrides
-    Object.keys(statuses).forEach(k=>{ FIELD_SHEET_STATUS[k]=statuses[k]; });
-    FIELD_STATUS={}; saveFieldStatus(); renderDataMgr();
-    toast('บันทึกลงชีตเรียบร้อย ✓');
+    toast('บันทึกลงชีตและปรับใช้แล้ว ✓');
   }catch(err){
-    toast('บันทึกลงชีตไม่สำเร็จ — ตรวจสอบการตั้งค่า/สิทธิ์การเข้าถึง แล้วลองใหม่');
+    if(err.message==='no-url'){ toast('ปรับใช้บนเครื่องนี้แล้ว — ตั้งค่าการเชื่อมต่อเพื่อบันทึกลงชีต'); openDmSetup(); }
+    else toast('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ — ตรวจสอบการเชื่อมต่อ/redeploy สคริปต์');
   }finally{ btn.disabled=false; btn.textContent=orig; }
 }
-$('#dmSave').onclick=saveStatusToSheet;
+$('#dmSave').onclick=dmSaveToSheet;
