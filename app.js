@@ -1021,7 +1021,8 @@ $('#dmCopy').onclick=async()=>{ const col=['สถานะ'].concat(Object.keys
 
 // ---- บันทึกลงชีตอัตโนมัติ ผ่าน Google Apps Script Web App ----
 const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
-const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||'';}catch{return '';} };
+const DEFAULT_SHEET_HOOK='https://script.google.com/macros/s/AKfycbzG11Z-HV-WN-JEo1DT4pYd_-tldC0I6Y2s-Wo7VecCixRmz0lMR-S_84ykOIpNQdOg/exec';
+const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||DEFAULT_SHEET_HOOK;}catch{return DEFAULT_SHEET_HOOK;} };
 const APPS_SCRIPT_CODE=`function doPost(e){
   try{
     var body = JSON.parse(e.postData.contents);
