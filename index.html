@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=55">
+  <link rel="stylesheet" href="styles.css?v=56">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -114,11 +114,11 @@
       </form>
     </section>
 
-    <section id="vct" class="view">
-      <div class="editor-head"><button class="back" id="vctBack" aria-label="กลับ"><span class="back-ico">←</span><span class="back-txt">กลับ</span></button><div><span class="eyebrow">เอกสารแนบ</span><h1>VCT / คัดกรอง Z114</h1></div><div style="margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end"><button type="button" class="btn ghost dark" id="vctPreview1">📄 ดูแบบบันทึก VCT</button><button type="button" class="btn ghost dark" id="vctPreview2">📄 แบบบันทึกยินยอมตรวจเลือด</button></div></div>
-      <form id="vctForm"></form>
-      <div class="form-actions"><span id="vctHint" style="margin-right:auto;color:var(--muted);font-size:13px"></span><button type="button" class="btn primary" id="vctSave">บันทึกเอกสารแนบ</button></div>
-    </section>
+    <dialog id="vct" class="vct-dialog">
+      <div class="vct-head"><button class="back" id="vctBack" aria-label="ปิด"><span class="back-ico">←</span><span class="back-txt">ปิด</span></button><div><span class="eyebrow">เอกสารแนบ</span><h1>VCT / คัดกรอง Z114</h1></div><div class="vct-head-actions"><button type="button" class="btn ghost dark" id="vctPreview1">📄 ดูแบบบันทึก VCT</button><button type="button" class="btn ghost dark" id="vctPreview2">📄 แบบบันทึกยินยอมตรวจเลือด</button></div></div>
+      <div class="vct-body"><form id="vctForm"></form></div>
+      <div class="form-actions vct-foot"><span id="vctHint" style="margin-right:auto;color:var(--muted);font-size:13px"></span><button type="button" class="btn primary" id="vctSave">บันทึกเอกสารแนบ</button></div>
+    </dialog>
   </main>
 
   <div id="toast" class="toast" role="status"></div>
@@ -132,6 +132,6 @@
     <button type="button" data-tab="icn"><span class="ti">✚</span><span>ICN</span></button>
     <button type="button" data-tab="records"><span class="ti">▤</span><span>ทะเบียน</span></button>
   </nav>
-  <script src="app.js?v=55"></script>
+  <script src="app.js?v=56"></script>
 </body>
 </html>
