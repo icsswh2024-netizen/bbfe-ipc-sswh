@@ -85,3 +85,21 @@ input,select,textarea,button,.search input{font-family:inherit}
 .field-locked{position:relative;opacity:.6;pointer-events:none}
 .field-locked input,.field-locked select,.field-locked textarea{background:#f4eef0;cursor:not-allowed}
 .field-locked::after{content:'ยังไม่ต้องกรอก';position:absolute;top:2px;right:2px;font-size:10px;font-weight:600;color:#8a6d1a;background:#fff4d6;border:1px solid #e2c987;border-radius:6px;padding:1px 7px;pointer-events:none}
+
+.dm-dialog .vct-body{background:var(--bg,#faf3f4)}
+.dm-intro{font-size:13.5px;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-bottom:16px;line-height:1.6}
+.dm-sec{font-weight:700;color:var(--teal);font-size:14px;letter-spacing:.02em;margin:18px 2px 8px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.dm-sec:first-child{margin-top:0}
+.dm-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin-bottom:8px}
+.dm-info{flex:1;min-width:200px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dm-info b{font-weight:600;font-size:14.5px}
+.dm-info code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:11.5px;color:var(--muted);background:#fbeef0;padding:1px 7px;border-radius:5px}
+.dm-badge{font-size:10.5px;font-weight:600;color:#8a6d1a;background:#fff4d6;border:1px solid #e2c987;border-radius:6px;padding:1px 8px}
+.dm-seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+.dm-seg button{border:0;background:#fff;color:var(--muted);font:600 12.5px inherit;padding:7px 14px;cursor:pointer;border-left:1px solid var(--line)}
+.dm-seg button:first-child{border-left:0}
+.dm-seg button.on{background:var(--teal);color:#fff}
+.dm-seg button.on.lock{background:#c8951a;color:#fff}
+.dm-seg button.on.hide{background:#6a6a6a;color:#fff}
+.dm-seg button:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+#dmOpenSheet{text-decoration:none;display:inline-flex;align-items:center}

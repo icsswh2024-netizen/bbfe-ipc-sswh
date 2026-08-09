@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=57">
+  <link rel="stylesheet" href="styles.css?v=58">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -29,7 +29,7 @@
     </section>
 
     <section id="dashboard" class="view">
-      <div class="editor-head"><button class="back" id="dashHome" aria-label="กลับหน้าหลัก"><span class="back-ico">←</span><span class="back-txt">หน้าหลัก</span></button><div><span class="eyebrow" id="dashEyebrow">RECORDS</span><h1 id="dashTitle">ทะเบียนอุบัติเหตุ</h1></div><div class="admin-bar hidden" id="adminBar"><button type="button" class="btn ghost dark" id="exportCsv">ส่งออก CSV</button><button type="button" class="btn ghost dark" id="exportJson">สำรอง JSON</button></div></div>
+      <div class="editor-head"><button class="back" id="dashHome" aria-label="กลับหน้าหลัก"><span class="back-ico">←</span><span class="back-txt">หน้าหลัก</span></button><div><span class="eyebrow" id="dashEyebrow">RECORDS</span><h1 id="dashTitle">ทะเบียนอุบัติเหตุ</h1></div><div class="admin-bar hidden" id="adminBar"><button type="button" class="btn ghost dark" id="openDataMgr">⚙ การจัดการข้อมูล</button><button type="button" class="btn ghost dark" id="exportCsv">ส่งออก CSV</button><button type="button" class="btn ghost dark" id="exportJson">สำรอง JSON</button></div></div>
       <aside class="notice admin-hint hidden" id="adminHint"><b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span></aside>
       <div class="stats">
         <article><span>เหตุการณ์ทั้งหมด</span><strong id="statTotal">0</strong><small>รายการ</small></article>
@@ -119,6 +119,12 @@
       <div class="vct-body"><form id="vctForm"></form></div>
       <div class="form-actions vct-foot"><span id="vctHint" style="margin-right:auto;color:var(--muted);font-size:13px"></span><button type="button" class="btn primary" id="vctSave">บันทึกเอกสารแนบ</button></div>
     </dialog>
+
+    <dialog id="dataMgr" class="vct-dialog dm-dialog">
+      <div class="vct-head"><button class="back" id="dmClose" aria-label="ปิด"><span class="back-ico">←</span><span class="back-txt">ปิด</span></button><div><span class="eyebrow">ส่วนแอดมิน</span><h1>การจัดการข้อมูล</h1></div><div class="vct-head-actions"><a class="btn ghost dark" id="dmOpenSheet" target="_blank" rel="noopener">↗ เปิดชีต fields</a></div></div>
+      <div class="vct-body"><div id="dmIntro" class="dm-intro"></div><div id="dmList"></div></div>
+      <div class="form-actions vct-foot"><span id="dmHint" style="margin-right:auto;color:var(--muted);font-size:13px"></span><button type="button" class="btn ghost dark" id="dmReset">↺ รีเซ็ตให้ตรงกับชีต</button><button type="button" class="btn primary" id="dmCopy">📋 คัดลอกคอลัมน์ สถานะ → วางในชีต (H1)</button></div>
+    </dialog>
   </main>
 
   <div id="toast" class="toast" role="status"></div>
@@ -132,6 +138,6 @@
     <button type="button" data-tab="icn"><span class="ti">✚</span><span>ICN</span></button>
     <button type="button" data-tab="records"><span class="ti">▤</span><span>ทะเบียน</span></button>
   </nav>
-  <script src="app.js?v=57"></script>
+  <script src="app.js?v=58"></script>
 </body>
 </html>
