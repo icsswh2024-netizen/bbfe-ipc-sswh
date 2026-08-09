@@ -736,6 +736,7 @@ const VCT_ACKS=['อ่านด้วยตนเอง','ได้รับค
 const VCT_NOTIFY=['ข้าพเจ้าแต่เพียงผู้เดียว','คู่สมรสของข้าพเจ้า','อื่น ๆ'];
 const VCT_MULTI=new Set(['riskTypes','ackMethods','notifyTo']);
 let vctRecordId=null; let vctReturn=null;
+function openVctFromEditor(){ const mode=formMode, prevReturn=editorReturn; const data=formDataObject(); commitSave(data); form.id.value=data.id; $('#saveState').textContent='บันทึกแล้ว'; const rid=data.id; vctReturn=()=>{ const r=records().find(x=>x.id===rid); if(!r){editorBack();return;} if(mode==='admin')openAdminEdit(r); else if(mode==='icn')openIcnEdit(r); else openStaffEdit(r); editorReturn=prevReturn; }; openVct(records().find(x=>x.id===rid)); }
 function openVct(r){
   vctRecordId=r.id; const v=r.vct||{};
   const full=((r.staffName||'')+' '+(r.staffName2||'')).trim();
@@ -921,7 +922,7 @@ $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
 $('#addPatient').onclick=()=>{ const l=collectSourcePatients(); l.push({}); renderSourcePatients(l); };
 $('#sourcePatients').onclick=e=>{ const btn=e.target.closest('.sp-remove'); if(!btn)return; const l=collectSourcePatients(); l.splice(+btn.closest('.patient-card').dataset.idx,1); renderSourcePatients(l); };
-form.onsubmit=e=>{e.preventDefault(); pendingSave=formDataObject(); $('#warnDialog').showModal();};
+form.onsubmit=e=>{e.preventDefault(); const data=formDataObject(); if(data.consentBloodTest==='ใช่'){ const ex=data.id?records().find(x=>x.id===data.id):null; if(!ex||!hasVct(ex)){ if(confirm('บุคลากรยินยอมให้ตรวจเลือด แต่ยังไม่ได้บันทึกเอกสารแนบ VCT\n\nต้องการกรอกเอกสารแนบ VCT ตอนนี้หรือไม่?')){ openVctFromEditor(); return; } } } pendingSave=data; $('#warnDialog').showModal();};
 $('#warnCancel').onclick=()=>{ $('#warnDialog').close(); pendingSave=null; };
 function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp.clientWidth-20; vp.querySelectorAll('.a4-page,.a5-page').forEach(pg=>{ const w=pg.classList.contains('a5-page')?(pg.classList.contains('land')?794:559):794; pg.style.zoom=Math.min(1, avail/w); }); }
 // preview dialog states: 'save' (edit + confirm), 'ref' (read-only close), 'report' (edit + print/PDF + close)
@@ -951,7 +952,8 @@ $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}if(dashMode==='vct'){openVct(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';$('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
-$('#attachVctBtn').onclick=()=>{ const mode=formMode; let data=formDataObject(); commitSave(data); form.id.value=data.id; $('#saveState').textContent='บันทึกแล้ว'; const rid=data.id; vctReturn=()=>{ const r=records().find(x=>x.id===rid); if(!r){editorBack();return;} if(mode==='admin')openAdminEdit(r); else if(mode==='icn')openIcnEdit(r); else openStaffEdit(r); }; openVct(records().find(x=>x.id===rid)); };
+$('#attachVctBtn').onclick=openVctFromEditor;
+form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.target.checked && e.target.value==='ใช่'){ openVctFromEditor(); } });
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
 $('#printRecord').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(r); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
