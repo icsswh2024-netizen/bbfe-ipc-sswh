@@ -368,7 +368,7 @@ function reorderFieldsBySheet() {
 function parseFieldsRows(rows) {
   if (!rows || rows.length < 2) return null;
   const H = rows[0].map(h => String(h).trim());
-  const ck = H.indexOf('key'), cl = H.indexOf('คำถาม'), co = H.indexOf('ตัวเลือก'), cr = H.indexOf('จำเป็น'), cs = H.indexOf('ส่วน'), cn = H.indexOf('ลำดับ'), ct = H.indexOf('ประเภท');
+  const ck = H.indexOf('key'), cl = H.indexOf('คำถาม'), co = H.indexOf('ตัวเลือก'), cr = H.indexOf('จำเป็น'), cs = H.indexOf('ส่วน'), cn = H.indexOf('ลำดับ'), ct = H.indexOf('ประเภท'), cst = H.indexOf('สถานะ');
   if (ck < 0) return null;
   const cfg = {};
   for (let r = 1; r < rows.length; r++) {
@@ -380,6 +380,7 @@ function parseFieldsRows(rows) {
     if (cs >= 0) c.section = (row[cs] || '').trim();
     if (cn >= 0) c.order = Number(row[cn]) || 0;
     if (ct >= 0) c.type = ((row[ct] || 'text').trim() || 'text').toLowerCase();
+    if (cst >= 0) { const s = (row[cst] || '').trim(); if (/ซ่อน|hide|ปิด|ไม่ใช้|ไม่แสดง/i.test(s)) c.hidden = true; else if (/ล็อก|lock|ยังไม่กรอก|ยังไม่|รอ|later|disable/i.test(s)) c.locked = true; }
     cfg[key] = c;
   }
   return Object.keys(cfg).length ? cfg : null;
@@ -387,15 +388,27 @@ function parseFieldsRows(rows) {
 function applyFieldConfig() {
   Object.entries(FIELD_CFG).forEach(([key, cfg]) => {
     const el = form.elements[key];
-    if (!el || !el.tagName) return; // skip radio/checkbox groups (RadioNodeList)
-    if (cfg.label) {
+    // label rename (single controls only)
+    if (el && el.tagName && cfg.label) {
       const lab = el.closest('label');
       if (lab) {
         const t = [...lab.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
         if (t) t.textContent = cfg.label; else lab.insertBefore(document.createTextNode(cfg.label), lab.firstChild);
       }
     }
-    if (cfg.required != null) el.required = !!cfg.required;
+    // show / hide / lock (ยังไม่ต้องกรอก) — works for single controls and radio/checkbox groups
+    const wrap = ctrlWrapper(key);
+    if (wrap) {
+      wrap.classList.toggle('field-hidden', !!cfg.hidden);
+      wrap.classList.toggle('field-locked', !!cfg.locked && !cfg.hidden);
+    }
+    // required: force off while hidden/locked so it never blocks บันทึก; otherwise honor the sheet
+    const nodes = el ? (el.tagName ? [el] : [...el]) : [];
+    nodes.forEach(n => {
+      if (!n.tagName) return;
+      if (cfg.hidden || cfg.locked) n.required = false;
+      else if (cfg.required != null) n.required = !!cfg.required;
+    });
   });
 }
 async function loadFieldsFromSheet() {
