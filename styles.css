@@ -151,3 +151,53 @@ input,select,textarea,button,.search input{font-family:inherit}
 
 .dm-isnew{outline:2px dashed var(--teal);outline-offset:1px;position:relative}
 .dm-card.dm-isnew::after,.dm-sec-edit.dm-isnew::after{content:'ใหม่ • เลือกส่วน';position:absolute;top:-9px;right:10px;font-size:10px;font-weight:700;color:#fff;background:var(--teal);border-radius:6px;padding:1px 8px}
+
+/* ============ การจัดการข้อมูล — refined theme v2 ============ */
+.dm-dialog .vct-head{background:linear-gradient(120deg,#ffffff,#fff5f6)}
+.dm-dialog .vct-body{background:linear-gradient(180deg,#fbeff1,#f6e7ea 55%,#f1e1e4)}
+.dm-intro{background:linear-gradient(120deg,#ffffff,#fff4f5);border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:12px;box-shadow:0 4px 14px rgba(200,16,46,.06);color:#6b545a}
+.dm-intro b{color:var(--teal)}
+/* group heads: bold gradient banners with an icon */
+.dm-grouphead{display:flex;align-items:center;gap:11px;font-weight:800;font-size:16px;color:#fff;margin:6px 0 14px;padding:13px 16px;background:linear-gradient(120deg,#c8102e,#e5484d);border-left:0;border-radius:13px;box-shadow:0 10px 24px -10px rgba(200,16,46,.55)}
+.dm-grouphead::before{content:'📋';font-size:18px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.dm-grouphead-vct{background:linear-gradient(120deg,#4a2b8c,#7350c9);box-shadow:0 10px 24px -10px rgba(74,43,140,.55);margin-top:30px}
+.dm-grouphead-vct::before{content:'🧪'}
+/* add-buttons read as clear affordances */
+.dm-toolbar{gap:10px;margin:0 0 16px}
+.dm-toolbar .btn{border:1.5px dashed var(--teal);color:var(--teal);background:#fff;font-weight:700}
+.dm-toolbar .btn:hover{background:var(--teal);color:#fff;border-style:solid;transform:translateY(-1px)}
+/* section header rows: distinct band, not a plain field */
+.dm-sec-edit{background:linear-gradient(120deg,#fff,#fff1f3);border:1px solid #f2c9cf;border-left:5px solid var(--teal);border-radius:12px;padding:11px 15px;margin:24px 0 12px;box-shadow:0 3px 12px rgba(200,16,46,.06)}
+.dm-sec-edit:first-child{margin-top:0}
+.dm-sec-edit::before{content:'ส่วน';font-size:10px;font-weight:800;letter-spacing:.09em;color:var(--teal);background:#fde3e7;border:1px solid #f2c1c8;border-radius:6px;padding:4px 10px;flex:0 0 auto}
+.dm-sec-edit .dm-secname{flex:1;font-weight:800;font-size:16.5px;color:var(--ink);border:0;background:transparent;padding:4px 2px;border-bottom:2px dotted transparent;margin:0}
+.dm-sec-edit .dm-secname:focus{border-bottom-color:var(--teal);box-shadow:none}
+.dm-sec-edit code{background:#fff;border:1px solid var(--line);color:var(--muted)}
+/* field cards: elevation, accent, hover lift, status-tinted accent */
+.dm-card{border:1px solid var(--line);border-left:4px solid #eaa8b1;border-radius:14px;padding:14px 16px;margin-bottom:11px;box-shadow:0 3px 12px rgba(56,39,42,.05);transition:box-shadow .18s ease,transform .18s ease}
+.dm-card:hover{box-shadow:0 12px 28px rgba(56,39,42,.11);transform:translateY(-1px)}
+.dm-card.dm-c-lock{border-left-color:#e0a726;background:linear-gradient(120deg,#fff,#fffaef)}
+.dm-card.dm-c-hide{border-left-color:#9aa0a6;background:linear-gradient(120deg,#fff,#f4f4f5);opacity:.9}
+/* label as a title line */
+.dm-l1{margin-bottom:11px}
+.dm-l1 .dm-label{font-size:15.5px;font-weight:700;border:0;border-radius:0;padding:6px 2px;background:transparent;border-bottom:2px dotted var(--line)}
+.dm-l1 .dm-label:focus{border-bottom-color:var(--teal);box-shadow:none}
+.dm-key{background:#fff;border:1px solid var(--line)}
+/* meta row inside an inset panel */
+.dm-l2{background:#faf5f6;border:1px solid #f1e2e4;border-radius:11px;padding:11px 13px;gap:12px;margin-bottom:0}
+.dm-mini{color:#8a6d72}
+.dm-mini select,.dm-mini input{border-radius:8px;background:#fff}
+.dm-chk{color:#8a6d72}
+/* status row: emphasized label + segment */
+.dm-l3{margin-top:11px;gap:11px}
+.dm-stlbl{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.dm-seg{border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.dm-seg button{padding:8px 16px;font-weight:700}
+/* delete + footer save */
+.dm-del{background:#fff;border:1px solid #f0c2c8;color:var(--teal)}
+.dm-del:hover{background:var(--teal);border-color:var(--teal);color:#fff}
+.dm-dialog .vct-foot{background:linear-gradient(180deg,#fff7f8,#fff)}
+.dm-dialog #dmSave{font-size:15px;padding:12px 22px;box-shadow:0 10px 22px -8px var(--teal)}
+/* new-item highlight: glow instead of dashed */
+.dm-isnew{outline:0!important;box-shadow:0 0 0 2px var(--teal),0 12px 28px rgba(200,16,46,.18)!important}
+.dm-card.dm-isnew::after,.dm-sec-edit.dm-isnew::after{background:var(--teal);box-shadow:0 4px 10px -3px rgba(200,16,46,.6)}
