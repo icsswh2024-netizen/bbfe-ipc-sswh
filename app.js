@@ -1033,8 +1033,9 @@ function dmEditorHtml(obj,scope){
   const newSet=dmScopeNew(scope);
   dmSortedOf(obj,newSet).forEach(([key,e])=>{
     const nu=newSet.has(key)?' dm-isnew':'';
+    const st=e.hidden?' dm-c-hide':(e.locked?' dm-c-lock':'');
     if(e.type==='section'){ html+=`<div class="dm-sec dm-sec-edit${nu}" data-scope="${scope}"><input class="dm-secname" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}"><code>${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบส่วนนี้">✕</button></div>`; return; }
-    html+=`<div class="dm-card${nu}" data-scope="${scope}" data-key="${esc(key)}">`+`
+    html+=`<div class="dm-card${nu}${st}" data-scope="${scope}" data-key="${esc(key)}">`+`
       <div class="dm-l1"><input class="dm-label" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}" placeholder="คำถาม"><code class="dm-key">${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบคำถามนี้">✕</button></div>
       <div class="dm-l2">
         <label class="dm-mini">ส่วน<select data-key="${esc(key)}" data-f="section">${dmSecOptions(obj,e.section)}</select></label>
