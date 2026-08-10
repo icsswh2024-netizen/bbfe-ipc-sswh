@@ -15,6 +15,8 @@ const FLOW_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq
 const FLOW_CACHE_KEY = 'icsswh-flow-cache-v1';
 const MENU_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=menu`;
 const MENU_CACHE_KEY = 'icsswh-menu-cache-v1';
+const VCT_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=vct`;
+const VCT_CACHE_KEY = 'icsswh-vct-cache-v1';
 // Home menu cards from the "menu" tab (ลำดับ | ไอคอน | หัวข้อ | คำอธิบาย | ข้อความปุ่ม | การทำงาน | เด่น)
 const DEFAULT_MENU = [
   { order:1, icon:'+', title:'บันทึกเหตุการณ์', desc:'สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว', arrow:'เริ่มบันทึก →', go:'new', level:1 },
@@ -727,7 +729,7 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet();
+reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
@@ -770,74 +772,90 @@ const VCT_RIGHTS=['อนุเคราะห์','กรมบัญชีก�
 const VCT_ACKS=['อ่านด้วยตนเอง','ได้รับคำอธิบายจากแพทย์/เจ้าหน้าที่','มีผู้อ่านให้ฟัง','มีโอกาสซักถามและได้รับคำตอบที่พอใจ'];
 const VCT_NOTIFY=['ข้าพเจ้าแต่เพียงผู้เดียว','คู่สมรสของข้าพเจ้า','อื่น ๆ'];
 const VCT_MULTI=new Set(['riskTypes','ackMethods','notifyTo']);
+// Built-in VCT field config (used until/unless a "vct" sheet tab overrides it). Same shape as FIELD_CFG.
+function buildDefaultVctCfg(){
+  const c={}; let o=0;
+  const sec=(k,l,n)=>{ c[k]={label:l,type:'section',section:String(n),order:0}; };
+  const f=(k,l,type,sect,opts)=>{ c[k]={label:l,type:type,section:String(sect),order:++o}; if(opts)c[k].options=opts.slice(); };
+  o=0; sec('vsecA','ข้อมูลผู้รับบริการ',1);
+  f('counselDate','วันที่ให้คำปรึกษา','date',1); f('unit','หน่วยงานที่ให้คำปรึกษา','text',1); f('unitType','ประเภทหน่วยงาน','select',1,['ด้านหน้า','ผู้ป่วยใน']);
+  f('citizenId','เลขประจำตัวประชาชน','text',1); f('name','ชื่อ - สกุล','text',1); f('hn','H.N.','text',1); f('age','อายุ (ปี)','number',1);
+  f('rights','สิทธิการรักษา','select',1,VCT_RIGHTS); f('marital','สถานภาพ','select',1,['โสด','สมรส','หม้าย','แยกกันอยู่']);
+  o=0; sec('vsecB','ความเสี่ยงและการตรวจเลือด',2);
+  f('riskTypes','ประเภทความเสี่ยง','checkbox',2,VCT_RISKS); f('riskOther','รายละเอียดความเสี่ยงอื่น ๆ','text',2);
+  f('testHistory','ประวัติการส่งตรวจเลือด','select',2,['เคย','ไม่เคย']); f('testHistoryCount','เคย ครั้งที่','text',2);
+  f('testOrder','การส่งตรวจเลือด','select',2,['ตรวจ','ไม่ตรวจ','ตรวจ Confirm']); f('testResult','ผลการตรวจ','select',2,['Positive','Negative','Inconclusive: แปลผลไม่ได้']);
+  f('testDate','วันที่ตรวจเลือด','date',2); f('tester','ผู้ตรวจเลือด','text',2); f('counselor','ผู้ให้คำปรึกษา','text',2); f('vctRecorder','ผู้ลงข้อมูล VCT','text',2);
+  o=0; sec('vsecC','ความยินยอมตรวจเอดส์',3);
+  f('consentDate','วันที่ให้ความยินยอม','date',3); f('consentTime','เวลา','time',3);
+  f('ackMethods','การรับทราบข้อควรรู้ก่อนตรวจ','checkbox',3,VCT_ACKS); f('wantTest','ความประสงค์ขอรับการตรวจเอดส์','select',3,['ประสงค์','ไม่ประสงค์']); f('minorName','ยินยอมแทนผู้เยาว์ (ระบุชื่อ ถ้ามี)','text',3);
+  o=0; sec('vsecD','การแจ้งผลตรวจ',4);
+  f('notifyTo','ยินยอมให้แจ้งผลแก่','checkbox',4,VCT_NOTIFY); f('notifySpouse','คู่สมรส (ระบุชื่อ)','text',4); f('notifyOther','อื่น ๆ (ระบุ)','text',4);
+  f('finalResult','ผลการตรวจ (สรุป)','select',4,['Negative','Positive','อื่น ๆ']); f('finalOther','ผลอื่น ๆ (ระบุ)','text',4);
+  return c;
+}
+const DEFAULT_VCT_CFG=buildDefaultVctCfg();
+function loadCachedVct(){ try{ const v=JSON.parse(localStorage.getItem(VCT_CACHE_KEY)); return (v&&Object.keys(v).length)?v:null; }catch{ return null; } }
+let VCT_CFG = loadCachedVct() || JSON.parse(JSON.stringify(DEFAULT_VCT_CFG));
+const THAI_SEC_LETTERS=['ก','ข','ค','ง','จ','ฉ','ช','ซ','ฌ','ญ'];
+async function loadVctFromSheet(){
+  try{
+    const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),6000);
+    const res=await fetch(VCT_CSV_URL,{signal:ctrl.signal}); clearTimeout(timer);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const cfg=parseFieldsRows(parseCSV(await res.text()));
+    if(!cfg) return;
+    VCT_CFG=cfg; localStorage.setItem(VCT_CACHE_KEY, JSON.stringify(cfg));
+    if(dataMgrOpen()) renderDataMgr();
+  }catch(e){ /* keep built-in / cached VCT config */ }
+}
+// default value pulled from the record for a known VCT field key
+function vctDefault(key,r,today,full,resultDef){
+  switch(key){
+    case 'counselDate': return r.consentDate||r.incidentDate||today;
+    case 'unit': return r.department||'งาน IC';
+    case 'unitType': return 'ด้านหน้า';
+    case 'name': return full;
+    case 'hn': return r.staffHn||'';
+    case 'age': return r.age||'';
+    case 'consentDate': return r.consentDate||today;
+    case 'wantTest': return 'ประสงค์';
+    case 'testResult': case 'finalResult': return resultDef;
+    default: return '';
+  }
+}
+const vctIsMulti=key=>{ const c=VCT_CFG[key]; return c?c.type==='checkbox':VCT_MULTI.has(key); };
+function vctSorted(){ return Object.entries(VCT_CFG).sort((a,b)=>{ const sa=Number(a[1].section)||0,sb=Number(b[1].section)||0; if(sa!==sb)return sa-sb; const oa=a[1].type==='section'?-1:(Number(a[1].order)||0),ob=b[1].type==='section'?-1:(Number(b[1].order)||0); return oa-ob; }); }
 let vctRecordId=null;
 function openVctFromEditor(){ const data=formDataObject(); commitSave(data); form.id.value=data.id; $('#saveState').textContent='บันทึกแล้ว'; openVct(records().find(x=>x.id===data.id)); }
 function openVct(r){
   vctRecordId=r.id; const v=r.vct||{};
   const full=((r.staffName||'')+' '+(r.staffName2||'')).trim();
   const today=new Date().toISOString().slice(0,10);
-  const g=(k,d='')=>(v[k]!=null&&v[k]!=='')?v[k]:d;
-  const on=(k,x)=>Array.isArray(v[k])&&v[k].includes(x);
-  const resultDef=g('finalResult', r.staffHiv==='บวก'?'Positive':(r.staffHiv==='ลบ'?'Negative':''));
-  const inp=(n,val,type='text')=>`<label>${''}<input name="${n}" type="${type}" value="${esc(val)}"></label>`;
-  const lab=(txt,n,val,type='text')=>`<label>${txt}<input name="${n}" type="${type}" value="${esc(val)}"></label>`;
-  const selL=(txt,n,opts,cur)=>`<label>${txt}<select name="${n}"><option value="">เลือก</option>${opts.map(o=>`<option${o===cur?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
-  const chk=(n,val,checked)=>`<label class="choice"><input type="checkbox" name="${n}" value="${esc(val)}"${checked?' checked':''}><span><b>${esc(val)}</b></span></label>`;
-  const rad=(n,val,cur)=>`<label class="choice"><input type="radio" name="${n}" value="${esc(val)}"${val===cur?' checked':''}><span><b>${esc(val)}</b></span></label>`;
-  $('#vctForm').innerHTML =
-    `<div class="form-page active">
-       <div class="section-title"><span>ก</span><div><h2>ข้อมูลผู้รับบริการ</h2><p>ดึงจากรายการที่กรอกไว้อัตโนมัติ (แก้ไขได้)</p></div></div>
-       <div class="grid cols-2">
-         ${lab('วันที่ให้คำปรึกษา','counselDate',g('counselDate',r.consentDate||r.incidentDate||today),'date')}
-         ${lab('หน่วยงานที่ให้คำปรึกษา','unit',g('unit',r.department||'งาน IC'))}
-         ${selL('ประเภทหน่วยงาน','unitType',['ด้านหน้า','ผู้ป่วยใน'],g('unitType','ด้านหน้า'))}
-         ${lab('เลขประจำตัวประชาชน','citizenId',g('citizenId'))}
-         ${lab('ชื่อ - สกุล','name',g('name',full))}
-         ${lab('H.N.','hn',g('hn',r.staffHn||''))}
-         ${lab('อายุ (ปี)','age',g('age',r.age||''),'number')}
-         ${selL('สิทธิการรักษา','rights',VCT_RIGHTS,g('rights'))}
-         ${selL('สถานภาพ','marital',['โสด','สมรส','หม้าย','แยกกันอยู่'],g('marital'))}
-       </div>
-     </div>
-     <div class="form-page active">
-       <div class="section-title"><span>ข</span><div><h2>ความเสี่ยงและการตรวจเลือด</h2><p>ประเภทความเสี่ยงและผลการตรวจ</p></div></div>
-       <fieldset><legend>ประเภทความเสี่ยง (เลือกได้มากกว่า 1)</legend><div class="choice-grid">${VCT_RISKS.map(x=>chk('riskTypes',x,on('riskTypes',x))).join('')}</div></fieldset>
-       <div class="grid cols-2">
-         ${lab('รายละเอียดความเสี่ยงอื่น ๆ','riskOther',g('riskOther'))}
-         ${selL('ประวัติการส่งตรวจเลือด','testHistory',['เคย','ไม่เคย'],g('testHistory'))}
-         ${lab('เคย ครั้งที่','testHistoryCount',g('testHistoryCount'))}
-         ${selL('การส่งตรวจเลือด','testOrder',['ตรวจ','ไม่ตรวจ','ตรวจ Confirm'],g('testOrder'))}
-         ${selL('ผลการตรวจ','testResult',['Positive','Negative','Inconclusive: แปลผลไม่ได้'],g('testResult',resultDef))}
-         ${lab('วันที่ตรวจเลือด','testDate',g('testDate'),'date')}
-         ${lab('ผู้ตรวจเลือด','tester',g('tester'))}
-         ${lab('ผู้ให้คำปรึกษา','counselor',g('counselor'))}
-         ${lab('ผู้ลงข้อมูล VCT','vctRecorder',g('vctRecorder'))}
-       </div>
-     </div>
-     <div class="form-page active">
-       <div class="section-title"><span>ค</span><div><h2>ความยินยอมตรวจเอดส์</h2><p>การรับทราบและความประสงค์</p></div></div>
-       <div class="grid cols-2">${lab('วันที่ให้ความยินยอม','consentDate',g('consentDate',r.consentDate||today),'date')}${lab('เวลา','consentTime',g('consentTime'),'time')}</div>
-       <fieldset><legend>การรับทราบข้อควรรู้ก่อนตรวจ</legend><div class="choice-grid">${VCT_ACKS.map(x=>chk('ackMethods',x,on('ackMethods',x))).join('')}</div></fieldset>
-       <div class="grid cols-2">
-         ${selL('ความประสงค์ขอรับการตรวจเอดส์','wantTest',['ประสงค์','ไม่ประสงค์'],g('wantTest','ประสงค์'))}
-         ${lab('ยินยอมแทนผู้เยาว์ (ระบุชื่อ ถ้ามี)','minorName',g('minorName'))}
-       </div>
-     </div>
-     <div class="form-page active">
-       <div class="section-title"><span>ง</span><div><h2>การแจ้งผลตรวจ</h2><p>ยินยอมให้แจ้งผลแก่ และผลการตรวจ</p></div></div>
-       <fieldset><legend>ยินยอมให้แจ้งผลแก่</legend><div class="choice-grid">${VCT_NOTIFY.map(x=>chk('notifyTo',x,on('notifyTo',x))).join('')}</div></fieldset>
-       <div class="grid cols-2">
-         ${lab('คู่สมรส (ระบุชื่อ)','notifySpouse',g('notifySpouse'))}
-         ${lab('อื่น ๆ (ระบุ)','notifyOther',g('notifyOther'))}
-         ${selL('ผลการตรวจ (สรุป)','finalResult',['Negative','Positive','อื่น ๆ'],g('finalResult',resultDef))}
-         ${lab('ผลอื่น ๆ (ระบุ)','finalOther',g('finalOther'))}
-       </div>
-     </div>`;
+  const resultDef=(v.finalResult!=null&&v.finalResult!=='')?v.finalResult:(r.staffHiv==='บวก'?'Positive':(r.staffHiv==='ลบ'?'Negative':''));
+  const val=key=>{ if(v[key]!=null&&v[key]!=='') return v[key]; return vctDefault(key,r,today,full,resultDef); };
+  const wrapCls=c=>(c.hidden?' field-hidden':'')+(c.locked?' field-locked':'');
+  const fieldHtml=(key,c)=>{
+    const t=c.type||'text', label=esc(c.label||key), opts=c.options||[];
+    if(t==='checkbox'){ const arr=Array.isArray(v[key])?v[key]:[]; return `<fieldset class="wide${wrapCls(c)}"><legend>${label}</legend><div class="choice-grid">${opts.map(o=>`<label class="choice"><input type="checkbox" name="${key}" value="${esc(o)}"${arr.includes(o)?' checked':''}><span><b>${esc(o)}</b></span></label>`).join('')}</div></fieldset>`; }
+    if(t==='radio'){ const cur=val(key); return `<fieldset class="wide${wrapCls(c)}"><legend>${label}</legend><div class="choice-grid">${opts.map(o=>`<label class="choice"><input type="radio" name="${key}" value="${esc(o)}"${o===cur?' checked':''}><span><b>${esc(o)}</b></span></label>`).join('')}</div></fieldset>`; }
+    if(t==='select'){ const cur=val(key); return `<label class="${wrapCls(c).trim()}">${label}<select name="${key}"><option value="">เลือก</option>${opts.map(o=>`<option${o===cur?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`; }
+    if(t==='textarea'){ return `<label class="wide${wrapCls(c)}">${label}<textarea name="${key}">${esc(val(key))}</textarea></label>`; }
+    const it=(t==='number'||t==='date'||t==='time')?t:'text';
+    return `<label class="${wrapCls(c).trim()}">${label}<input name="${key}" type="${it}" value="${esc(val(key))}"></label>`;
+  };
+  let html='', open=false, letter=0;
+  vctSorted().forEach(([key,c])=>{
+    if(c.type==='section'){ if(open)html+='</div></div>'; letter++; html+=`<div class="form-page active"><div class="section-title"><span>${THAI_SEC_LETTERS[letter-1]||letter}</span><div><h2>${esc(c.label||key)}</h2></div></div><div class="grid cols-2">`; open=true; return; }
+    if(!open){ html+=`<div class="form-page active"><div class="grid cols-2">`; open=true; }
+    html+=fieldHtml(key,c);
+  });
+  if(open)html+='</div></div>';
+  $('#vctForm').innerHTML=html;
   $('#vctHint').textContent='แนบกับ: '+(full||'ไม่ระบุชื่อ')+(r.staffHn?(' • HN '+r.staffHn):'');
-  applyVctStatus();
   const dlg=$('#vct'); if(dlg.open)dlg.close(); dlg.showModal(); dlg.querySelector('.vct-body').scrollTop=0;
 }
-function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val]of fd){ if(VCT_MULTI.has(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
+function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val] of fd){ if(vctIsMulti(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } Object.keys(VCT_CFG).forEach(k=>{ if(vctIsMulti(k)&&!out[k])out[k]=[]; }); VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
 function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
 function vSig(cap,cap2){ return `<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap">(...........................................)${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}`; }
 function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
@@ -996,37 +1014,23 @@ window.addEventListener('afterprint',()=>{ document.body.classList.remove('print
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
 $('#exportCsv').onclick=csvExport;
 
-// ---- การจัดการข้อมูล (admin field-status manager) ----
+// ---- การจัดการข้อมูล (admin: full editor for both the main form and VCT) ----
 function dataMgrOpen(){ const d=$('#dataMgr'); return !!(d && d.open); }
-
-// ---- VCT / consent status control (local, applied when the VCT dialog renders) ----
-const VCT_STATUS_KEY='icsswh-vct-status-v1';
-function loadVctStatus(){ try{ return JSON.parse(localStorage.getItem(VCT_STATUS_KEY))||{}; }catch{ return {}; } }
-let VCT_STATUS=loadVctStatus();
-function saveVctStatus(){ localStorage.setItem(VCT_STATUS_KEY, JSON.stringify(VCT_STATUS)); }
-const VCT_FIELDS=[
-  ['counselDate','วันที่ให้คำปรึกษา'],['unit','หน่วยงานที่ให้คำปรึกษา'],['unitType','ประเภทหน่วยงาน'],['citizenId','เลขประจำตัวประชาชน'],
-  ['name','ชื่อ - สกุล'],['hn','H.N.'],['age','อายุ (ปี)'],['rights','สิทธิการรักษา'],['marital','สถานภาพ'],
-  ['riskTypes','ประเภทความเสี่ยง'],['riskOther','รายละเอียดความเสี่ยงอื่น ๆ'],['testHistory','ประวัติการส่งตรวจเลือด'],['testHistoryCount','เคย ครั้งที่'],
-  ['testOrder','การส่งตรวจเลือด'],['testResult','ผลการตรวจ'],['testDate','วันที่ตรวจเลือด'],['tester','ผู้ตรวจเลือด'],['counselor','ผู้ให้คำปรึกษา'],['vctRecorder','ผู้ลงข้อมูล VCT'],
-  ['consentDate','วันที่ให้ความยินยอม'],['consentTime','เวลา (ยินยอม)'],['ackMethods','การรับทราบข้อควรรู้ก่อนตรวจ'],['wantTest','ความประสงค์ขอรับการตรวจเอดส์'],['minorName','ยินยอมแทนผู้เยาว์'],
-  ['notifyTo','ยินยอมให้แจ้งผลแก่'],['notifySpouse','คู่สมรส (ระบุชื่อ)'],['notifyOther','อื่น ๆ (ระบุ)'],['finalResult','ผลการตรวจ (สรุป)'],['finalOther','ผลอื่น ๆ (ระบุ)']
-];
-function applyVctStatus(){ const f=$('#vctForm'); if(!f)return; f.querySelectorAll('.field-hidden,.field-locked').forEach(el=>el.classList.remove('field-hidden','field-locked')); Object.entries(VCT_STATUS).forEach(([k,v])=>{ f.querySelectorAll(`[name="${CSS.escape(k)}"]`).forEach(el=>{ const w=el.closest('label,fieldset'); if(!w)return; if(v==='ซ่อน')w.classList.add('field-hidden'); else if(v==='ยังไม่กรอก')w.classList.add('field-locked'); }); }); }
-
-// ---- Full-column field editor ----
 const DM_TYPES=['text','textarea','number','date','time','select','radio','checkbox','picture','section'];
-let DM_EDIT={}; let DM_DELETED=new Set();
-function dmClone(){ const o={}; Object.entries(FIELD_CFG).forEach(([k,c])=>{ o[k]={label:c.label||'',type:c.type||'text',options:(c.options||[]).join('|'),required:!!c.required,section:c.section!=null?String(c.section):'',order:c.order!=null?c.order:'',hidden:!!c.hidden,locked:!!c.locked}; }); return o; }
+// working copies + deletion sets, per scope ('main' = fields sheet, 'vct' = vct sheet)
+let DM_EDIT={}, DM_VEDIT={}, DM_DELETED=new Set(), DM_VDELETED=new Set();
+const dmScopeObj=s=>s==='vct'?DM_VEDIT:DM_EDIT;
+const dmScopeDel=s=>s==='vct'?DM_VDELETED:DM_DELETED;
+function dmCloneOf(src){ const o={}; Object.entries(src).forEach(([k,c])=>{ o[k]={label:c.label||'',type:c.type||'text',options:(c.options||[]).join('|'),required:!!c.required,section:c.section!=null?String(c.section):'',order:c.order!=null?c.order:'',hidden:!!c.hidden,locked:!!c.locked}; }); return o; }
 const dmStatusOf=e=>e.hidden?'ซ่อน':(e.locked?'ยังไม่กรอก':'');
-function dmSegHtml(key,val,cls){ return `<div class="dm-seg ${cls||''}" data-key="${esc(key)}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${val===v?'on '+(v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
+function dmSegHtml(key,val){ return `<div class="dm-seg" data-key="${esc(key)}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${val===v?'on '+(v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
 function dmSegSet(seg,val){ [...seg.children].forEach(x=>{ x.className = x.dataset.val===val ? ('on '+(val==='ซ่อน'?'hide':(val==='ยังไม่กรอก'?'lock':''))) : ''; }); }
-function dmSorted(){ return Object.entries(DM_EDIT).sort((a,b)=>{ const sa=Number(a[1].section)||0, sb=Number(b[1].section)||0; if(sa!==sb)return sa-sb; const oa=a[1].type==='section'?-1:(Number(a[1].order)||0), ob=b[1].type==='section'?-1:(Number(b[1].order)||0); return oa-ob; }); }
-function renderDataMgr(){
+function dmSortedOf(obj){ return Object.entries(obj).sort((a,b)=>{ const sa=Number(a[1].section)||0, sb=Number(b[1].section)||0; if(sa!==sb)return sa-sb; const oa=a[1].type==='section'?-1:(Number(a[1].order)||0), ob=b[1].type==='section'?-1:(Number(b[1].order)||0); return oa-ob; }); }
+function dmEditorHtml(obj,scope){
   let html='';
-  dmSorted().forEach(([key,e])=>{
-    if(e.type==='section'){ html+=`<div class="dm-sec dm-sec-edit"><input class="dm-secname" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}"><code>${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบส่วนนี้">✕</button></div>`; return; }
-    html+=`<div class="dm-card" data-key="${esc(key)}">
+  dmSortedOf(obj).forEach(([key,e])=>{
+    if(e.type==='section'){ html+=`<div class="dm-sec dm-sec-edit" data-scope="${scope}"><input class="dm-secname" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}"><code>${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบส่วนนี้">✕</button></div>`; return; }
+    html+=`<div class="dm-card" data-scope="${scope}" data-key="${esc(key)}">
       <div class="dm-l1"><input class="dm-label" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}" placeholder="คำถาม"><code class="dm-key">${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบคำถามนี้">✕</button></div>
       <div class="dm-l2">
         <label class="dm-mini">ประเภท<select data-key="${esc(key)}" data-f="type">${DM_TYPES.map(t=>`<option${t===e.type?' selected':''}>${t}</option>`).join('')}</select></label>
@@ -1037,29 +1041,38 @@ function renderDataMgr(){
       <div class="dm-l3"><span class="dm-stlbl">สถานะ</span>${dmSegHtml(key,dmStatusOf(e))}</div>
     </div>`;
   });
-  $('#dmList').innerHTML=html;
-  let vhtml='<div class="dm-sec dm-sec-vct">VCT / เอกสารแนบ · ใบยินยอมตรวจเลือด <span class="dm-note-inline">(คุมซ่อน/ล็อก · เฉพาะเครื่องนี้)</span></div>';
-  VCT_FIELDS.forEach(([key,label])=>{ vhtml+=`<div class="dm-row dm-vrow"><div class="dm-info"><b>${esc(label)}</b><code>${esc(key)}</code></div>${dmSegHtml(key,VCT_STATUS[key]||'','dm-vseg')}</div>`; });
-  $('#dmVct').innerHTML=vhtml;
-  $('#dmIntro').innerHTML='แก้ไขได้ทุกคอลัมน์ของช่องกรอก (คำถาม · ประเภท · ตัวเลือก · ลำดับ · จำเป็น · สถานะ) แล้วกด <b>บันทึกลงชีต</b> เพื่อบันทึกถาวรและปรับใช้ทันที · ส่วน VCT / ใบยินยอม คุมการซ่อน/ล็อกได้ (เฉพาะเครื่องนี้)';
+  return html;
+}
+function renderDataMgr(){
+  $('#dmList').innerHTML=dmEditorHtml(DM_EDIT,'main');
+  $('#dmVct').innerHTML=dmEditorHtml(DM_VEDIT,'vct');
+  $('#dmIntro').innerHTML='แก้ไขได้ทุกคอลัมน์ (คำถาม · ประเภท · ตัวเลือก · ลำดับ · จำเป็น · สถานะ) เพิ่ม/ลบ ส่วนและคำถามได้ทั้ง <b>ฟอร์มหลัก</b> และ <b>VCT / ใบยินยอม</b> แล้วกด <b>บันทึกลงชีต</b> เพื่อบันทึกถาวรและปรับใช้ทันที';
   $('#dmHint').textContent='แก้แล้วกด “บันทึกลงชีต” เพื่อยืนยัน';
 }
-function dmApplyToCfg(){ const cfg={}; Object.entries(DM_EDIT).forEach(([k,e])=>{ const c={label:e.label,type:e.type||'text'}; const opts=(e.options||'').split('|').map(s=>s.trim()).filter(Boolean); if(opts.length)c.options=opts; c.required=!!e.required; if(e.section!=='')c.section=e.section; if(e.order!=='')c.order=Number(e.order)||0; c.hidden=!!e.hidden; c.locked=!!e.locked; cfg[k]=c; }); FIELD_CFG=cfg; localStorage.setItem(FIELDS_CACHE_KEY,JSON.stringify(cfg)); reconcileFieldStatus(); refreshOptionUI(); }
-function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; DM_EDIT=dmClone(); DM_DELETED=new Set(); VCT_STATUS=loadVctStatus(); renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
+function dmToCfg(obj){ const cfg={}; Object.entries(obj).forEach(([k,e])=>{ const c={label:e.label,type:e.type||'text'}; const opts=(e.options||'').split('|').map(s=>s.trim()).filter(Boolean); if(opts.length)c.options=opts; c.required=!!e.required; if(e.section!=='')c.section=e.section; if(e.order!=='')c.order=Number(e.order)||0; c.hidden=!!e.hidden; c.locked=!!e.locked; cfg[k]=c; }); return cfg; }
+function dmApplyMain(){ FIELD_CFG=dmToCfg(DM_EDIT); localStorage.setItem(FIELDS_CACHE_KEY,JSON.stringify(FIELD_CFG)); reconcileFieldStatus(); refreshOptionUI(); }
+function dmApplyVct(){ VCT_CFG=dmToCfg(DM_VEDIT); localStorage.setItem(VCT_CACHE_KEY,JSON.stringify(VCT_CFG)); if($('#vct').open){ const r=records().find(x=>x.id===vctRecordId); if(r)openVct(r); } }
+function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
 $('#openDataMgr').onclick=openDataMgr;
 $('#dmClose').onclick=()=>$('#dataMgr').close();
-$('#dmList').addEventListener('input',e=>{ const el=e.target, key=el.dataset.key, f=el.dataset.f; if(!key||!f||!DM_EDIT[key])return; if(f==='required')DM_EDIT[key].required=el.checked; else DM_EDIT[key][f]=el.value; });
-$('#dmList').addEventListener('click',e=>{
+function dmOnInput(e){ const el=e.target, wrap=el.closest('[data-scope]'); if(!wrap)return; const obj=dmScopeObj(wrap.dataset.scope), key=el.dataset.key, f=el.dataset.f; if(!key||!f||!obj[key])return; if(f==='required')obj[key].required=el.checked; else obj[key][f]=el.value; }
+function dmOnClick(e){
   const del=e.target.closest('.dm-del');
-  if(del){ const key=del.dataset.key, en=DM_EDIT[key]; if(!en)return; const what=en.type==='section'?'ส่วน':'คำถาม'; if(!confirm(`ลบ${what} “${en.label||key}” ?\n(จะมีผลเมื่อกดบันทึกลงชีต)`))return; delete DM_EDIT[key]; DM_DELETED.add(key); renderDataMgr(); return; }
-  const b=e.target.closest('.dm-seg button'); if(!b)return; const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(!DM_EDIT[key])return; DM_EDIT[key].hidden=(val==='ซ่อน'); DM_EDIT[key].locked=(val==='ยังไม่กรอก'); dmSegSet(seg,val); });
-$('#dmVct').addEventListener('click',e=>{ const b=e.target.closest('.dm-seg button'); if(!b)return; const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(val)VCT_STATUS[key]=val; else delete VCT_STATUS[key]; saveVctStatus(); if($('#vct').open)applyVctStatus(); dmSegSet(seg,val); });
-function dmMaxSection(){ let mx=0; Object.values(DM_EDIT).forEach(e=>{ if(e.type==='section'){ const n=Number(e.section)||0; if(n>mx)mx=n; } }); return mx; }
-function dmMaxOrder(sec){ let mx=0; Object.values(DM_EDIT).forEach(e=>{ if(e.type!=='section'&&String(e.section)===String(sec)){ const n=Number(e.order)||0; if(n>mx)mx=n; } }); return mx; }
-$('#dmAddSection').onclick=()=>{ const n=dmMaxSection()+1; const key='sec'+n; DM_EDIT[key]={label:'ส่วนใหม่ '+n,type:'section',options:'',required:false,section:String(n),order:0,hidden:false,locked:false}; renderDataMgr(); const el=$(`#dmList .dm-secname[data-key="${key}"]`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); el.select&&el.select(); } toast('เพิ่มส่วนใหม่แล้ว — แก้ชื่อแล้วกดบันทึกลงชีต'); };
-$('#dmAddField').onclick=()=>{ let key=prompt('ตั้งชื่อ key ของช่องใหม่ (อังกฤษ/ตัวเลข ไม่ซ้ำ) เช่น extraNote'); if(key==null)return; key=key.trim(); if(!key)return; if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)){ alert('key ต้องขึ้นต้นด้วยตัวอักษรอังกฤษ และใช้ได้เฉพาะ A-Z a-z 0-9 _'); return; } if(DM_EDIT[key]){ alert('key นี้มีอยู่แล้ว'); return; } const sec=String(dmMaxSection()||1); DM_EDIT[key]={label:'',type:'text',options:'',required:false,section:sec,order:dmMaxOrder(sec)+1,hidden:false,locked:false}; renderDataMgr(); const el=$(`#dmList .dm-card[data-key="${key}"] .dm-label`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); } toast('เพิ่มคำถามใหม่แล้ว — กรอกรายละเอียดแล้วกดบันทึกลงชีต'); };
-$('#dmReset').onclick=()=>{ DM_EDIT=dmClone(); DM_DELETED=new Set(); renderDataMgr(); toast('คืนค่าตามที่บันทึกไว้แล้ว'); };
-$('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']; const rows=Object.entries(DM_EDIT).map(([k,e])=>[e.section,e.order,k,e.label,e.type,e.options,e.required?'✓':'',dmStatusOf(e)].join('\t')); const tsv=[head.join('\t')].concat(rows).join('\n'); try{await navigator.clipboard.writeText(tsv);}catch{const ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกทั้งตารางแล้ว — วางที่ A1 ในแท็บ fields'); };
+  if(del){ const wrap=del.closest('[data-scope]'), scope=wrap.dataset.scope, obj=dmScopeObj(scope), key=del.dataset.key, en=obj[key]; if(!en)return; const what=en.type==='section'?'ส่วน':'คำถาม'; if(!confirm(`ลบ${what} “${en.label||key}” ?\n(จะมีผลเมื่อกดบันทึกลงชีต)`))return; delete obj[key]; dmScopeDel(scope).add(key); renderDataMgr(); return; }
+  const b=e.target.closest('.dm-seg button'); if(!b)return; const wrap=b.closest('[data-scope]'), obj=dmScopeObj(wrap.dataset.scope); const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(!obj[key])return; obj[key].hidden=(val==='ซ่อน'); obj[key].locked=(val==='ยังไม่กรอก'); dmSegSet(seg,val);
+}
+$('#dmList').addEventListener('input',dmOnInput); $('#dmVct').addEventListener('input',dmOnInput);
+$('#dmList').addEventListener('click',dmOnClick); $('#dmVct').addEventListener('click',dmOnClick);
+function dmMaxSection(obj){ let mx=0; Object.values(obj).forEach(e=>{ if(e.type==='section'){ const n=Number(e.section)||0; if(n>mx)mx=n; } }); return mx; }
+function dmMaxOrder(obj,sec){ let mx=0; Object.values(obj).forEach(e=>{ if(e.type!=='section'&&String(e.section)===String(sec)){ const n=Number(e.order)||0; if(n>mx)mx=n; } }); return mx; }
+function dmAddSection(scope){ const obj=dmScopeObj(scope), n=dmMaxSection(obj)+1, key=(scope==='vct'?'vsec':'sec')+n; obj[key]={label:'ส่วนใหม่ '+n,type:'section',options:'',required:false,section:String(n),order:0,hidden:false,locked:false}; renderDataMgr(); const el=$(`#${scope==='vct'?'dmVct':'dmList'} .dm-secname[data-key="${key}"]`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); el.select&&el.select(); } toast('เพิ่มส่วนใหม่แล้ว — แก้ชื่อแล้วกดบันทึกลงชีต'); }
+function dmAddField(scope){ const obj=dmScopeObj(scope); let key=prompt('ตั้งชื่อ key ของช่องใหม่ (อังกฤษ/ตัวเลข ไม่ซ้ำ) เช่น extraNote'); if(key==null)return; key=key.trim(); if(!key)return; if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)){ alert('key ต้องขึ้นต้นด้วยตัวอักษรอังกฤษ และใช้ได้เฉพาะ A-Z a-z 0-9 _'); return; } if(obj[key]){ alert('key นี้มีอยู่แล้ว'); return; } const sec=String(dmMaxSection(obj)||1); obj[key]={label:'',type:'text',options:'',required:false,section:sec,order:dmMaxOrder(obj,sec)+1,hidden:false,locked:false}; renderDataMgr(); const el=$(`#${scope==='vct'?'dmVct':'dmList'} .dm-card[data-key="${key}"] .dm-label`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); } toast('เพิ่มคำถามใหม่แล้ว — กรอกรายละเอียดแล้วกดบันทึกลงชีต'); }
+$('#dmAddSection').onclick=()=>dmAddSection('main');
+$('#dmAddField').onclick=()=>dmAddField('main');
+$('#dmVAddSection').onclick=()=>dmAddSection('vct');
+$('#dmVAddField').onclick=()=>dmAddField('vct');
+$('#dmReset').onclick=()=>{ DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); renderDataMgr(); toast('คืนค่าตามที่บันทึกไว้แล้ว'); };
+$('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']; const rows=Object.entries(DM_EDIT).map(([k,e])=>[e.section,e.order,k,e.label,e.type,e.options,e.required?'✓':'',dmStatusOf(e)].join('\t')); const tsv=[head.join('\t')].concat(rows).join('\n'); try{await navigator.clipboard.writeText(tsv);}catch{const ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกฟอร์มหลักแล้ว — วางที่ A1 ในแท็บ fields'); };
 
 // ---- บันทึกลงชีตอัตโนมัติ ผ่าน Google Apps Script Web App ----
 const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
@@ -1068,11 +1081,15 @@ const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||DEFAUL
 const APPS_SCRIPT_CODE=`function doPost(e){
   try{
     var body = JSON.parse(e.postData.contents);
-    var sh = SpreadsheetApp.getActive().getSheetByName('fields');
+    var ss = SpreadsheetApp.getActive();
+    var name = body.sheet || 'fields';
+    var sh = ss.getSheetByName(name);
+    if (!sh){ sh = ss.insertSheet(name); sh.getRange(1,1,1,8).setValues([['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']]); }
     var data = sh.getDataRange().getValues();
     var head = data[0];
     function col(name){ var i = head.indexOf(name); if(i<0){ i = head.length; head.push(name); sh.getRange(1, i+1).setValue(name); } return i; }
     var keyCol = head.indexOf('key');
+    if (keyCol < 0){ keyCol = col('key'); }
 
     // 1) update only the สถานะ column (matched by key)
     if (body.action === 'setFieldStatus'){
@@ -1125,19 +1142,20 @@ $('#dmCopyCode').onclick=async()=>{ try{await navigator.clipboard.writeText(APPS
 $('#dmSetupCancel').onclick=()=>$('#dmSetup').close();
 $('#dmSetupClear').onclick=()=>{ localStorage.removeItem(SHEET_HOOK_KEY); $('#dmUrl').value=''; toast('ลบการเชื่อมต่อแล้ว'); };
 $('#dmSetupSave').onclick=()=>{ const u=$('#dmUrl').value.trim(); if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(u)){ if(!confirm('URL ไม่ตรงรูปแบบ Web App ปกติ ต้องการบันทึกต่อหรือไม่?'))return; } if(u)localStorage.setItem(SHEET_HOOK_KEY,u); else localStorage.removeItem(SHEET_HOOK_KEY); $('#dmSetup').close(); toast(u?'บันทึกการเชื่อมต่อแล้ว':'ลบการเชื่อมต่อแล้ว'); };
+function dmFieldsPayload(obj){ return Object.entries(obj).map(([k,e])=>({key:k,section:e.section,order:e.order,label:e.label,type:e.type,options:e.options,required:!!e.required,status:dmStatusOf(e)})); }
+async function dmPost(url,sheet,fields,deleteKeys){ const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveFields',sheet,fields,deleteKeys})}); const data=await res.json().catch(()=>({ok:res.ok})); if(data&&data.ok===false)throw new Error(data.error||'sheet error'); }
 async function dmSaveToSheet(){
   const url=getSheetHook();
-  const fields=Object.entries(DM_EDIT).map(([k,e])=>({key:k,section:e.section,order:e.order,label:e.label,type:e.type,options:e.options,required:!!e.required,status:dmStatusOf(e)}));
-  const deleteKeys=[...DM_DELETED];
+  const mainFields=dmFieldsPayload(DM_EDIT), mainDel=[...DM_DELETED];
+  const vctFields=dmFieldsPayload(DM_VEDIT), vctDel=[...DM_VDELETED];
   const btn=$('#dmSave'), orig=btn.textContent; btn.disabled=true; btn.textContent='กำลังบันทึก...';
-  dmApplyToCfg();   // apply to this device immediately (survives even if the sheet write fails)
+  dmApplyMain(); dmApplyVct();   // apply to this device immediately (survives even if the sheet write fails)
   try{
     if(!url) throw new Error('no-url');
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveFields',fields,deleteKeys})});
-    const data=await res.json().catch(()=>({ok:res.ok}));
-    if(data && data.ok===false) throw new Error(data.error||'sheet error');
-    DM_DELETED=new Set();
-    toast('บันทึกลงชีตและปรับใช้แล้ว ✓');
+    await dmPost(url,'fields',mainFields,mainDel);
+    await dmPost(url,'vct',vctFields,vctDel);
+    DM_DELETED=new Set(); DM_VDELETED=new Set();
+    toast('บันทึกลงชีต (fields + vct) และปรับใช้แล้ว ✓');
   }catch(err){
     if(err.message==='no-url'){ toast('ปรับใช้บนเครื่องนี้แล้ว — ตั้งค่าการเชื่อมต่อเพื่อบันทึกลงชีต'); openDmSetup(); }
     else toast('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ — ตรวจสอบการเชื่อมต่อ/redeploy สคริปต์');

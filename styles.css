@@ -145,3 +145,6 @@ input,select,textarea,button,.search input{font-family:inherit}
 .dm-del{border:0;background:#fbeef0;color:var(--teal);width:26px;height:26px;border-radius:7px;font-size:14px;line-height:1;cursor:pointer;flex:0 0 auto}
 .dm-del:hover{background:var(--teal);color:#fff}
 .dm-sec-edit code{font-size:11px;color:var(--muted);background:#fbeef0;padding:2px 8px;border-radius:5px}
+
+.dm-grouphead{font-weight:800;font-size:15px;color:var(--ink);margin:8px 0 10px;padding:9px 13px;background:#fff1f2;border-left:4px solid var(--teal);border-radius:8px}
+.dm-grouphead-vct{background:#efeaff;border-left-color:#4a2b8c;margin-top:26px}
