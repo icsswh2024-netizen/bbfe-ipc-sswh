@@ -139,3 +139,9 @@ input,select,textarea,button,.search input{font-family:inherit}
 
 .dm-toolbar{display:flex;gap:10px;margin-bottom:14px}
 .dm-toolbar .btn{font-size:13px;border-style:dashed}
+
+.dm-sec-edit{display:flex;align-items:center;gap:10px}
+.dm-sec-edit .dm-secname{flex:1;margin:0;font-weight:700;padding:6px 10px}
+.dm-del{border:0;background:#fbeef0;color:var(--teal);width:26px;height:26px;border-radius:7px;font-size:14px;line-height:1;cursor:pointer;flex:0 0 auto}
+.dm-del:hover{background:var(--teal);color:#fff}
+.dm-sec-edit code{font-size:11px;color:var(--muted);background:#fbeef0;padding:2px 8px;border-radius:5px}
