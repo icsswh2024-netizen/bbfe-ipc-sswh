@@ -1021,9 +1021,10 @@ function dmClone(){ const o={}; Object.entries(FIELD_CFG).forEach(([k,c])=>{ o[k
 const dmStatusOf=e=>e.hidden?'ซ่อน':(e.locked?'ยังไม่กรอก':'');
 function dmSegHtml(key,val,cls){ return `<div class="dm-seg ${cls||''}" data-key="${esc(key)}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${val===v?'on '+(v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
 function dmSegSet(seg,val){ [...seg.children].forEach(x=>{ x.className = x.dataset.val===val ? ('on '+(val==='ซ่อน'?'hide':(val==='ยังไม่กรอก'?'lock':''))) : ''; }); }
+function dmSorted(){ return Object.entries(DM_EDIT).sort((a,b)=>{ const sa=Number(a[1].section)||0, sb=Number(b[1].section)||0; if(sa!==sb)return sa-sb; const oa=a[1].type==='section'?-1:(Number(a[1].order)||0), ob=b[1].type==='section'?-1:(Number(b[1].order)||0); return oa-ob; }); }
 function renderDataMgr(){
   let html='';
-  Object.entries(DM_EDIT).forEach(([key,e])=>{
+  dmSorted().forEach(([key,e])=>{
     if(e.type==='section'){ html+=`<div class="dm-sec"><input class="dm-secname" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}"><code>${esc(key)}</code></div>`; return; }
     html+=`<div class="dm-card" data-key="${esc(key)}">
       <div class="dm-l1"><input class="dm-label" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}" placeholder="คำถาม"><code class="dm-key">${esc(key)}</code></div>
@@ -1050,6 +1051,10 @@ $('#dmClose').onclick=()=>$('#dataMgr').close();
 $('#dmList').addEventListener('input',e=>{ const el=e.target, key=el.dataset.key, f=el.dataset.f; if(!key||!f||!DM_EDIT[key])return; if(f==='required')DM_EDIT[key].required=el.checked; else DM_EDIT[key][f]=el.value; });
 $('#dmList').addEventListener('click',e=>{ const b=e.target.closest('.dm-seg button'); if(!b)return; const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(!DM_EDIT[key])return; DM_EDIT[key].hidden=(val==='ซ่อน'); DM_EDIT[key].locked=(val==='ยังไม่กรอก'); dmSegSet(seg,val); });
 $('#dmVct').addEventListener('click',e=>{ const b=e.target.closest('.dm-seg button'); if(!b)return; const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(val)VCT_STATUS[key]=val; else delete VCT_STATUS[key]; saveVctStatus(); if($('#vct').open)applyVctStatus(); dmSegSet(seg,val); });
+function dmMaxSection(){ let mx=0; Object.values(DM_EDIT).forEach(e=>{ if(e.type==='section'){ const n=Number(e.section)||0; if(n>mx)mx=n; } }); return mx; }
+function dmMaxOrder(sec){ let mx=0; Object.values(DM_EDIT).forEach(e=>{ if(e.type!=='section'&&String(e.section)===String(sec)){ const n=Number(e.order)||0; if(n>mx)mx=n; } }); return mx; }
+$('#dmAddSection').onclick=()=>{ const n=dmMaxSection()+1; const key='sec'+n; DM_EDIT[key]={label:'ส่วนใหม่ '+n,type:'section',options:'',required:false,section:String(n),order:0,hidden:false,locked:false}; renderDataMgr(); const el=$(`#dmList .dm-secname[data-key="${key}"]`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); el.select&&el.select(); } toast('เพิ่มส่วนใหม่แล้ว — แก้ชื่อแล้วกดบันทึกลงชีต'); };
+$('#dmAddField').onclick=()=>{ let key=prompt('ตั้งชื่อ key ของช่องใหม่ (อังกฤษ/ตัวเลข ไม่ซ้ำ) เช่น extraNote'); if(key==null)return; key=key.trim(); if(!key)return; if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)){ alert('key ต้องขึ้นต้นด้วยตัวอักษรอังกฤษ และใช้ได้เฉพาะ A-Z a-z 0-9 _'); return; } if(DM_EDIT[key]){ alert('key นี้มีอยู่แล้ว'); return; } const sec=String(dmMaxSection()||1); DM_EDIT[key]={label:'',type:'text',options:'',required:false,section:sec,order:dmMaxOrder(sec)+1,hidden:false,locked:false}; renderDataMgr(); const el=$(`#dmList .dm-card[data-key="${key}"] .dm-label`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); } toast('เพิ่มคำถามใหม่แล้ว — กรอกรายละเอียดแล้วกดบันทึกลงชีต'); };
 $('#dmReset').onclick=()=>{ DM_EDIT=dmClone(); renderDataMgr(); toast('คืนค่าตามที่บันทึกไว้แล้ว'); };
 $('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']; const rows=Object.entries(DM_EDIT).map(([k,e])=>[e.section,e.order,k,e.label,e.type,e.options,e.required?'✓':'',dmStatusOf(e)].join('\t')); const tsv=[head.join('\t')].concat(rows).join('\n'); try{await navigator.clipboard.writeText(tsv);}catch{const ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกทั้งตารางแล้ว — วางที่ A1 ในแท็บ fields'); };
 

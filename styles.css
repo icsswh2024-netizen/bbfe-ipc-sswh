@@ -136,3 +136,6 @@ input,select,textarea,button,.search input{font-family:inherit}
 .dm-note-inline{font-weight:400;font-size:11px;opacity:.85}
 .dm-sec-vct{background:#4a2b8c;margin-top:22px}
 .dm-vrow .dm-info b{font-weight:600}
+
+.dm-toolbar{display:flex;gap:10px;margin-bottom:14px}
+.dm-toolbar .btn{font-size:13px;border-style:dashed}
