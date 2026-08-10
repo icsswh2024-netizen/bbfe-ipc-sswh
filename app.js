@@ -1018,20 +1018,23 @@ $('#exportCsv').onclick=csvExport;
 function dataMgrOpen(){ const d=$('#dataMgr'); return !!(d && d.open); }
 const DM_TYPES=['text','textarea','number','date','time','select','radio','checkbox','picture','section'];
 // working copies + deletion sets, per scope ('main' = fields sheet, 'vct' = vct sheet)
-let DM_EDIT={}, DM_VEDIT={}, DM_DELETED=new Set(), DM_VDELETED=new Set();
+let DM_EDIT={}, DM_VEDIT={}, DM_DELETED=new Set(), DM_VDELETED=new Set(), DM_NEW=new Set(), DM_VNEW=new Set();
 const dmScopeObj=s=>s==='vct'?DM_VEDIT:DM_EDIT;
 const dmScopeDel=s=>s==='vct'?DM_VDELETED:DM_DELETED;
+const dmScopeNew=s=>s==='vct'?DM_VNEW:DM_NEW;
 function dmCloneOf(src){ const o={}; Object.entries(src).forEach(([k,c])=>{ o[k]={label:c.label||'',type:c.type||'text',options:(c.options||[]).join('|'),required:!!c.required,section:c.section!=null?String(c.section):'',order:c.order!=null?c.order:'',hidden:!!c.hidden,locked:!!c.locked}; }); return o; }
 const dmStatusOf=e=>e.hidden?'ซ่อน':(e.locked?'ยังไม่กรอก':'');
 function dmSegHtml(key,val){ return `<div class="dm-seg" data-key="${esc(key)}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${val===v?'on '+(v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
 function dmSegSet(seg,val){ [...seg.children].forEach(x=>{ x.className = x.dataset.val===val ? ('on '+(val==='ซ่อน'?'hide':(val==='ยังไม่กรอก'?'lock':''))) : ''; }); }
-function dmSortedOf(obj){ return Object.entries(obj).sort((a,b)=>{ const sa=Number(a[1].section)||0, sb=Number(b[1].section)||0; if(sa!==sb)return sa-sb; const oa=a[1].type==='section'?-1:(Number(a[1].order)||0), ob=b[1].type==='section'?-1:(Number(b[1].order)||0); return oa-ob; }); }
-function dmSecOptions(obj,cur){ const secs=Object.entries(obj).filter(([k,e])=>e.type==='section').sort((a,b)=>(Number(a[1].section)||0)-(Number(b[1].section)||0)); let html=secs.map(([k,e])=>`<option value="${esc(e.section)}"${String(e.section)===String(cur)?' selected':''}>${esc(e.section)} · ${esc(e.label||k)}</option>`).join(''); if((cur??'')!==''&&!secs.some(([k,e])=>String(e.section)===String(cur))) html=`<option value="${esc(cur)}" selected>${esc(cur)}</option>`+html; return html; }
+function dmSortedOf(obj,newSet){ const isNew=k=>!!(newSet&&newSet.has(k)); return Object.entries(obj).sort((a,b)=>{ const na=isNew(a[0])?0:1, nb=isNew(b[0])?0:1; if(na!==nb)return na-nb; if(na===0)return 0; const sa=Number(a[1].section)||0, sb=Number(b[1].section)||0; if(sa!==sb)return sa-sb; const oa=a[1].type==='section'?-1:(Number(a[1].order)||0), ob=b[1].type==='section'?-1:(Number(b[1].order)||0); return oa-ob; }); }
+function dmSecOptions(obj,cur){ const secs=Object.entries(obj).filter(([k,e])=>e.type==='section').sort((a,b)=>(Number(a[1].section)||0)-(Number(b[1].section)||0)); let html=`<option value=""${(cur??'')===''?' selected':''}>— เลือกส่วน —</option>`+secs.map(([k,e])=>`<option value="${esc(e.section)}"${String(e.section)===String(cur)?' selected':''}>${esc(e.section)} · ${esc(e.label||k)}</option>`).join(''); if((cur??'')!==''&&!secs.some(([k,e])=>String(e.section)===String(cur))) html+=`<option value="${esc(cur)}" selected>${esc(cur)}</option>`; return html; }
 function dmEditorHtml(obj,scope){
   let html='';
-  dmSortedOf(obj).forEach(([key,e])=>{
-    if(e.type==='section'){ html+=`<div class="dm-sec dm-sec-edit" data-scope="${scope}"><input class="dm-secname" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}"><code>${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบส่วนนี้">✕</button></div>`; return; }
-    html+=`<div class="dm-card" data-scope="${scope}" data-key="${esc(key)}">
+  const newSet=dmScopeNew(scope);
+  dmSortedOf(obj,newSet).forEach(([key,e])=>{
+    const nu=newSet.has(key)?' dm-isnew':'';
+    if(e.type==='section'){ html+=`<div class="dm-sec dm-sec-edit${nu}" data-scope="${scope}"><input class="dm-secname" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}"><code>${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบส่วนนี้">✕</button></div>`; return; }
+    html+=`<div class="dm-card${nu}" data-scope="${scope}" data-key="${esc(key)}">`+`
       <div class="dm-l1"><input class="dm-label" data-key="${esc(key)}" data-f="label" value="${esc(e.label)}" placeholder="คำถาม"><code class="dm-key">${esc(key)}</code><button type="button" class="dm-del" data-key="${esc(key)}" title="ลบคำถามนี้">✕</button></div>
       <div class="dm-l2">
         <label class="dm-mini">ส่วน<select data-key="${esc(key)}" data-f="section">${dmSecOptions(obj,e.section)}</select></label>
@@ -1054,10 +1057,10 @@ function renderDataMgr(){
 function dmToCfg(obj){ const cfg={}; Object.entries(obj).forEach(([k,e])=>{ const c={label:e.label,type:e.type||'text'}; const opts=(e.options||'').split('|').map(s=>s.trim()).filter(Boolean); if(opts.length)c.options=opts; c.required=!!e.required; if(e.section!=='')c.section=e.section; if(e.order!=='')c.order=Number(e.order)||0; c.hidden=!!e.hidden; c.locked=!!e.locked; cfg[k]=c; }); return cfg; }
 function dmApplyMain(){ FIELD_CFG=dmToCfg(DM_EDIT); localStorage.setItem(FIELDS_CACHE_KEY,JSON.stringify(FIELD_CFG)); reconcileFieldStatus(); refreshOptionUI(); }
 function dmApplyVct(){ VCT_CFG=dmToCfg(DM_VEDIT); localStorage.setItem(VCT_CACHE_KEY,JSON.stringify(VCT_CFG)); if($('#vct').open){ const r=records().find(x=>x.id===vctRecordId); if(r)openVct(r); } }
-function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
+function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
 $('#openDataMgr').onclick=openDataMgr;
 $('#dmClose').onclick=()=>$('#dataMgr').close();
-function dmOnInput(e){ const el=e.target, wrap=el.closest('[data-scope]'); if(!wrap)return; const obj=dmScopeObj(wrap.dataset.scope), key=el.dataset.key, f=el.dataset.f; if(!key||!f||!obj[key])return; if(f==='required')obj[key].required=el.checked; else obj[key][f]=el.value; if(f==='section'){ renderDataMgr(); } }
+function dmOnInput(e){ const el=e.target, wrap=el.closest('[data-scope]'); if(!wrap)return; const scope=wrap.dataset.scope, obj=dmScopeObj(scope), key=el.dataset.key, f=el.dataset.f; if(!key||!f||!obj[key])return; if(f==='required')obj[key].required=el.checked; else obj[key][f]=el.value; if(f==='section'){ if(el.value!=='')dmScopeNew(scope).delete(key); renderDataMgr(); } }
 function dmOnClick(e){
   const del=e.target.closest('.dm-del');
   if(del){ const wrap=del.closest('[data-scope]'), scope=wrap.dataset.scope, obj=dmScopeObj(scope), key=del.dataset.key, en=obj[key]; if(!en)return; const what=en.type==='section'?'ส่วน':'คำถาม'; if(!confirm(`ลบ${what} “${en.label||key}” ?\n(จะมีผลเมื่อกดบันทึกลงชีต)`))return; delete obj[key]; dmScopeDel(scope).add(key); renderDataMgr(); return; }
@@ -1067,13 +1070,13 @@ $('#dmList').addEventListener('input',dmOnInput); $('#dmVct').addEventListener('
 $('#dmList').addEventListener('click',dmOnClick); $('#dmVct').addEventListener('click',dmOnClick);
 function dmMaxSection(obj){ let mx=0; Object.values(obj).forEach(e=>{ if(e.type==='section'){ const n=Number(e.section)||0; if(n>mx)mx=n; } }); return mx; }
 function dmMaxOrder(obj,sec){ let mx=0; Object.values(obj).forEach(e=>{ if(e.type!=='section'&&String(e.section)===String(sec)){ const n=Number(e.order)||0; if(n>mx)mx=n; } }); return mx; }
-function dmAddSection(scope){ const obj=dmScopeObj(scope), n=dmMaxSection(obj)+1, key=(scope==='vct'?'vsec':'sec')+n; obj[key]={label:'ส่วนใหม่ '+n,type:'section',options:'',required:false,section:String(n),order:0,hidden:false,locked:false}; renderDataMgr(); const el=$(`#${scope==='vct'?'dmVct':'dmList'} .dm-secname[data-key="${key}"]`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); el.select&&el.select(); } toast('เพิ่มส่วนใหม่แล้ว — แก้ชื่อแล้วกดบันทึกลงชีต'); }
-function dmAddField(scope){ const obj=dmScopeObj(scope); let key=prompt('ตั้งชื่อ key ของช่องใหม่ (อังกฤษ/ตัวเลข ไม่ซ้ำ) เช่น extraNote'); if(key==null)return; key=key.trim(); if(!key)return; if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)){ alert('key ต้องขึ้นต้นด้วยตัวอักษรอังกฤษ และใช้ได้เฉพาะ A-Z a-z 0-9 _'); return; } if(obj[key]){ alert('key นี้มีอยู่แล้ว'); return; } const sec=String(dmMaxSection(obj)||1); obj[key]={label:'',type:'text',options:'',required:false,section:sec,order:dmMaxOrder(obj,sec)+1,hidden:false,locked:false}; renderDataMgr(); const el=$(`#${scope==='vct'?'dmVct':'dmList'} .dm-card[data-key="${key}"] .dm-label`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); } toast('เพิ่มคำถามใหม่แล้ว — เลือก “ส่วน” และกรอกรายละเอียด แล้วกดบันทึกลงชีต'); }
+function dmAddSection(scope){ const obj=dmScopeObj(scope), n=dmMaxSection(obj)+1, key=(scope==='vct'?'vsec':'sec')+n; obj[key]={label:'ส่วนใหม่ '+n,type:'section',options:'',required:false,section:String(n),order:0,hidden:false,locked:false}; dmScopeNew(scope).add(key); renderDataMgr(); const el=$(`#${scope==='vct'?'dmVct':'dmList'} .dm-secname[data-key="${key}"]`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); el.select&&el.select(); } toast('เพิ่มส่วนใหม่แล้ว — แก้ชื่อแล้วกดบันทึกลงชีต'); }
+function dmAddField(scope){ const obj=dmScopeObj(scope); let key=prompt('ตั้งชื่อ key ของช่องใหม่ (อังกฤษ/ตัวเลข ไม่ซ้ำ) เช่น extraNote'); if(key==null)return; key=key.trim(); if(!key)return; if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)){ alert('key ต้องขึ้นต้นด้วยตัวอักษรอังกฤษ และใช้ได้เฉพาะ A-Z a-z 0-9 _'); return; } if(obj[key]){ alert('key นี้มีอยู่แล้ว'); return; } obj[key]={label:'',type:'text',options:'',required:false,section:'',order:'',hidden:false,locked:false}; dmScopeNew(scope).add(key); renderDataMgr(); const el=$(`#${scope==='vct'?'dmVct':'dmList'} .dm-card[data-key="${key}"] .dm-label`); if(el){ el.scrollIntoView({block:'center'}); el.focus(); } toast('เพิ่มคำถามใหม่แล้ว — เลือก “ส่วน” และกรอกรายละเอียด แล้วกดบันทึกลงชีต'); }
 $('#dmAddSection').onclick=()=>dmAddSection('main');
 $('#dmAddField').onclick=()=>dmAddField('main');
 $('#dmVAddSection').onclick=()=>dmAddSection('vct');
 $('#dmVAddField').onclick=()=>dmAddField('vct');
-$('#dmReset').onclick=()=>{ DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); renderDataMgr(); toast('คืนค่าตามที่บันทึกไว้แล้ว'); };
+$('#dmReset').onclick=()=>{ DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr(); toast('คืนค่าตามที่บันทึกไว้แล้ว'); };
 $('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']; const rows=Object.entries(DM_EDIT).map(([k,e])=>[e.section,e.order,k,e.label,e.type,e.options,e.required?'✓':'',dmStatusOf(e)].join('\t')); const tsv=[head.join('\t')].concat(rows).join('\n'); try{await navigator.clipboard.writeText(tsv);}catch{const ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกฟอร์มหลักแล้ว — วางที่ A1 ในแท็บ fields'); };
 
 // ---- บันทึกลงชีตอัตโนมัติ ผ่าน Google Apps Script Web App ----
@@ -1156,7 +1159,7 @@ async function dmSaveToSheet(){
     if(!url) throw new Error('no-url');
     await dmPost(url,'fields',mainFields,mainDel);
     await dmPost(url,'vct',vctFields,vctDel);
-    DM_DELETED=new Set(); DM_VDELETED=new Set();
+    DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr();
     toast('บันทึกลงชีต (fields + vct) และปรับใช้แล้ว ✓');
   }catch(err){
     if(err.message==='no-url'){ toast('ปรับใช้บนเครื่องนี้แล้ว — ตั้งค่าการเชื่อมต่อเพื่อบันทึกลงชีต'); openDmSetup(); }
