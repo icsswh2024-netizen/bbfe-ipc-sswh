@@ -201,3 +201,6 @@ input,select,textarea,button,.search input{font-family:inherit}
 /* new-item highlight: glow instead of dashed */
 .dm-isnew{outline:0!important;box-shadow:0 0 0 2px var(--teal),0 12px 28px rgba(200,16,46,.18)!important}
 .dm-card.dm-isnew::after,.dm-sec-edit.dm-isnew::after{background:var(--teal);box-shadow:0 4px 10px -3px rgba(200,16,46,.6)}
+
+.vct .v-visits{flex-wrap:nowrap;gap:4px;white-space:nowrap}
+.vct .v-visits .fx{min-width:0;flex:1 1 40px}
