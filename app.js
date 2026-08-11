@@ -857,7 +857,7 @@ function openVct(r){
 }
 function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val] of fd){ if(vctIsMulti(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } Object.keys(VCT_CFG).forEach(k=>{ if(vctIsMulti(k)&&!out[k])out[k]=[]; }); VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
 function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
-function vSig(cap,cap2){ return `<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap">(...........................................)${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}`; }
+function vSig(cap,cap2){ return `<div class="v-sigbox"><div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap"><span class="v-paren">(...............................................)</span> ${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}</div>`; }
 function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
   const op=(c,l)=>`<span class="v-op">${ck(!!c)} ${l}</span>`;
   const cell=(lb,val)=>`<td><div class="v-lb">${lb}</div><div class="v-cellval">${esc(val||'')}</div></td>`;
@@ -896,7 +896,7 @@ function vctPage2(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const ao=x=>Array.isArr
     + `<div class="v-r v-just v-ind">${sq(rHas(v.minorName))} ยินยอมให้ ( ด.ช. / ด.ญ. / นาย / น.ส. /${fx(v.minorName,true)}) ซึ่งเป็นเด็กอายุต่ำกว่าสิบแปดปีบริบูรณ์ หรือยังไม่บรรลุนิติภาวะด้วยการสมรส หรือเป็นผู้บกพร่องทางกายหรือจิต และเป็นผู้อยู่ในปกครองของข้าพเจ้าเข้ารับการตรวจเอดส์จากโรงพยาบาลศรีสังวรสุโขทัย</div>`
     + `<div class="v-r v-ind v-visits">${sq(false)} ครั้งที่ 1 วันที่${fx('')}${sq(false)} ครั้งที่ 2 วันที่${fx('')}${sq(false)} ครั้งที่ 3 วันที่${fx('')}${sq(false)} ครั้งที่ 4 วันที่${fx('')}</div>`
     + `<div class="v-r v-ind">ข้าพเจ้าทราบและเข้าใจดีถึงผลกระทบต่าง ๆ ที่อาจเกิดจากการตรวจเอดส์ครั้งนี้ดี จึงลงลายมือชื่อเป็นหลักฐาน</div>`
-    + `<div class="v-two v-sigrow">${vSig('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('พยาน')}</div>`
+    + `<div class="v-two v-sigrow">${vSig('ผู้ขอรับการตรวจ /','ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('พยาน')}</div>`
     + `<div class="v-two v-sigrow">${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์')}${vSig('พยาน')}</div>`
     + `</div>`;
 }
@@ -906,7 +906,7 @@ function vctPage3(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const no=x=>Array.isArr
     + `<div class="v-tt">คำยินยอมให้แจ้งผลตรวจเอดส์</div>`
     + `<div class="v-r" style="margin-top:6px">ข้าพเจ้ายินยอมให้แจ้งผลการตรวจเลือดแก่</div>`
     + `<div class="v-two"><div><div class="v-r">${sq(no('ข้าพเจ้าแต่เพียงผู้เดียว'))} ข้าพเจ้าแต่เพียงผู้เดียว</div><div class="v-r">${sq(no('อื่น ๆ'))} อื่น ๆ (ระบุ)${fx(v.notifyOther,true)}</div></div><div><div class="v-r">${sq(no('คู่สมรสของข้าพเจ้า'))} คู่สมรสของข้าพเจ้าคือ${fx(v.notifySpouse,true)}</div></div></div>`
-    + `<div class="v-two" style="margin-top:14px"><div class="v-res"><div class="v-r"><b>ผลการตรวจ</b></div><div class="v-r">${sq(eq(v.finalResult,'Negative'))} Negative</div><div class="v-r">${sq(eq(v.finalResult,'Positive'))} Positive</div><div class="v-r">${sq(eq(v.finalResult,'อื่น ๆ'))} อื่นๆ${fx(v.finalOther,true)}</div></div><div>${vSig('ผู้ขอรับการตรวจ / ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์ / ผู้ให้คำปรึกษาแนะนำ')}${vSig('พยาน')}${vSig('พยาน')}</div></div>`
+    + `<div class="v-two" style="margin-top:14px"><div class="v-res"><div class="v-r"><b>ผลการตรวจ</b></div><div class="v-r">${sq(eq(v.finalResult,'Negative'))} Negative</div><div class="v-r">${sq(eq(v.finalResult,'Positive'))} Positive</div><div class="v-r">${sq(eq(v.finalResult,'อื่น ๆ'))} อื่นๆ${fx(v.finalOther,true)}</div></div><div>${vSig('ผู้ขอรับการตรวจ /','ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์','ผู้ให้คำปรึกษาแนะนำ')}${vSig('พยาน')}${vSig('พยาน')}</div></div>`
     + `</div>`;
 }
 function vctPagesHtml(r){ return `<div class="a5-page">${vctPage1(r)}</div><div class="a5-page land">${vctPage2(r)}</div><div class="a5-page land">${vctPage3(r)}</div>`; }
