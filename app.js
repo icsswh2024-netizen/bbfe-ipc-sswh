@@ -861,30 +861,23 @@ function vSig(cap,cap2){ return `<div class="v-sigbox"><div class="v-sig"><span>
 function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
   const op=(c,l)=>`<span class="v-op">${ck(!!c)} ${l}</span>`;
   const cell=(lb,val)=>`<td><div class="v-lb">${lb}</div><div class="v-cellval">${esc(val||'')}</div></td>`;
-  const left = `<div class="v-r"><b>วันที่ให้คำปรึกษา</b>${fx(v.counselDate,true)}</div>`
+  return `<div class="vct">`
+    + `<div class="v-tt">แบบบันทึกการให้บริการตรวจคัดกรอง Z114 และการให้การปรึกษา<br><span>(Voluntary Counseling and Testing: VCT)</span></div>`
+    + `<div class="v-r"><b>วันที่ให้คำปรึกษา</b>${fx(v.counselDate,true)}</div>`
     + `<div class="v-r"><b>หน่วยงานที่ให้คำปรึกษา</b></div>`
     + `<div class="v-r v-ind">${ck(eq(v.unitType,'ด่านหน้า'))} ด่านหน้า ระบุหน่วยงาน${fx(eq(v.unitType,'ด่านหน้า')?v.unit:'',true)}</div>`
     + `<div class="v-r v-ind">${ck(eq(v.unitType,'ผู้ป่วยใน'))} ผู้ป่วยใน ระบุหน่วยงาน${fx(eq(v.unitType,'ผู้ป่วยใน')?v.unit:'',true)}</div>`
     + `<div class="v-r"><b>เลขประจำตัวประชาชน</b></div>${vctIdBoxes(v.citizenId)}`
-    + `<div class="v-r"><b>ชื่อ - สกุล</b>${fx(v.name,true)}</div>`
-    + `<div class="v-r"><b>H.N.</b>${fx(v.hn,true)}<b>อายุ</b>${fx(v.age)}ปี</div>`
-    + `<div class="v-r"><b>สิทธิ</b>${op(eq(v.rights,'อนุเคราะห์'),'อนุเคราะห์')}${op(eq(v.rights,'กรมบัญชีกลาง'),'กรมบัญชีกลาง')}</div>`
-    + `<div class="v-r v-ind">${op(eq(v.rights,'บัตรทอง'),'บัตรทอง')}${op(eq(v.rights,'ประกันสังคม'),'ประกันสังคม')}</div>`
-    + `<div class="v-r v-ind">${op(eq(v.rights,'เบิกต้นสังกัด'),'เบิกต้นสังกัด')}${op(eq(v.rights,'ชำระเงินเอง'),'ชำระเงินเอง')}</div>`
-    + `<div class="v-r"><b>สถานภาพ</b>${['โสด','สมรส','หม้าย','แยกกันอยู่'].map(x=>op(eq(v.marital,x),x)).join('')}</div>`;
-  const right = `<div class="v-r"><b>ประเภทความเสี่ยง</b></div>`
-    + `<div class="v-r v-ind">${op(on(VCT_RISKS[0]),VCT_RISKS[0])}${op(on(VCT_RISKS[1]),VCT_RISKS[1])}</div>`
-    + `<div class="v-r v-ind">${op(on(VCT_RISKS[2]),VCT_RISKS[2])}${op(on(VCT_RISKS[3]),VCT_RISKS[3])}</div>`
-    + `<div class="v-r v-ind">${op(on(VCT_RISKS[4]),VCT_RISKS[4])}${op(on(VCT_RISKS[5]),VCT_RISKS[5])}${op(on(VCT_RISKS[6]),VCT_RISKS[6])}</div>`
-    + `<div class="v-r v-ind">${op(on(VCT_RISKS[7]),VCT_RISKS[7])}${op(on(VCT_RISKS[8]),VCT_RISKS[8])}${fx(v.riskOther)}</div>`
-    + `<div class="v-r"><b>ประวัติการส่งตรวจเลือด</b> <span class="v-note">(เคยตรวจหรือไม่)</span></div>`
-    + `<div class="v-r v-ind">${op(eq(v.testHistory,'เคย'),'เคยครั้งที่')}${fx(v.testHistoryCount)}${op(eq(v.testHistory,'ไม่เคย'),'ไม่เคย')}</div>`
+    + `<div class="v-r"><b>ชื่อ - สกุล</b>${fx(v.name,true)}<b>H.N.</b>${fx(v.hn)}<b>อายุ</b>${fx(v.age)}ปี</div>`
+    + `<div class="v-r"><b>สิทธิ</b>${op(eq(v.rights,'อนุเคราะห์'),'อนุเคราะห์')}${op(eq(v.rights,'กรมบัญชีกลาง'),'กรมบัญชีกลาง')}${op(eq(v.rights,'บัตรทอง'),'บัตรทอง')}</div>`
+    + `<div class="v-r v-ind">${op(eq(v.rights,'ประกันสังคม'),'ประกันสังคม')}${op(eq(v.rights,'เบิกต้นสังกัด'),'เบิกต้นสังกัด')}${op(eq(v.rights,'ชำระเงินเอง'),'ชำระเงินเอง')}</div>`
+    + `<div class="v-r"><b>สถานภาพ</b>${['โสด','สมรส','หม้าย','แยกกันอยู่'].map(x=>op(eq(v.marital,x),x)).join('')}</div>`
+    + `<div class="v-r"><b>ประเภทความเสี่ยง</b>${op(on(VCT_RISKS[0]),VCT_RISKS[0])}${op(on(VCT_RISKS[1]),VCT_RISKS[1])}</div>`
+    + `<div class="v-r">${op(on(VCT_RISKS[2]),VCT_RISKS[2])}${op(on(VCT_RISKS[3]),VCT_RISKS[3])}${op(on(VCT_RISKS[4]),VCT_RISKS[4])}</div>`
+    + `<div class="v-r">${op(on(VCT_RISKS[5]),VCT_RISKS[5])}${op(on(VCT_RISKS[6]),VCT_RISKS[6])}${op(on(VCT_RISKS[7]),VCT_RISKS[7])}${op(on(VCT_RISKS[8]),VCT_RISKS[8])}${fx(v.riskOther)}</div>`
+    + `<div class="v-r"><b>ประวัติการส่งตรวจเลือด</b> <span class="v-note">(ถามผู้ป่วยว่าเคยตรวจหรือไม่)</span> ${op(eq(v.testHistory,'เคย'),'เคยครั้งที่')}${fx(v.testHistoryCount)}${op(eq(v.testHistory,'ไม่เคย'),'ไม่เคย')}</div>`
     + `<div class="v-r"><b>การส่งตรวจเลือด</b>${op(eq(v.testOrder,'ตรวจ'),'ตรวจ')}${op(eq(v.testOrder,'ไม่ตรวจ'),'ไม่ตรวจ')}${op(eq(v.testOrder,'ตรวจ Confirm'),'ตรวจ Confirm')}</div>`
-    + `<div class="v-r"><b>ผลการตรวจ</b>${op(eq(v.testResult,'Positive'),'Positive')}${op(eq(v.testResult,'Negative'),'Negative')}${op(/Inconclusive/.test(v.testResult||''),'Inconclusive')}</div>`;
-  return `<div class="vct v-p1doc">`
-    + `<div class="v-tt">แบบบันทึกการให้บริการตรวจคัดกรอง Z114 และการให้การปรึกษา <span>(Voluntary Counseling and Testing: VCT)</span></div>`
-    + `<div class="v-hr"></div>`
-    + `<div class="v-two v-p1"><div>${left}</div><div>${right}</div></div>`
+    + `<div class="v-r"><b>ผลการตรวจ</b>${op(eq(v.testResult,'Positive'),'Positive')}${op(eq(v.testResult,'Negative'),'Negative')}${op(/Inconclusive/.test(v.testResult||''),'Inconclusive: แปลผลไม่ได้')}</div>`
     + `<table class="v-tbl"><tr>${cell('วันที่ตรวจเลือด',v.testDate)}${cell('ผู้ตรวจเลือด',v.tester)}</tr><tr>${cell('ผู้ให้คำปรึกษา',v.counselor)}${cell('ผู้ลงข้อมูล VCT',v.vctRecorder)}</tr></table>`
     + `</div>`;
 }
@@ -916,7 +909,7 @@ function vctPage3(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const no=x=>Array.isArr
     + `<div class="v-two" style="margin-top:14px"><div class="v-res"><div class="v-r"><b>ผลการตรวจ</b></div><div class="v-r">${sq(eq(v.finalResult,'Negative'))} Negative</div><div class="v-r">${sq(eq(v.finalResult,'Positive'))} Positive</div><div class="v-r">${sq(eq(v.finalResult,'อื่น ๆ'))} อื่นๆ${fx(v.finalOther,true)}</div></div><div>${vSig('ผู้ขอรับการตรวจ /','ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์','ผู้ให้คำปรึกษาแนะนำ')}${vSig('พยาน')}${vSig('พยาน')}</div></div>`
     + `</div>`;
 }
-function vctPagesHtml(r){ return `<div class="a5-page land">${vctPage1(r)}</div><div class="a5-page land">${vctPage2(r)}</div><div class="a5-page land">${vctPage3(r)}</div>`; }
+function vctPagesHtml(r){ return `<div class="a5-page">${vctPage1(r)}</div><div class="a5-page land">${vctPage2(r)}</div><div class="a5-page land">${vctPage3(r)}</div>`; }
 function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
 // ---- Sample-data filler (fills ONLY the sections active in the current mode) ----
 function drawDemoSignature(){
@@ -977,7 +970,7 @@ $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; c
 $('#vctBack').onclick=()=>$('#vct').close();
 $('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); $('#vct').close(); };
 function vctDraft(){ const r=records().find(x=>x.id===vctRecordId); if(!r)return null; return {r, draft:{...r,vct:collectVct()}}; }
-$('#vctPreview1').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page land">${vctPage1(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
+$('#vctPreview1').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page">${vctPage1(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
 $('#vctPreview2').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c.draft; openReportHtml(`<div class="a5-page land">${vctPage2(c.draft)}</div><div class="a5-page land">${vctPage3(c.draft)}</div>`, ()=>openVct(c.r), 'a5'); };
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
