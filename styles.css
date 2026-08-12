@@ -204,3 +204,17 @@ input,select,textarea,button,.search input{font-family:inherit}
 
 .vct .v-visits{flex-wrap:nowrap;gap:4px;white-space:nowrap}
 .vct .v-visits .fx{min-width:0;flex:1 1 40px}
+
+.vct .v-p1{gap:24px;align-items:flex-start;margin-top:4px}
+.vct .v-p1>div{flex:1;min-width:0}
+.vct .v-p1>div:first-child{border-right:1px dotted #b9b9b9;padding-right:20px}
+
+.v-p1doc{font-size:14px;line-height:1.32}
+.v-p1doc .v-r{margin:2px 0}
+.v-p1doc .v-tt{margin-bottom:4px}
+.v-p1doc .v-hr{margin:1px 0 5px}
+.v-p1doc .v-id{margin:3px 0 5px}
+.v-p1doc .v-id span{height:22px;font-size:14px}
+.v-p1doc .v-tbl{margin-top:7px}
+.v-p1doc .v-tbl td{height:34px;padding:5px 9px}
+.v-p1doc .v-p1>div:first-child{padding-right:18px}
