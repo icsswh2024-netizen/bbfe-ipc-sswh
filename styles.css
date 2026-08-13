@@ -235,3 +235,9 @@ input,select,textarea,button,.search input{font-family:inherit}
 .popup-msg{font-size:15.5px;line-height:1.6;color:var(--ink);white-space:pre-line;margin-bottom:20px}
 .popup-card .btn.primary{min-width:120px;padding:12px 22px;font-size:15px}
 @media(prefers-reduced-motion:reduce){.popup-card{animation:none}}
+
+.popup-ico.note{background:linear-gradient(135deg,#8a6d72,#a98a90)}
+.popup-box.auto::backdrop{background:rgba(40,16,20,.22)}
+.popup-box.auto #popupOk{display:none}
+.popup-box.auto .popup-card{padding:22px 24px;width:min(360px,88vw)}
+.popup-box.auto .popup-msg{margin-bottom:0}
