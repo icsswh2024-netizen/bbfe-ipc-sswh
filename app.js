@@ -470,6 +470,9 @@ function thaiDate(v) { if(!v) return '—'; return new Intl.DateTimeFormat('th-T
 function isComplete(r) { return Boolean(r.follow6Date && (r.follow6HIV || r.follow6HbsAg || r.follow6HCV)); }
 function exposureLabel(r) { const value = Array.isArray(r.exposureType) ? r.exposureType.join(', ') : r.exposureType; return value || 'ไม่ระบุ'; }
 function toast(message) { const el=$('#toast'); el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600); }
+// Prominent centered popup box (top layer) for important messages
+function popup(message, kind){ const d=$('#popupBox'); if(!d)return toast(message); const k=kind||'ok'; const ico={ok:'✓',warn:'!',error:'✕',info:'i'}[k]||'✓'; $('#popupIco').textContent=ico; $('#popupIco').className='popup-ico '+k; $('#popupMsg').textContent=message; if(d.open)d.close(); d.showModal(); }
+$('#popupOk')&&($('#popupOk').onclick=()=>$('#popupBox').close());
 
 let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
 // section 4 (การรักษาเพื่อป้องกัน) not started yet -> a "new" incident awaiting ICN
@@ -1189,11 +1192,11 @@ async function dmSaveToSheet(){
     const r1=await dmPost(url,'fields',mainFields,mainDel);
     const r2=await dmPost(url,'vct',vctFields,vctDel);
     DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr();
-    if(r1==='ok'&&r2==='ok') toast('บันทึกลงชีต (fields + vct) และปรับใช้แล้ว ✓');
-    else toast('ส่งคำสั่งบันทึกแล้ว ✓ — โปรดเปิดชีตตรวจแท็บ fields/vct (เบราว์เซอร์อ่านผลตอบกลับไม่ได้ตาม CORS แต่ข้อมูลถูกส่งแล้ว)');
+    if(r1==='ok'&&r2==='ok') popup('บันทึกลงชีตเรียบร้อย และปรับใช้กับฟอร์มแล้ว','ok');
+    else popup('ส่งคำสั่งบันทึกแล้ว — โปรดเปิด Google Sheet ตรวจแท็บ fields / vct\n(เบราว์เซอร์อ่านผลตอบกลับไม่ได้ตามข้อกำหนด CORS แต่ข้อมูลถูกส่งไปแล้ว)','info');
   }catch(err){
-    if(err.message==='no-url'){ toast('ปรับใช้บนเครื่องนี้แล้ว — ตั้งค่าการเชื่อมต่อเพื่อบันทึกลงชีต'); openDmSetup(); }
-    else { const m=String(err&&err.message||err); const hint=/Failed to fetch|NetworkError|Load failed|CORS/i.test(m) ? 'เชื่อมต่อ Apps Script ไม่ได้ — ตรวจ deploy เป็น Web app / Who has access: Anyone / redeploy เวอร์ชันใหม่' : ('สคริปต์แจ้ง: '+m.slice(0,120)); toast('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ — '+hint); console.error('saveToSheet error:', err); }
+    if(err.message==='no-url'){ popup('ปรับใช้บนเครื่องนี้แล้ว — ยังไม่ได้ตั้งค่าการเชื่อมต่อชีต','warn'); openDmSetup(); }
+    else { const m=String(err&&err.message||err); const hint=/Failed to fetch|NetworkError|Load failed|CORS/i.test(m) ? 'เชื่อมต่อ Apps Script ไม่ได้\nตรวจ deploy เป็น Web app · Who has access: Anyone · redeploy เวอร์ชันใหม่' : ('สคริปต์แจ้ง: '+m.slice(0,140)); popup('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ\n'+hint,'error'); console.error('saveToSheet error:', err); }
   }finally{ btn.disabled=false; btn.textContent=orig; }
 }
 $('#dmSave').onclick=dmSaveToSheet;
