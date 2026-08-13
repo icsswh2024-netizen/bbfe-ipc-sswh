@@ -221,3 +221,17 @@ input,select,textarea,button,.search input{font-family:inherit}
 
 .vct .v-signimg{height:30px;text-align:center;margin-bottom:-4px;line-height:0}
 .vct .v-signimg img{max-height:30px;max-width:160px;object-fit:contain}
+
+/* prominent centered popup (top layer) */
+.popup-box{border:0;background:transparent;padding:0;max-width:none;max-height:none;overflow:visible}
+.popup-box::backdrop{background:rgba(40,16,20,.45);backdrop-filter:blur(2px)}
+.popup-card{width:min(400px,90vw);background:#fff;border-radius:20px;padding:26px 26px 22px;text-align:center;box-shadow:0 30px 80px rgba(40,16,20,.45);animation:popIn .22s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes popIn{from{transform:translateY(14px) scale(.94);opacity:0}to{transform:none;opacity:1}}
+.popup-ico{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px;font-size:32px;font-weight:800;line-height:1;color:#fff}
+.popup-ico.ok{background:linear-gradient(135deg,#16a34a,#22c55e)}
+.popup-ico.info{background:linear-gradient(135deg,var(--teal),#e5484d)}
+.popup-ico.warn{background:linear-gradient(135deg,#e0a726,#f4b942);color:#5a4413}
+.popup-ico.error{background:linear-gradient(135deg,#b71c1c,#e53935)}
+.popup-msg{font-size:15.5px;line-height:1.6;color:var(--ink);white-space:pre-line;margin-bottom:20px}
+.popup-card .btn.primary{min-width:120px;padding:12px 22px;font-size:15px}
+@media(prefers-reduced-motion:reduce){.popup-card{animation:none}}
