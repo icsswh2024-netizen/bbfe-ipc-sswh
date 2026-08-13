@@ -1164,7 +1164,20 @@ $('#dmSetupCancel').onclick=()=>$('#dmSetup').close();
 $('#dmSetupClear').onclick=()=>{ localStorage.removeItem(SHEET_HOOK_KEY); $('#dmUrl').value=''; toast('ลบการเชื่อมต่อแล้ว'); };
 $('#dmSetupSave').onclick=()=>{ const u=$('#dmUrl').value.trim(); if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(u)){ if(!confirm('URL ไม่ตรงรูปแบบ Web App ปกติ ต้องการบันทึกต่อหรือไม่?'))return; } if(u)localStorage.setItem(SHEET_HOOK_KEY,u); else localStorage.removeItem(SHEET_HOOK_KEY); $('#dmSetup').close(); toast(u?'บันทึกการเชื่อมต่อแล้ว':'ลบการเชื่อมต่อแล้ว'); };
 function dmFieldsPayload(obj){ return Object.entries(obj).map(([k,e])=>({key:k,section:e.section,order:e.order,label:e.label,type:e.type,options:e.options,required:!!e.required,status:dmStatusOf(e)})); }
-async function dmPost(url,sheet,fields,deleteKeys){ const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveFields',sheet,fields,deleteKeys})}); const data=await res.json().catch(()=>({ok:res.ok})); if(data&&data.ok===false)throw new Error(data.error||'sheet error'); }
+async function dmPost(url,sheet,fields,deleteKeys){
+  const body=JSON.stringify({action:'saveFields',sheet,fields,deleteKeys});
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body});
+    const data=await res.json().catch(()=>null);
+    if(data&&data.ok===false) throw new Error(data.error||'sheet error');   // real error from the script
+    return (data&&data.ok===true)?'ok':'unverified';                        // opaque/unreadable but request went out
+  }catch(err){
+    const m=String(err&&err.message||err);
+    // network/CORS: the request very likely executed on the server; the browser just can't read the reply
+    if(/Failed to fetch|NetworkError|Load failed|CORS|Type ?Error/i.test(m)) return 'unverified';
+    throw err;                                                              // genuine script error → surface it
+  }
+}
 async function dmSaveToSheet(){
   const url=getSheetHook();
   const mainFields=dmFieldsPayload(DM_EDIT), mainDel=[...DM_DELETED];
@@ -1173,10 +1186,11 @@ async function dmSaveToSheet(){
   dmApplyMain(); dmApplyVct();   // apply to this device immediately (survives even if the sheet write fails)
   try{
     if(!url) throw new Error('no-url');
-    await dmPost(url,'fields',mainFields,mainDel);
-    await dmPost(url,'vct',vctFields,vctDel);
+    const r1=await dmPost(url,'fields',mainFields,mainDel);
+    const r2=await dmPost(url,'vct',vctFields,vctDel);
     DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr();
-    toast('บันทึกลงชีต (fields + vct) และปรับใช้แล้ว ✓');
+    if(r1==='ok'&&r2==='ok') toast('บันทึกลงชีต (fields + vct) และปรับใช้แล้ว ✓');
+    else toast('ส่งคำสั่งบันทึกแล้ว ✓ — โปรดเปิดชีตตรวจแท็บ fields/vct (เบราว์เซอร์อ่านผลตอบกลับไม่ได้ตาม CORS แต่ข้อมูลถูกส่งแล้ว)');
   }catch(err){
     if(err.message==='no-url'){ toast('ปรับใช้บนเครื่องนี้แล้ว — ตั้งค่าการเชื่อมต่อเพื่อบันทึกลงชีต'); openDmSetup(); }
     else { const m=String(err&&err.message||err); const hint=/Failed to fetch|NetworkError|Load failed|CORS/i.test(m) ? 'เชื่อมต่อ Apps Script ไม่ได้ — ตรวจ deploy เป็น Web app / Who has access: Anyone / redeploy เวอร์ชันใหม่' : ('สคริปต์แจ้ง: '+m.slice(0,120)); toast('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ — '+hint); console.error('saveToSheet error:', err); }
