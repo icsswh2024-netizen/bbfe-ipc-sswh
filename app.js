@@ -851,13 +851,28 @@ function openVct(r){
     html+=fieldHtml(key,c);
   });
   if(open)html+='</div></div>';
+  // signature & witnesses block (fixed UI, not from config)
+  html+=`<div class="form-page active"><div class="section-title"><span>✎</span><div><h2>ลายเซ็นและพยาน</h2><p>ลายเซ็นผู้ขอรับการตรวจดึงจาก “ลงชื่อผู้ให้ความยินยอม” อัตโนมัติ</p></div></div>`
+    + `<div class="grid cols-2"><label>จำนวนพยาน<input name="witnessCount" type="number" min="0" max="8" value="${esc(vWitnessCount(v))}"></label></div>`
+    + `<div class="subsection sign-block"><h3>ลายเซ็นผู้ให้คำปรึกษา <span class="v-note">(นำไปแสดงที่ “แพทย์ / เจ้าหน้าที่ทางการแพทย์”)</span></h3><p class="sign-hint">เซ็นในกรอบด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="vctCounselPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="vctSignClear">ล้างลายเซ็น</button></div><input type="hidden" name="counselorSign" value="${esc(v.counselorSign||'')}"></div></div>`;
   $('#vctForm').innerHTML=html;
   $('#vctHint').textContent='แนบกับ: '+(full||'ไม่ระบุชื่อ')+(r.staffHn?(' • HN '+r.staffHn):'');
   const dlg=$('#vct'); if(dlg.open)dlg.close(); dlg.showModal(); dlg.querySelector('.vct-body').scrollTop=0;
+  requestAnimationFrame(()=>{ vctPadSetup(); vctPadInit(); });
 }
-function collectVct(){ const fd=new FormData($('#vctForm')),out={}; for(const[k,val] of fd){ if(vctIsMulti(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } Object.keys(VCT_CFG).forEach(k=>{ if(vctIsMulti(k)&&!out[k])out[k]=[]; }); VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
+// counselor signature pad (inside the VCT modal)
+let vctPadCtx=null, vctPadDraw=false, vctPadInk=false, vctPadLast=null;
+function vctPadEl(){ return $('#vctCounselPad'); }
+function vctPadField(){ return $('#vctForm').elements.counselorSign; }
+function vctPadSave(){ const c=vctPadEl(), f=vctPadField(); if(c&&f) f.value = vctPadInk ? c.toDataURL('image/png') : ''; }
+function vctPadClear(){ const c=vctPadEl(); if(!c||!vctPadCtx)return; vctPadCtx.clearRect(0,0,c.clientWidth,c.clientHeight); vctPadInk=false; const f=vctPadField(); if(f)f.value=''; }
+function vctPadInit(){ const c=vctPadEl(); if(!c)return; const w=c.clientWidth, h=c.clientHeight||150; if(!w)return; const dpr=window.devicePixelRatio||1; c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); vctPadCtx=c.getContext('2d'); vctPadCtx.setTransform(dpr,0,0,dpr,0,0); vctPadCtx.lineWidth=2.2; vctPadCtx.lineJoin='round'; vctPadCtx.lineCap='round'; vctPadCtx.strokeStyle='#1a1a1a'; vctPadCtx.clearRect(0,0,w,h); vctPadInk=false; const f=vctPadField(), data=f&&f.value; if(data){ vctPadInk=true; const img=new Image(); img.onload=()=>{try{vctPadCtx.drawImage(img,0,0,w,h);}catch(e){}}; img.src=data; } }
+function vctPadSetup(){ const c=vctPadEl(); if(!c)return; const pos=e=>{const r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}; c.addEventListener('pointerdown',e=>{ if(!vctPadCtx)vctPadInit(); if(!vctPadCtx)return; vctPadDraw=true; vctPadLast=pos(e); vctPadInk=true; c.setPointerCapture?.(e.pointerId); e.preventDefault(); }); c.addEventListener('pointermove',e=>{ if(!vctPadDraw||!vctPadCtx)return; const p=pos(e); vctPadCtx.beginPath(); vctPadCtx.moveTo(vctPadLast.x,vctPadLast.y); vctPadCtx.lineTo(p.x,p.y); vctPadCtx.stroke(); vctPadLast=p; e.preventDefault(); }); const stop=()=>{ if(!vctPadDraw)return; vctPadDraw=false; vctPadSave(); }; c.addEventListener('pointerup',stop); c.addEventListener('pointercancel',stop); c.addEventListener('pointerleave',stop); const b=$('#vctSignClear'); if(b)b.onclick=vctPadClear; }
+function collectVct(){ try{vctPadSave();}catch(e){} const fd=new FormData($('#vctForm')),out={}; for(const[k,val] of fd){ if(vctIsMulti(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } Object.keys(VCT_CFG).forEach(k=>{ if(vctIsMulti(k)&&!out[k])out[k]=[]; }); VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
 function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
-function vSig(cap,cap2){ return `<div class="v-sigbox"><div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap"><span class="v-paren">(...............................................)</span> ${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}</div>`; }
+function vSig(cap,cap2,img){ const sig=img?`<div class="v-signimg"><img src="${img}" alt=""></div>`:''; return `<div class="v-sigbox">${sig}<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap"><span class="v-paren">(...............................................)</span> ${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}</div>`; }
+function vWitnessCount(v){ const raw=(v&&v.witnessCount!=null&&v.witnessCount!=='')?v.witnessCount:2; const n=parseInt(raw,10); return Math.max(0,Math.min(8,isNaN(n)?2:n)); }
+function vWitnesses(v){ return Array.from({length:vWitnessCount(v)},()=>vSig('พยาน')).join(''); }
 function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
   const op=(c,l)=>`<span class="v-op">${ck(!!c)} ${l}</span>`;
   const cell=(lb,val)=>`<td><div class="v-lb">${lb}</div><div class="v-cellval">${esc(val||'')}</div></td>`;
@@ -896,8 +911,7 @@ function vctPage2(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const ao=x=>Array.isArr
     + `<div class="v-r v-just v-ind">${sq(rHas(v.minorName))} ยินยอมให้ ( ด.ช. / ด.ญ. / นาย / น.ส. /${fx(v.minorName,true)}) ซึ่งเป็นเด็กอายุต่ำกว่าสิบแปดปีบริบูรณ์ หรือยังไม่บรรลุนิติภาวะด้วยการสมรส หรือเป็นผู้บกพร่องทางกายหรือจิต และเป็นผู้อยู่ในปกครองของข้าพเจ้าเข้ารับการตรวจเอดส์จากโรงพยาบาลศรีสังวรสุโขทัย</div>`
     + `<div class="v-r v-ind v-visits">${sq(false)} ครั้งที่ 1 วันที่${fx('')}${sq(false)} ครั้งที่ 2 วันที่${fx('')}${sq(false)} ครั้งที่ 3 วันที่${fx('')}${sq(false)} ครั้งที่ 4 วันที่${fx('')}</div>`
     + `<div class="v-r v-ind">ข้าพเจ้าทราบและเข้าใจดีถึงผลกระทบต่าง ๆ ที่อาจเกิดจากการตรวจเอดส์ครั้งนี้ดี จึงลงลายมือชื่อเป็นหลักฐาน</div>`
-    + `<div class="v-two v-sigrow">${vSig('ผู้ขอรับการตรวจ /','ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('พยาน')}</div>`
-    + `<div class="v-two v-sigrow">${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์')}${vSig('พยาน')}</div>`
+    + `<div class="v-two v-sigrow"><div>${vSig('ผู้ขอรับการตรวจ /','ผู้แทนโดยชอบธรรมตามกฎหมาย',r.sign)}${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์','',v.counselorSign)}</div><div>${vWitnesses(v)}</div></div>`
     + `</div>`;
 }
 function vctPage3(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const no=x=>Array.isArray(v.notifyTo)&&v.notifyTo.includes(x);
@@ -906,7 +920,7 @@ function vctPage3(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const no=x=>Array.isArr
     + `<div class="v-tt">คำยินยอมให้แจ้งผลตรวจเอดส์</div>`
     + `<div class="v-r" style="margin-top:6px">ข้าพเจ้ายินยอมให้แจ้งผลการตรวจเลือดแก่</div>`
     + `<div class="v-two"><div><div class="v-r">${sq(no('ข้าพเจ้าแต่เพียงผู้เดียว'))} ข้าพเจ้าแต่เพียงผู้เดียว</div><div class="v-r">${sq(no('อื่น ๆ'))} อื่น ๆ (ระบุ)${fx(v.notifyOther,true)}</div></div><div><div class="v-r">${sq(no('คู่สมรสของข้าพเจ้า'))} คู่สมรสของข้าพเจ้าคือ${fx(v.notifySpouse,true)}</div></div></div>`
-    + `<div class="v-two" style="margin-top:14px"><div class="v-res"><div class="v-r"><b>ผลการตรวจ</b></div><div class="v-r">${sq(eq(v.finalResult,'Negative'))} Negative</div><div class="v-r">${sq(eq(v.finalResult,'Positive'))} Positive</div><div class="v-r">${sq(eq(v.finalResult,'อื่น ๆ'))} อื่นๆ${fx(v.finalOther,true)}</div></div><div>${vSig('ผู้ขอรับการตรวจ /','ผู้แทนโดยชอบธรรมตามกฎหมาย')}${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์','ผู้ให้คำปรึกษาแนะนำ')}${vSig('พยาน')}${vSig('พยาน')}</div></div>`
+    + `<div class="v-two" style="margin-top:14px"><div class="v-res"><div class="v-r"><b>ผลการตรวจ</b></div><div class="v-r">${sq(eq(v.finalResult,'Negative'))} Negative</div><div class="v-r">${sq(eq(v.finalResult,'Positive'))} Positive</div><div class="v-r">${sq(eq(v.finalResult,'อื่น ๆ'))} อื่นๆ${fx(v.finalOther,true)}</div></div><div>${vSig('ผู้ขอรับการตรวจ /','ผู้แทนโดยชอบธรรมตามกฎหมาย',r.sign)}${vSig('แพทย์ / เจ้าหน้าที่ทางการแพทย์','ผู้ให้คำปรึกษาแนะนำ',v.counselorSign)}${vWitnesses(v)}</div></div>`
     + `</div>`;
 }
 function vctPagesHtml(r){ return `<div class="a5-page">${vctPage1(r)}</div><div class="a5-page land">${vctPage2(r)}</div><div class="a5-page land">${vctPage3(r)}</div>`; }
