@@ -1179,7 +1179,7 @@ async function dmSaveToSheet(){
     toast('บันทึกลงชีต (fields + vct) และปรับใช้แล้ว ✓');
   }catch(err){
     if(err.message==='no-url'){ toast('ปรับใช้บนเครื่องนี้แล้ว — ตั้งค่าการเชื่อมต่อเพื่อบันทึกลงชีต'); openDmSetup(); }
-    else toast('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ — ตรวจสอบการเชื่อมต่อ/redeploy สคริปต์');
+    else { const m=String(err&&err.message||err); const hint=/Failed to fetch|NetworkError|Load failed|CORS/i.test(m) ? 'เชื่อมต่อ Apps Script ไม่ได้ — ตรวจ deploy เป็น Web app / Who has access: Anyone / redeploy เวอร์ชันใหม่' : ('สคริปต์แจ้ง: '+m.slice(0,120)); toast('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ — '+hint); console.error('saveToSheet error:', err); }
   }finally{ btn.disabled=false; btn.textContent=orig; }
 }
 $('#dmSave').onclick=dmSaveToSheet;
