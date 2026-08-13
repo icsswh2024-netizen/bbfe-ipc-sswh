@@ -469,9 +469,10 @@ function esc(v='') { return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<'
 function thaiDate(v) { if(!v) return '—'; return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date(`${v}T00:00:00`)); }
 function isComplete(r) { return Boolean(r.follow6Date && (r.follow6HIV || r.follow6HbsAg || r.follow6HCV)); }
 function exposureLabel(r) { const value = Array.isArray(r.exposureType) ? r.exposureType.join(', ') : r.exposureType; return value || 'ไม่ระบุ'; }
-function toast(message) { const el=$('#toast'); el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600); }
-// Prominent centered popup box (top layer) for important messages
-function popup(message, kind){ const d=$('#popupBox'); if(!d)return toast(message); const k=kind||'ok'; const ico={ok:'✓',warn:'!',error:'✕',info:'i'}[k]||'✓'; $('#popupIco').textContent=ico; $('#popupIco').className='popup-ico '+k; $('#popupMsg').textContent=message; if(d.open)d.close(); d.showModal(); }
+// Prominent centered popup box (top layer). auto>0 = ปิดเองอัตโนมัติ (โหมด toast)
+function showPopup(message, kind, auto){ const d=$('#popupBox'); if(!d){ const el=$('#toast'); if(el){el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600);} return; } const k=kind||'ok'; const ico={ok:'✓',warn:'!',error:'✕',info:'i',note:'i'}[k]||'✓'; $('#popupIco').textContent=ico; $('#popupIco').className='popup-ico '+k; $('#popupMsg').textContent=message; d.classList.toggle('auto', !!auto); if(d.open)d.close(); d.showModal(); clearTimeout(d._t); if(auto) d._t=setTimeout(()=>{ try{d.close();}catch(e){} }, auto); }
+function popup(message, kind){ showPopup(message, kind||'ok', 0); }     // สำคัญ: ปิดเอง = ไม่ (มีปุ่มตกลง)
+function toast(message){ showPopup(message, 'note', 1900); }            // ทั่วไป: กล่องกลางจอ ปิดเองใน ~2 วิ
 $('#popupOk')&&($('#popupOk').onclick=()=>$('#popupBox').close());
 
 let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
