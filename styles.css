@@ -218,3 +218,6 @@ input,select,textarea,button,.search input{font-family:inherit}
 .v-p1doc .v-tbl{margin-top:7px}
 .v-p1doc .v-tbl td{height:34px;padding:5px 9px}
 .v-p1doc .v-p1>div:first-child{padding-right:18px}
+
+.vct .v-signimg{height:30px;text-align:center;margin-bottom:-4px;line-height:0}
+.vct .v-signimg img{max-height:30px;max-width:160px;object-fit:contain}
