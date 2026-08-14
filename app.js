@@ -610,14 +610,14 @@ const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
   const w=460,h=220,pl=34,pr=12,pt=32,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
   const gid='bg'+Math.random().toString(36).slice(2,8);
-  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5c1626" stop-opacity=".95"/><stop offset=".5" stop-color="#b76e79" stop-opacity=".85"/><stop offset="1" stop-color="#e6c9cf" stop-opacity=".72"/></linearGradient></defs>`;
+  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a1418" stop-opacity=".95"/><stop offset=".5" stop-color="#e46c2c" stop-opacity=".9"/><stop offset="1" stop-color="#f2c07a" stop-opacity=".7"/></linearGradient></defs>`;
   // เส้นแกน + เส้นกริด + สเกลค่า
   const nT=4; let grid='';
   for(let t=0;t<=nT;t++){ const gy=(pt+ih-ih*t/nT).toFixed(1), val=Math.round(max*t/nT);
     grid+=`<line x1="${pl}" y1="${gy}" x2="${w-pr}" y2="${gy}" class="grid"/><text x="${pl-6}" y="${(+gy+4).toFixed(1)}" text-anchor="end" class="ctick">${val}</text>`; }
   const axis=`<line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" class="axis"/><line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>`;
   const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh,cx=(x+rw/2).toFixed(1);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#5c1626" stroke-opacity=".4"/>`
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#8a1418" stroke-opacity=".45"/>`
       +(d.value?`<text x="${cx}" y="${(y-16).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
       +`<text x="${cx}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
   return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}${grid}${axis}${body}</svg>`;
@@ -669,8 +669,8 @@ function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ
 // ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
 function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
 function statsPool(){ return allRecords().filter(countable); }
-// พาเลตต์ ครีม–โอลด์โรส–แดงเลือดหมู : ค่ามากสุด=แดงเลือดหมู, น้อยสุด=ครีม
-const WARM_STOPS=[[92,22,38],[138,45,63],[183,110,121],[217,168,176],[246,231,216]]; // เลือดหมู→โรสเข้ม→โอลด์โรส→โรสอ่อน→ครีม
+// พาเลตต์โทนอุ่น ครีม–ส้ม–แดง–แดงเข้ม : ค่ามากสุด=แดงเข้ม, น้อยสุด=ครีม
+const WARM_STOPS=[[138,20,24],[196,42,38],[228,110,44],[242,176,98],[249,233,206]]; // แดงเข้ม→แดง→ส้ม→ส้มอ่อน→ครีม
 function warmRamp(t){ t=Math.max(0,Math.min(1,t)); const n=WARM_STOPS.length-1,f=t*n,i=Math.min(n-1,Math.floor(f)),g=f-i,a=WARM_STOPS[i],b=WARM_STOPS[i+1],m=k=>Math.round(a[k]+(b[k]-a[k])*g); return `rgb(${m(0)},${m(1)},${m(2)})`; }
 function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:warmRamp(n<=1?0:i/(n-1))})); }
 function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
