@@ -155,7 +155,7 @@ function parseRegistryRows(rows){
   const col=(...names)=>{ for(const n of names){ const i=H.indexOf(n); if(i>=0)return i; } return -1; };
   const c={ seq:col('ลำดับที่','ลำดับ'), dept:col('หน่วยงาน'), pos:col('ตำแหน่ง'), fn:col('ชื่อบุคลากร'), ln:col('นามสกุลบุคลากร'),
     soundex:col('Soundex code'), hncode:col('HN code'), hn:col('HNบุคลากร','HN บุคลากร'), age:col('อายุ (ปี)','อายุ'), tel:col('Tel','เบอร์โทร'),
-    gender:col('เพศ'), date:col('วันที่เกิดเหตุ'), time:col('เวลา'), nature:col('ลักษณะเหตุ'), site:col('ตำแหน่งสัมผัส'),
+    gender:col('เพศ'), date:col('วันที่เกิดเหตุ'), time:col('เวลา'), shift:col('เวร'), nature:col('ลักษณะเหตุ'), site:col('ตำแหน่งสัมผัส'),
     fluid:col('เลือด/สารคัดหลั่ง'), event:col('เหตุการณ์'), hand:col('มือ'), finger:col('นิ้ว'), workYears:col('อายุการทำงาน จนท. (ปี)','อายุการทำงาน จนท.'),
     pHn:col('HN ผู้ป่วย'), pFn:col('ชื่อผู้ป่วย'), pLn:col('นามสกุลผู้ป่วย'),
     pHiv:col('Anti HIV CLIA'), pHivRap:col('Anti HIV rap'), pHbs:col('HBs Ag'), pHcv:col('Anti HCV') };
@@ -183,7 +183,7 @@ function parseRegistryRows(rows){
       staffName:fn, staffName2:ln, soundex:g(row,c.soundex), hn:g(row,c.hncode),
       staffHn:g(row,c.hn), age:g(row,c.age), phone:g(row,c.tel),
       gender:REG_GENDER[gv]||g(row,c.gender), department:g(row,c.dept), staffType:g(row,c.pos),
-      incidentDate:parseThaiDate(g(row,c.date)), incidentTime:g(row,c.time),
+      incidentDate:parseThaiDate(g(row,c.date)), incidentTime:g(row,c.time), shift:g(row,c.shift),
       workYears:g(row,c.workYears), cost:cost, labsDrawn:labsDrawn, labCosts:labCosts,
       sharpType:nature, exposureType:fluid?[fluid]:[], bodySite:site?[site]:[], hand:g(row,c.hand), fingerSite:finger?[finger]:[],
       incidentDescription:g(row,c.event),
@@ -610,14 +610,14 @@ const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
   const w=460,h=220,pl=34,pr=12,pt=32,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
   const gid='bg'+Math.random().toString(36).slice(2,8);
-  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a1418" stop-opacity=".95"/><stop offset=".5" stop-color="#e46c2c" stop-opacity=".9"/><stop offset="1" stop-color="#f2c07a" stop-opacity=".7"/></linearGradient></defs>`;
+  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8102e" stop-opacity=".95"/><stop offset=".5" stop-color="#e2607a" stop-opacity=".85"/><stop offset="1" stop-color="#f4c6ce" stop-opacity=".72"/></linearGradient></defs>`;
   // เส้นแกน + เส้นกริด + สเกลค่า
   const nT=4; let grid='';
   for(let t=0;t<=nT;t++){ const gy=(pt+ih-ih*t/nT).toFixed(1), val=Math.round(max*t/nT);
     grid+=`<line x1="${pl}" y1="${gy}" x2="${w-pr}" y2="${gy}" class="grid"/><text x="${pl-6}" y="${(+gy+4).toFixed(1)}" text-anchor="end" class="ctick">${val}</text>`; }
   const axis=`<line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" class="axis"/><line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>`;
   const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh,cx=(x+rw/2).toFixed(1);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#8a1418" stroke-opacity=".45"/>`
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#c8102e" stroke-opacity=".4"/>`
       +(d.value?`<text x="${cx}" y="${(y-16).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
       +`<text x="${cx}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
   return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}${grid}${axis}${body}</svg>`;
@@ -669,8 +669,8 @@ function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ
 // ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
 function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
 function statsPool(){ return allRecords().filter(countable); }
-// พาเลตต์ ครีม–ส้ม–แดงเข้ม : ค่ามากสุด=แดงเข้มสุด, น้อยสุด=ครีม
-const WARM_STOPS=[[138,20,24],[196,42,38],[228,110,44],[242,176,98],[249,233,206]]; // แดงเข้ม→แดง→ส้ม→ส้มอ่อน→ครีม
+// พาเลตต์ ครีม–ชมพูอ่อน–แดง : ค่ามากสุด=แดง, น้อยสุด=ครีม
+const WARM_STOPS=[[200,16,46],[216,80,104],[233,143,161],[244,199,206],[250,236,224]]; // แดง→กุหลาบ→ชมพู→ชมพูอ่อน→ครีม
 function warmRamp(t){ t=Math.max(0,Math.min(1,t)); const n=WARM_STOPS.length-1,f=t*n,i=Math.min(n-1,Math.floor(f)),g=f-i,a=WARM_STOPS[i],b=WARM_STOPS[i+1],m=k=>Math.round(a[k]+(b[k]-a[k])*g); return `rgb(${m(0)},${m(1)},${m(2)})`; }
 function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:warmRamp(n<=1?0:i/(n-1))})); }
 function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
@@ -679,26 +679,16 @@ function statsMonths(recs){ const m=THMON_SHORT.map(label=>({label,value:0})); r
 function statsQuarters(recs){ return QUARTERS.map(q=>({label:q,value:recs.filter(r=>quarterOf(r.incidentDate)===q).length})); }
 function statsExpoArr(r){ return Array.isArray(r.exposureType)?(r.exposureType.length?r.exposureType:['ไม่ระบุ']):(r.exposureType?[r.exposureType]:['ไม่ระบุ']); }
 function statsAgeData(recs){ return AGE_BANDS.map(b=>({label:b,value:recs.filter(r=>ageBand(r.age)===b).length})).filter(d=>d.value); }
-// นิ้ว: 0=โป้ง 1=ชี้ 2=กลาง 3=นาง 4=ก้อย
+// นิ้ว: 0=โป้ง 1=ชี้ 2=กลาง 3=นาง 4=ก้อย → กราฟแท่งตามลำดับนิ้ว
 const FINGER_NAMES=['โป้ง','ชี้','กลาง','นาง','ก้อย'];
 function fingerIndex(v){ v=String(v==null?'':v).trim(); if(/^[0-4]$/.test(v))return +v; for(let i=0;i<FINGER_NAMES.length;i++){ if(v.includes(FINGER_NAMES[i]))return i; } return -1; }
-function handChartHtml(recs){
-  const cnt=[0,0,0,0,0];
-  recs.forEach(r=>{ (Array.isArray(r.fingerSite)?r.fingerSite:[r.fingerSite]).forEach(v=>{ const i=fingerIndex(v); if(i>=0)cnt[i]++; }); });
-  const total=cnt.reduce((a,b)=>a+b,0), max=Math.max(1,...cnt);
-  const col=c=>c>0?warmRamp(1-c/max):'#f4ede0';               // มาก=แดงเข้ม, น้อย=ครีม, 0=ครีมจาง
-  const w=320,h=250,palmTop=170,fw=34;
-  const fx=[54,108,158,208,262], flen=[54,96,118,102,80];      // โป้ง..ก้อย : ความยาวนิ้วต่างกันให้เหมือนมือ
-  let s=`<svg viewBox="0 0 ${w} ${h}" class="hand-svg" preserveAspectRatio="xMidYMid meet">`;
-  s+=`<rect x="34" y="${palmTop}" width="252" height="60" rx="26" fill="${warmRamp(0.8)}" stroke="#8a1418" stroke-opacity=".3"/>`;
-  FINGER_NAMES.forEach((nm,i)=>{ const x=fx[i]-fw/2, top=palmTop-flen[i]+(i===0?18:0);
-    s+=`<rect x="${x}" y="${top}" width="${fw}" height="${palmTop-top+22}" rx="16" fill="${col(cnt[i])}" stroke="#8a1418" stroke-opacity=".35"/>`;
-    s+=`<text x="${fx[i]}" y="${top-16}" text-anchor="middle" class="cval">${cnt[i]}</text>`;
-    s+=`<text x="${fx[i]}" y="${top-5}" text-anchor="middle" class="cpct">${pct(cnt[i],total)}%</text>`;
-    s+=`<text x="${fx[i]}" y="${palmTop+38}" text-anchor="middle" class="hand-lbl">${nm}</text>`; });
-  s+=`</svg>`;
-  return `<div class="hand-wrap">${s}</div>`;
-}
+function fingerBarData(recs){ const cnt=[0,0,0,0,0]; recs.forEach(r=>{ (Array.isArray(r.fingerSite)?r.fingerSite:[r.fingerSite]).forEach(v=>{ const i=fingerIndex(v); if(i>=0)cnt[i]++; }); }); return FINGER_NAMES.map((nm,i)=>({label:nm,value:cnt[i]})); }
+// เวร (ลำดับ เช้า/บ่าย/ดึก) และ เวลา (ช่วงชั่วโมง)
+const SHIFT_ORDER=['เช้า','บ่าย','ดึก'];
+function statsShift(recs){ const m=countBy(recs,r=>r.shift||''); const out=SHIFT_ORDER.map(s=>({label:s,value:m[s]||0})); Object.keys(m).forEach(k=>{ if(!SHIFT_ORDER.includes(k))out.push({label:k,value:m[k]}); }); return out.filter(d=>d.value); }
+const TIME_BANDS=[['00–06',0,6],['06–12',6,12],['12–18',12,18],['18–24',18,24]];
+function hourOf(t){ const m=String(t||'').match(/(\d{1,2})/); return m?+m[1]:-1; }
+function statsTime(recs){ const c=TIME_BANDS.map(()=>0); recs.forEach(r=>{ const h=hourOf(r.incidentTime); if(h>=0&&h<24){ const i=TIME_BANDS.findIndex(b=>h>=b[1]&&h<b[2]); if(i>=0)c[i]++; } }); return TIME_BANDS.map((b,i)=>({label:b[0],value:c[i]})); }
 function distinctVals(fn){ const s=new Set(); statsPool().forEach(r=>{ const v=fn(r); if(v)s.add(v); }); return [...s]; }
 // ค่าใช้จ่าย
 function costOf(r){ return Number(r.cost)||0; }
@@ -757,9 +747,9 @@ function renderStatsCharts(){
      group('👤','บุคลากร',
         leadCard+donutC('ส่วน (สังกัด)',fac)+hbarsC('หน่วยงาน (สูงสุด 8)',dept)+donutC('เพศ',gender)+barsC('ช่วงอายุ',age))
     +group('📅','ช่วงเวลา',
-        barsC('ไตรมาส (ปีงบ)',statsQuarters(recs))+barsC('อุบัติเหตุรายเดือน',statsMonths(recs)))
+        barsC('ไตรมาส (ปีงบ)',statsQuarters(recs))+barsC('อุบัติเหตุรายเดือน',statsMonths(recs))+barsC('เวร',statsShift(recs))+barsC('เวลา (ช่วงชั่วโมง)',statsTime(recs)))
     +group('🩹','ลักษณะการสัมผัส & เหตุการณ์',
-        donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+card('นิ้วที่สัมผัส',handChartHtml(recs))+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs))
+        donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+barsC('นิ้วที่สัมผัส',fingerBarData(recs))+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs))
     +group('💰','ค่าใช้จ่าย',
         moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตาม Lab (บาท)',costByLabData(recs,10)));
 }
