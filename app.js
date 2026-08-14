@@ -190,8 +190,8 @@ function loadFieldStatus() { try { return JSON.parse(localStorage.getItem(FIELD_
 function saveFieldStatus() { localStorage.setItem(FIELD_STATUS_KEY, JSON.stringify(FIELD_STATUS)); }
 let FIELD_STATUS = loadFieldStatus();     // { key: 'ยังไม่กรอก' | 'ซ่อน' | '' }  (only keys the admin touched)
 let FIELD_SHEET_STATUS = {};              // snapshot of the status coming from the sheet itself
-const statusOfCfg = c => c ? (c.hidden ? 'ซ่อน' : (c.locked ? 'ยังไม่กรอก' : '')) : '';
-function applyStatusVal(c, v) { if (!c) return; c.hidden = (v === 'ซ่อน'); c.locked = (v === 'ยังไม่กรอก'); }
+const statusOfCfg = c => c ? (c.pull ? 'ดึงข้อมูล' : (c.hidden ? 'ซ่อน' : (c.locked ? 'ยังไม่กรอก' : ''))) : '';
+function applyStatusVal(c, v) { if (!c) return; c.hidden = (v === 'ซ่อน'); c.locked = (v === 'ยังไม่กรอก'); c.pull = (v === 'ดึงข้อมูล'); }
 // Snapshot the sheet's own สถานะ, drop local overrides that already match it, then apply the rest.
 function reconcileFieldStatus() {
   FIELD_SHEET_STATUS = {};
@@ -402,7 +402,7 @@ function parseFieldsRows(rows) {
     if (cs >= 0) c.section = (row[cs] || '').trim();
     if (cn >= 0) c.order = Number(row[cn]) || 0;
     if (ct >= 0) c.type = ((row[ct] || 'text').trim() || 'text').toLowerCase();
-    if (cst >= 0) { const s = (row[cst] || '').trim(); if (/ซ่อน|hide|ปิด|ไม่ใช้|ไม่แสดง/i.test(s)) c.hidden = true; else if (/ล็อก|lock|ยังไม่กรอก|ยังไม่|รอ|later|disable/i.test(s)) c.locked = true; }
+    if (cst >= 0) { const s = (row[cst] || '').trim(); if (/ดึง|pull|auto|ดึงข้อมูล/i.test(s)) c.pull = true; else if (/ซ่อน|hide|ปิด|ไม่ใช้|ไม่แสดง/i.test(s)) c.hidden = true; else if (/ล็อก|lock|ยังไม่กรอก|ยังไม่|รอ|later|disable/i.test(s)) c.locked = true; }
     cfg[key] = c;
   }
   return Object.keys(cfg).length ? cfg : null;
@@ -837,8 +837,9 @@ function openVct(r){
   const full=((r.staffName||'')+' '+(r.staffName2||'')).trim();
   const today=new Date().toISOString().slice(0,10);
   const resultDef=(v.finalResult!=null&&v.finalResult!=='')?v.finalResult:(r.staffHiv==='บวก'?'Positive':(r.staffHiv==='ลบ'?'Negative':''));
-  const val=key=>{ if(v[key]!=null&&v[key]!=='') return v[key]; return vctDefault(key,r,today,full,resultDef); };
-  const wrapCls=c=>(c.hidden?' field-hidden':'')+(c.locked?' field-locked':'');
+  const pullVal=key=>{ let pv=vctDefault(key,r,today,full,resultDef); if((pv==null||pv==='')&&r[key]!=null&&r[key]!=='') pv=r[key]; return pv; };
+  const val=key=>{ const c=VCT_CFG[key]||{}; if(c.pull) return pullVal(key); if(v[key]!=null&&v[key]!=='') return v[key]; return vctDefault(key,r,today,full,resultDef); };
+  const wrapCls=c=>(c.hidden?' field-hidden':'')+((c.locked||c.pull)?' field-locked':'');
   const fieldHtml=(key,c)=>{
     const t=c.type||'text', label=esc(c.label||key), opts=c.options||[];
     if(t==='checkbox'){ const arr=Array.isArray(v[key])?v[key]:[]; return `<fieldset class="wide${wrapCls(c)}"><legend>${label}</legend><div class="choice-grid">${opts.map(o=>`<label class="choice"><input type="checkbox" name="${key}" value="${esc(o)}"${arr.includes(o)?' checked':''}><span><b>${esc(o)}</b></span></label>`).join('')}</div></fieldset>`; }
@@ -1041,10 +1042,12 @@ let DM_EDIT={}, DM_VEDIT={}, DM_DELETED=new Set(), DM_VDELETED=new Set(), DM_NEW
 const dmScopeObj=s=>s==='vct'?DM_VEDIT:DM_EDIT;
 const dmScopeDel=s=>s==='vct'?DM_VDELETED:DM_DELETED;
 const dmScopeNew=s=>s==='vct'?DM_VNEW:DM_NEW;
-function dmCloneOf(src){ const o={}; Object.entries(src).forEach(([k,c])=>{ o[k]={label:c.label||'',type:c.type||'text',options:(c.options||[]).join('|'),required:!!c.required,section:c.section!=null?String(c.section):'',order:c.order!=null?c.order:'',hidden:!!c.hidden,locked:!!c.locked}; }); return o; }
-const dmStatusOf=e=>e.hidden?'ซ่อน':(e.locked?'ยังไม่กรอก':'');
-function dmSegHtml(key,val){ return `<div class="dm-seg" data-key="${esc(key)}">`+[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']].map(([v,l])=>`<button type="button" class="${val===v?'on '+(v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':'')):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
-function dmSegSet(seg,val){ [...seg.children].forEach(x=>{ x.className = x.dataset.val===val ? ('on '+(val==='ซ่อน'?'hide':(val==='ยังไม่กรอก'?'lock':''))) : ''; }); }
+function dmCloneOf(src){ const o={}; Object.entries(src).forEach(([k,c])=>{ o[k]={label:c.label||'',type:c.type||'text',options:(c.options||[]).join('|'),required:!!c.required,section:c.section!=null?String(c.section):'',order:c.order!=null?c.order:'',hidden:!!c.hidden,locked:!!c.locked,pull:!!c.pull}; }); return o; }
+const dmStatusOf=e=>e.pull?'ดึงข้อมูล':(e.hidden?'ซ่อน':(e.locked?'ยังไม่กรอก':''));
+const dmStatusCls=v=>v==='ซ่อน'?'hide':(v==='ยังไม่กรอก'?'lock':(v==='ดึงข้อมูล'?'pull':''));
+function dmSetStatus(e,val){ e.hidden=(val==='ซ่อน'); e.locked=(val==='ยังไม่กรอก'); e.pull=(val==='ดึงข้อมูล'); }
+function dmSegHtml(key,val,scope){ const opts=[['','ปกติ'],['ยังไม่กรอก','ยังไม่กรอก'],['ซ่อน','ซ่อน']]; if(scope==='vct')opts.push(['ดึงข้อมูล','ดึงข้อมูล']); return `<div class="dm-seg" data-key="${esc(key)}">`+opts.map(([v,l])=>`<button type="button" class="${val===v?'on '+dmStatusCls(v):''}" data-val="${esc(v)}">${l}</button>`).join('')+`</div>`; }
+function dmSegSet(seg,val){ [...seg.children].forEach(x=>{ x.className = x.dataset.val===val ? ('on '+dmStatusCls(val)) : ''; }); }
 function dmSortedOf(obj,newSet){ const isNew=k=>!!(newSet&&newSet.has(k)); return Object.entries(obj).sort((a,b)=>{ const na=isNew(a[0])?0:1, nb=isNew(b[0])?0:1; if(na!==nb)return na-nb; if(na===0)return 0; const sa=Number(a[1].section)||0, sb=Number(b[1].section)||0; if(sa!==sb)return sa-sb; const oa=a[1].type==='section'?-1:(Number(a[1].order)||0), ob=b[1].type==='section'?-1:(Number(b[1].order)||0); return oa-ob; }); }
 function dmSecOptions(obj,cur){ const secs=Object.entries(obj).filter(([k,e])=>e.type==='section').sort((a,b)=>(Number(a[1].section)||0)-(Number(b[1].section)||0)); let html=`<option value=""${(cur??'')===''?' selected':''}>— เลือกส่วน —</option>`+secs.map(([k,e])=>`<option value="${esc(e.section)}"${String(e.section)===String(cur)?' selected':''}>${esc(e.section)} · ${esc(e.label||k)}</option>`).join(''); if((cur??'')!==''&&!secs.some(([k,e])=>String(e.section)===String(cur))) html+=`<option value="${esc(cur)}" selected>${esc(cur)}</option>`; return html; }
 function dmEditorHtml(obj,scope){
@@ -1063,7 +1066,7 @@ function dmEditorHtml(obj,scope){
         <label class="dm-mini dm-num">ลำดับ<input type="number" step="0.1" data-key="${esc(key)}" data-f="order" value="${esc(e.order)}"></label>
         <label class="dm-chk"><input type="checkbox" data-key="${esc(key)}" data-f="required"${e.required?' checked':''}> จำเป็น</label>
       </div>
-      <div class="dm-l3"><span class="dm-stlbl">สถานะ</span>${dmSegHtml(key,dmStatusOf(e))}</div>
+      <div class="dm-l3"><span class="dm-stlbl">สถานะ</span>${dmSegHtml(key,dmStatusOf(e),scope)}</div>
     </div>`;
   });
   return html;
@@ -1074,7 +1077,7 @@ function renderDataMgr(){
   $('#dmIntro').innerHTML='แก้ไขได้ทุกคอลัมน์ (คำถาม · ประเภท · ตัวเลือก · ลำดับ · จำเป็น · สถานะ) เพิ่ม/ลบ ส่วนและคำถามได้ทั้ง <b>ฟอร์มหลัก</b> และ <b>VCT / ใบยินยอม</b> แล้วกด <b>บันทึกลงชีต</b> เพื่อบันทึกถาวรและปรับใช้ทันที';
   $('#dmHint').textContent='แก้แล้วกด “บันทึกลงชีต” เพื่อยืนยัน';
 }
-function dmToCfg(obj){ const cfg={}; Object.entries(obj).forEach(([k,e])=>{ const c={label:e.label,type:e.type||'text'}; const opts=(e.options||'').split('|').map(s=>s.trim()).filter(Boolean); if(opts.length)c.options=opts; c.required=!!e.required; if(e.section!=='')c.section=e.section; if(e.order!=='')c.order=Number(e.order)||0; c.hidden=!!e.hidden; c.locked=!!e.locked; cfg[k]=c; }); return cfg; }
+function dmToCfg(obj){ const cfg={}; Object.entries(obj).forEach(([k,e])=>{ const c={label:e.label,type:e.type||'text'}; const opts=(e.options||'').split('|').map(s=>s.trim()).filter(Boolean); if(opts.length)c.options=opts; c.required=!!e.required; if(e.section!=='')c.section=e.section; if(e.order!=='')c.order=Number(e.order)||0; c.hidden=!!e.hidden; c.locked=!!e.locked; c.pull=!!e.pull; cfg[k]=c; }); return cfg; }
 function dmApplyMain(){ FIELD_CFG=dmToCfg(DM_EDIT); localStorage.setItem(FIELDS_CACHE_KEY,JSON.stringify(FIELD_CFG)); reconcileFieldStatus(); refreshOptionUI(); }
 function dmApplyVct(){ VCT_CFG=dmToCfg(DM_VEDIT); localStorage.setItem(VCT_CACHE_KEY,JSON.stringify(VCT_CFG)); if($('#vct').open){ const r=records().find(x=>x.id===vctRecordId); if(r)openVct(r); } }
 function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr(); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
@@ -1084,7 +1087,7 @@ function dmOnInput(e){ const el=e.target, wrap=el.closest('[data-scope]'); if(!w
 function dmOnClick(e){
   const del=e.target.closest('.dm-del');
   if(del){ const wrap=del.closest('[data-scope]'), scope=wrap.dataset.scope, obj=dmScopeObj(scope), key=del.dataset.key, en=obj[key]; if(!en)return; const what=en.type==='section'?'ส่วน':'คำถาม'; if(!confirm(`ลบ${what} “${en.label||key}” ?\n(จะมีผลเมื่อกดบันทึกลงชีต)`))return; delete obj[key]; dmScopeDel(scope).add(key); renderDataMgr(); return; }
-  const b=e.target.closest('.dm-seg button'); if(!b)return; const wrap=b.closest('[data-scope]'), obj=dmScopeObj(wrap.dataset.scope); const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(!obj[key])return; obj[key].hidden=(val==='ซ่อน'); obj[key].locked=(val==='ยังไม่กรอก'); dmSegSet(seg,val);
+  const b=e.target.closest('.dm-seg button'); if(!b)return; const wrap=b.closest('[data-scope]'), obj=dmScopeObj(wrap.dataset.scope); const seg=b.closest('.dm-seg'), key=seg.dataset.key, val=b.dataset.val; if(!obj[key])return; dmSetStatus(obj[key],val); dmSegSet(seg,val);
 }
 $('#dmList').addEventListener('input',dmOnInput); $('#dmVct').addEventListener('input',dmOnInput);
 $('#dmList').addEventListener('click',dmOnClick); $('#dmVct').addEventListener('click',dmOnClick);

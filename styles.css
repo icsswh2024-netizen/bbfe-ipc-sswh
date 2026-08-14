@@ -241,3 +241,5 @@ input,select,textarea,button,.search input{font-family:inherit}
 .popup-box.auto #popupOk{display:none}
 .popup-box.auto .popup-card{padding:22px 24px;width:min(360px,88vw)}
 .popup-box.auto .popup-msg{margin-bottom:0}
+
+.dm-seg button.on.pull{background:#0b6b5e;color:#fff}
