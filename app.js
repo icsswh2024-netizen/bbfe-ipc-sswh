@@ -17,6 +17,8 @@ const MENU_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq
 const MENU_CACHE_KEY = 'icsswh-menu-cache-v1';
 const VCT_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=vct`;
 const VCT_CACHE_KEY = 'icsswh-vct-cache-v1';
+const DOCS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=docs`;
+const DOCS_CACHE_KEY = 'icsswh-docs-cache-v1';
 // Home menu cards from the "menu" tab (ลำดับ | ไอคอน | หัวข้อ | คำอธิบาย | ข้อความปุ่ม | การทำงาน | เด่น)
 const DEFAULT_MENU = [
   { order:1, icon:'+', title:'บันทึกเหตุการณ์', desc:'สำหรับเจ้าหน้าที่ • กรอกข้อมูลเหตุการณ์ การสัมผัส และผลตรวจ Day 0 (ขั้นตอน 1-3) ในหน้าเดียว', arrow:'เริ่มบันทึก →', go:'new', level:1 },
@@ -96,6 +98,44 @@ async function loadFlowFromSheet(){
     const flow=parseFlowRows(parseCSV(await res.text()));
     if(flow){ FLOW_STEPS=flow; localStorage.setItem(FLOW_CACHE_KEY,JSON.stringify(flow)); const at=$('.icn-tab.active'); if(dashMode==='icn'&&$('#dashboard').classList.contains('active')&&at&&at.dataset.icntab==='flow') icnRenderPane('flow'); }
   } catch { /* keep DEFAULT_FLOW / cache */ }
+}
+// ไฟล์/ลิงก์แชร์จากแท็บ "docs" (ประเภท | หัวข้อ | ลิงค์ | คำอธิบาย | แสดง)
+// ประเภท: lab-staff, lab-patient, flow, doc — ใช้แสดงไฟล์จริงในแท็บ ICN แทนแบบฟอร์มตัวอย่าง
+function loadCachedDocs(){ try { const v=JSON.parse(localStorage.getItem(DOCS_CACHE_KEY)); return Array.isArray(v)?v:null; } catch { return null; } }
+let DOCS_LIST = loadCachedDocs() || [];
+const docShown=v=>{ const s=String(v==null?'':v).trim().toLowerCase(); return !/^(ไม่|ซ่อน|no|false|0|off|hide)$/.test(s); };
+function parseDocsRows(rows){
+  if(!rows||rows.length<2)return null;
+  const H=rows[0].map(h=>String(h).trim());
+  const idx=(...names)=>{ for(const n of names){ const i=H.indexOf(n); if(i>=0)return i; } return -1; };
+  const ct=idx('ประเภท','type'), ch=idx('หัวข้อ','ชื่อ','title'), cl=idx('ลิงค์','ลิงก์','link','url'), cd=idx('คำอธิบาย','รายละเอียด','desc'), cs=idx('แสดง','สถานะ','show');
+  if(ct<0||cl<0)return null;
+  const out=[];
+  for(let r=1;r<rows.length;r++){ const row=rows[r]||[]; const type=(row[ct]||'').trim().toLowerCase(); const link=(row[cl]||'').trim();
+    if(!type&&!link)continue; if(!/^https?:\/\//.test(link))continue;
+    out.push({ type, title:(ch>=0?(row[ch]||'').trim():''), link, desc:(cd>=0?(row[cd]||'').trim():''), show:cs>=0?docShown(row[cs]):true }); }
+  return out;
+}
+async function loadDocsFromSheet(){
+  try {
+    const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),6000);
+    const res=await fetch(DOCS_CSV_URL,{signal:ctrl.signal}); clearTimeout(timer);
+    if(!res.ok)return;
+    const docs=parseDocsRows(parseCSV(await res.text()));
+    if(docs){ DOCS_LIST=docs; localStorage.setItem(DOCS_CACHE_KEY,JSON.stringify(docs)); const at=$('.icn-tab.active'); if(dashMode==='icn'&&$('#dashboard').classList.contains('active')&&at) icnRenderPane(at.dataset.icntab); }
+  } catch { /* keep cache / example templates */ }
+}
+// รายการเอกสารตามประเภท (เฉพาะที่ตั้งค่าแสดง)
+function docsFor(type){ return (DOCS_LIST||[]).filter(d=>d.type===type&&d.show); }
+// แปลงลิงก์ Google Drive → ลิงก์ preview (ฝัง iframe ได้) + ลิงก์เปิด/ดาวน์โหลด
+function docEmbed(u){ u=String(u||'').trim(); const m=u.match(/\/d\/([\w-]+)/)||u.match(/[?&]id=([\w-]+)/); const id=m?m[1]:''; return { id, preview:id?`https://drive.google.com/file/d/${id}/preview`:u, open:id?`https://drive.google.com/file/d/${id}/view`:u }; }
+function docViewerHtml(list){
+  if(!list||!list.length)return '';
+  return `<div class="doc-wrap">`+list.map(d=>{ const e=docEmbed(d.link);
+    return `<div class="doc-card"><div class="doc-head"><div class="doc-meta"><b>${esc(d.title||'เอกสารแนบ')}</b>${d.desc?`<small>${esc(d.desc)}</small>`:''}</div><a class="btn ghost dark doc-open" href="${esc(e.open)}" target="_blank" rel="noopener">↗ เปิด / ดาวน์โหลด</a></div>`
+      + (e.id?`<div class="doc-frame"><iframe src="${esc(e.preview)}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe></div>`
+             :`<div class="doc-frame doc-noembed"><a href="${esc(e.open)}" target="_blank" rel="noopener">เปิดไฟล์ในแท็บใหม่</a></div>`);
+  }).join('')+`</div>`;
 }
 // Header logos from the "logo" tab (col A=name, col B=file). Keeps the static assets/ images as fallback.
 function driveImg(u) { u = String(u || '').trim(); const m = u.match(/\/d\/([\w-]+)/) || u.match(/[?&]id=([\w-]+)/); return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w480` : u; }
@@ -733,7 +773,7 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet();
+reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet(); loadDocsFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
@@ -778,8 +818,10 @@ function icnRenderPane(k){
   if(panel) panel.classList.toggle('hidden', !isRecords);
   pane.classList.toggle('hidden', isRecords);
   if(isRecords){ pane.innerHTML=''; return; }
-  if(k==='flow'){ pane.innerHTML=`<div class="notice admin-hint icn-flow icn-flowpane">${icnFlowHtml()}</div>`; return; }
+  if(k==='flow'){ const docs=docsFor('flow').concat(docsFor('doc')); pane.innerHTML=`<div class="notice admin-hint icn-flow icn-flowpane">${icnFlowHtml()}</div>`+docViewerHtml(docs); return; }
   const kind = k==='lab-staff'?'staff':'patient';
+  const docs=docsFor(k);
+  if(docs.length){ pane.innerHTML=docViewerHtml(docs); return; }
   pane.innerHTML=`<div class="lab-wrap"><div class="lab-actions"><span class="lab-hint">ตัวอย่างแบบฟอร์ม — พิมพ์หรือบันทึก PDF ไปใช้ได้</span><button type="button" class="btn ghost dark" data-labprint="${kind}">🖨 พิมพ์ / บันทึก PDF</button></div><div class="a4-viewport lab-view">${labReqHtml(kind)}</div></div>`;
   requestAnimationFrame(scaleLabDoc);
 }
