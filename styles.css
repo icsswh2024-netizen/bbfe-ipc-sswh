@@ -250,3 +250,31 @@ input,select,textarea,button,.search input{font-family:inherit}
 .dm-tab:hover{border-color:var(--teal);color:var(--ink)}
 .dm-tab.active[data-dmtab="main"]{background:linear-gradient(120deg,#c8102e,#e5484d);color:#fff;border-color:transparent;box-shadow:0 8px 20px -10px rgba(200,16,46,.6)}
 .dm-tab.active[data-dmtab="vct"]{background:linear-gradient(120deg,#4a2b8c,#7350c9);color:#fff;border-color:transparent;box-shadow:0 8px 20px -10px rgba(74,43,140,.6)}
+
+/* ICN — แท็บย่อย (รายการ / แนวทาง / ใบส่ง LAB) */
+.icn-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.icn-tab{border:1px solid var(--line);background:#fff;color:var(--muted);font:600 13px "Prompt",system-ui,sans-serif;padding:10px 15px;border-radius:11px;cursor:pointer;transition:.15s}
+.icn-tab:hover{border-color:var(--teal);color:var(--ink)}
+.icn-tab.active{background:linear-gradient(120deg,var(--teal),#e5484d);color:#fff;border-color:transparent;box-shadow:0 8px 20px -10px rgba(200,16,46,.6)}
+.icn-pane{margin-bottom:24px}
+.icn-flowpane{margin:0}
+.lab-wrap{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.lab-actions{display:flex;align-items:center;gap:12px;justify-content:flex-end;padding:14px 18px;background:#fff7f7;border-bottom:1px solid var(--line)}
+.lab-hint{margin-right:auto;color:var(--muted);font-size:13px}
+.lab-view{padding:18px;background:#e9edf0;overflow:hidden}
+.lab-doc{font-family:"TH SarabunPSK","TH Sarabun New","Sarabun","Prompt",serif;color:#000;padding:40px 46px}
+.lab-doc .lr-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #000;padding-bottom:12px;position:relative}
+.lab-doc .lr-head img{width:64px;height:64px;object-fit:contain}
+.lab-doc .lr-org b{font-size:20px;display:block}.lab-doc .lr-org small{font-size:14px;color:#333}
+.lab-doc .lr-badge{position:absolute;right:0;top:0;border:2px solid #c8102e;color:#c8102e;font-weight:700;border-radius:8px;padding:2px 12px;transform:rotate(6deg);font-size:15px}
+.lab-doc .lr-title{text-align:center;font-weight:700;font-size:19px;margin:16px 0 18px}
+.lab-doc .lr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;margin-bottom:20px}
+.lab-doc .lr-line{display:flex;align-items:baseline;gap:8px;font-size:16px}
+.lab-doc .lr-lb{white-space:nowrap;font-weight:600}
+.lab-doc .lr-dot{flex:1;border-bottom:1px dotted #555}
+.lab-doc .lr-sec{font-weight:700;font-size:16px;background:#fbeef0;border-left:4px solid #c8102e;padding:6px 12px;margin:6px 0 12px}
+.lab-doc .lr-tests{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:18px}
+.lab-doc .lr-chk{display:flex;align-items:center;gap:10px;font-size:16px}
+.lab-doc .lr-box{width:18px;height:18px;border:1.5px solid #000;border-radius:3px;flex:0 0 auto}
+.lab-doc .lr-note{font-size:14px;color:#444;border:1px dashed #bbb;border-radius:8px;padding:8px 12px;margin-bottom:26px}
+.lab-doc .lr-sign{display:flex;justify-content:space-between;font-size:16px;margin-top:30px}
