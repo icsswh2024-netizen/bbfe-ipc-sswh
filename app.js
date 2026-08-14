@@ -609,18 +609,16 @@ const CAT_COLORS=['#c8102e','#f2857f','#f6b26b','#8e7cc3','#3d85c6','#2e9e5b','#
 const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
   const w=460,h=220,pl=34,pr=12,pt=32,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
-  const gid='bg'+Math.random().toString(36).slice(2,8);
-  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a1418" stop-opacity=".95"/><stop offset=".5" stop-color="#e46c2c" stop-opacity=".9"/><stop offset="1" stop-color="#f2c07a" stop-opacity=".7"/></linearGradient></defs>`;
   // เส้นแกน + เส้นกริด + สเกลค่า
   const nT=4; let grid='';
   for(let t=0;t<=nT;t++){ const gy=(pt+ih-ih*t/nT).toFixed(1), val=Math.round(max*t/nT);
     grid+=`<line x1="${pl}" y1="${gy}" x2="${w-pr}" y2="${gy}" class="grid"/><text x="${pl-6}" y="${(+gy+4).toFixed(1)}" text-anchor="end" class="ctick">${val}</text>`; }
   const axis=`<line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" class="axis"/><line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>`;
   const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh,cx=(x+rw/2).toFixed(1);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#8a1418" stroke-opacity=".45"/>`
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="${color}"/>`
       +(d.value?`<text x="${cx}" y="${(y-16).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
       +`<text x="${cx}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}${grid}${axis}${body}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grid}${axis}${body}</svg>`;
 }
 function svgDonut(data,cap='รายการ'){
   const size=170,thick=32,r=(size-thick)/2,cx=size/2,cy=size/2,C=2*Math.PI*r,total=data.reduce((s,d)=>s+d.value,0);
@@ -669,10 +667,8 @@ function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ
 // ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
 function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
 function statsPool(){ return allRecords().filter(countable); }
-// พาเลตต์โทนอุ่น ครีม–ส้ม–แดง–แดงเข้ม : ค่ามากสุด=แดงเข้ม, น้อยสุด=ครีม
-const WARM_STOPS=[[138,20,24],[196,42,38],[228,110,44],[242,176,98],[249,233,206]]; // แดงเข้ม→แดง→ส้ม→ส้มอ่อน→ครีม
-function warmRamp(t){ t=Math.max(0,Math.min(1,t)); const n=WARM_STOPS.length-1,f=t*n,i=Math.min(n-1,Math.floor(f)),g=f-i,a=WARM_STOPS[i],b=WARM_STOPS[i+1],m=k=>Math.round(a[k]+(b[k]-a[k])*g); return `rgb(${m(0)},${m(1)},${m(2)})`; }
-function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:warmRamp(n<=1?0:i/(n-1))})); }
+// สีกราฟค่าเริ่มต้นของระบบ (ชุดสีหลายสี)
+function colorize(arr){ return arr.map((d,i)=>({...d,color:CAT_COLORS[i%CAT_COLORS.length]})); }
 function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
 function topData(map,limit){ let e=Object.entries(map).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
 function statsMonths(recs){ const m=THMON_SHORT.map(label=>({label,value:0})); recs.forEach(r=>{ if(r.incidentDate){ const d=new Date(r.incidentDate+'T00:00:00'); if(!isNaN(d))m[d.getMonth()].value++; } }); return m; }
@@ -718,7 +714,7 @@ function statsFilterLabel(){ const p=[]; if(STATS_F.fy)p.push('ปีงบ '+ST
 function renderStatsCharts(){
   const recs=statsFiltered(), total=recs.length, cost=totalCost(recs);
   const fyTxt=STATS_F.fy?`ปีงบ ${STATS_F.fy}`:'ทุกปีงบ';
-  const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`ฐานการนับ <b>ตำแหน่ง × ${esc(fyTxt)}</b> · รวม <b>${total}</b> ราย · ค่าใช้จ่ายรวม <b>฿${baht(cost)}</b> <span>${esc(statsFilterLabel())}</span>`;
+  const hl=$('#statsHeadline'); if(hl) hl.innerHTML='';   // ลบหัวข้อสรุปออก
   const box=$('#statsCharts'); if(!box)return;
   const list=$('#statsList'); if(list)list.innerHTML='';   // รวมทุกกราฟไว้เป็นหมวดหมู่ในที่เดียว
   if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; return; }
