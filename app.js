@@ -724,12 +724,34 @@ function renderStatsCharts(){
     +`<div class="chart-card"><h3>ค่าใช้จ่ายตามหน่วยงาน (บาท)</h3>${chartMoneyBars(costDept)}</div>`;
   renderStatsList(recs);
 }
-// รายการรายเคส: ตำแหน่งสัมผัส · เหตุการณ์ · มือ · นิ้ว · Lab ที่เจาะ · ราคา
+// รายการรายเคส: ตำแหน่งสัมผัส · เหตุการณ์ · มือ · นิ้ว · Lab ที่เจาะ · ราคา (สลับตาราง/กราฟได้)
+let STATS_LIST_VIEW='table';
+function statsListChartsHtml(recs){
+  const body=colorize(topData(countBy(recs,r=>r.bodySite)));
+  const event=topData(countBy(recs,r=>r.incidentDescription||'ไม่ระบุ'),8);
+  const hand=colorize(topData(countBy(recs,r=>r.hand||'ไม่ระบุ')));
+  const finger=topData(countBy(recs,r=>r.fingerSite),8);
+  const labs=topData(countBy(recs,r=>r.labsDrawn),10);
+  const costEvent=costByData(recs,r=>r.incidentDescription||'ไม่ระบุ',8);
+  return `<div class="charts">`
+    +`<div class="chart-card"><h3>ตำแหน่งสัมผัส</h3><div class="donut-wrap">${svgDonut(body,'ราย')}${chartLegend(body)}</div></div>`
+    +`<div class="chart-card"><h3>เหตุการณ์ (สูงสุด 8)</h3>${chartHBars(event)}</div>`
+    +`<div class="chart-card"><h3>มือ</h3><div class="donut-wrap">${svgDonut(hand,'ราย')}${chartLegend(hand)}</div></div>`
+    +`<div class="chart-card"><h3>นิ้ว (สูงสุด 8)</h3>${chartHBars(finger)}</div>`
+    +`<div class="chart-card"><h3>Lab ที่เจาะ (สูงสุด 10)</h3>${chartHBars(labs)}</div>`
+    +`<div class="chart-card"><h3>ค่าใช้จ่ายตามเหตุการณ์ (บาท)</h3>${chartMoneyBars(costEvent)}</div>`
+    +`</div>`;
+}
 function renderStatsList(recs){
   const box=$('#statsList'); if(!box)return;
   const arr=v=>Array.isArray(v)?v.filter(Boolean).join(', '):(v||'');
   const rows=recs.slice().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
-  box.innerHTML=`<div class="stats-list-head"><h3>รายการรายเคส (${rows.length})</h3></div>`
+  const head=`<div class="stats-list-head"><h3>รายการรายเคส (${rows.length})</h3><div class="seg-toggle"><button type="button" data-listview="table" class="${STATS_LIST_VIEW==='table'?'on':''}">▤ ตาราง</button><button type="button" data-listview="chart" class="${STATS_LIST_VIEW==='chart'?'on':''}">📊 กราฟ</button></div></div>`;
+  if(STATS_LIST_VIEW==='chart'){
+    box.innerHTML=head+(rows.length?statsListChartsHtml(rows):'<p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p>');
+    return;
+  }
+  box.innerHTML=head
     +`<div class="stats-list-wrap"><table class="ll-tbl"><thead><tr><th>วันที่</th><th>ตำแหน่งสัมผัส</th><th>เหตุการณ์</th><th>มือ</th><th>นิ้ว</th><th>Lab ที่เจาะ</th><th>ราคา (บาท)</th></tr></thead><tbody>`
     +(rows.length?rows.map(r=>`<tr><td>${thaiDate(r.incidentDate)}</td><td>${esc(arr(r.bodySite))||'—'}</td><td>${esc(r.incidentDescription||'—')}</td><td>${esc(r.hand||'—')}</td><td>${esc(arr(r.fingerSite))||'—'}</td><td>${esc(arr(r.labsDrawn))||'—'}</td><td class="ll-baht">${baht(costOf(r))}</td></tr>`).join('')
        :`<tr><td colspan="7" class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</td></tr>`)
@@ -1269,6 +1291,7 @@ $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)
 $('#statsReset').onclick=()=>{ statsApplyDefaults(); renderStatsFilters(); renderDashboard($('#search').value); };
 $('#statsPrint').onclick=()=>openReportHtml(statsReportHtml(), null, 'a4');
 $('#statsFilters').onchange=e=>{ const s=e.target.closest('[data-sf]'); if(!s)return; STATS_F[s.dataset.sf]=s.value; renderDashboard($('#search').value); };
+$('#statsList').onclick=e=>{ const b=e.target.closest('[data-listview]'); if(!b)return; STATS_LIST_VIEW=b.dataset.listview; renderStatsList(statsFiltered()); };
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
 $('#vctBack').onclick=()=>$('#vct').close();
 $('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); $('#vct').close(); };

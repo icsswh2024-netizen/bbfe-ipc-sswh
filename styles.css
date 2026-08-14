@@ -344,3 +344,10 @@ input,select,textarea,button,.search input{font-family:inherit}
 .ll-tbl th{background:var(--mint,#eafaf6);color:var(--teal);font-size:12px;white-space:nowrap;position:sticky;top:0}
 .ll-tbl .ll-baht{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ll-tbl tr:last-child td{border-bottom:0}
+
+/* สลับมุมมองตาราง/กราฟ ของรายการรายเคส */
+.stats-list-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.seg-toggle{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg-toggle button{border:0;background:#fff;color:var(--muted);font:600 13px inherit;padding:8px 14px;cursor:pointer}
+.seg-toggle button+button{border-left:1px solid var(--line)}
+.seg-toggle button.on{background:var(--teal);color:#fff}
