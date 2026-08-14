@@ -668,9 +668,8 @@ function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ
 // ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
 function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
 function statsPool(){ return allRecords().filter(countable); }
-// ไล่เฉดสีแดงสีเดียว เข้ม→อ่อน (โทนเข้มขึ้น ไม่ซีดเป็นพาสเทล) : ค่ามากสุด=เข้มสุด
-function redShade(t){ const dark=[122,12,26], light=[224,120,130], m=k=>Math.round(dark[k]+(light[k]-dark[k])*Math.max(0,Math.min(1,t))); return `rgb(${m(0)},${m(1)},${m(2)})`; }
-function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:redShade(n<=1?0:i/(n-1))})); }
+// พาเลทสีหลัก (ธีมแดง MOPH) สำหรับสีกราฟแบบหลายหมวด
+function colorize(arr){ return arr.map((d,i)=>({...d,color:CAT_COLORS[i%CAT_COLORS.length]})); }
 function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
 function topData(map,limit){ let e=Object.entries(map).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
 function statsMonths(recs){ const m=THMON_SHORT.map(label=>({label,value:0})); recs.forEach(r=>{ if(r.incidentDate){ const d=new Date(r.incidentDate+'T00:00:00'); if(!isNaN(d))m[d.getMonth()].value++; } }); return m; }
