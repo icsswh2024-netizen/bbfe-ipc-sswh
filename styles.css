@@ -292,3 +292,8 @@ input,select,textarea,button,.search input{font-family:inherit}
 .doc-noembed{display:flex;align-items:center;justify-content:center;aspect-ratio:auto;min-height:120px;padding:24px}
 .doc-noembed a{font-weight:600;color:var(--accent,#0b6b5e)}
 @media(max-width:640px){.doc-frame{aspect-ratio:1/1.42}}
+
+/* ทะเบียนนำเข้าจากชีต (อ่านอย่างเดียว) + PDPA */
+.reg-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--accent-soft,#e6f0fb);color:var(--accent,#1f5fa8);font-size:10.5px;font-weight:700;vertical-align:middle;letter-spacing:.03em}
+.reg-note{background:#fff7e6;border:1px solid #f0d089;border-left:4px solid #e0a020;color:#6b4e00;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;line-height:1.55}
+@media (prefers-color-scheme:dark){.reg-note{background:#2a2410;border-color:#5c4a12;color:#e9d9a0}}
