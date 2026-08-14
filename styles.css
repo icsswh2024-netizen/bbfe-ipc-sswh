@@ -360,7 +360,14 @@ input,select,textarea,button,.search input{font-family:inherit}
 .stats-group .chart-card.lead{grid-column:1/-1}
 @media(max-width:780px){.stats-group-head{font-size:15px}}
 
-/* กราฟเรียงแนวนอน ล้นแล้วขึ้นแถวใหม่ให้ชัดเจน */
-.stats-group .charts{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
-.stats-group .charts>.chart-card{flex:1 1 320px;min-width:290px;max-width:520px}
-.stats-group .charts>.chart-card.lead{flex:1 1 100%;max-width:none}
+/* กราฟ 1–2 คอลัมน์ · หัวข้ออยู่คอลัมน์ซ้าย กราฟอยู่ขวา */
+#statsCharts{display:block}                       /* คอนเทนเนอร์นอก: ให้หมวดเรียงลงเต็มความกว้าง */
+.stats-group .charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
+.stats-group .charts>.chart-card{display:flex;gap:18px;align-items:center}
+.stats-group .charts>.chart-card.lead{grid-column:1/-1}
+.chart-card .cc-head{flex:0 0 150px;align-self:flex-start;padding-top:2px}
+.chart-card .cc-head h3{margin:0;font-size:15px;line-height:1.4}
+.chart-card .cc-body{flex:1;min-width:0}
+.chart-card .cc-body .donut-wrap{gap:16px}
+@media(max-width:960px){.stats-group .charts{grid-template-columns:1fr}}
+@media(max-width:560px){.stats-group .charts>.chart-card{flex-direction:column;align-items:stretch;gap:10px}.chart-card .cc-head{flex:none}}
