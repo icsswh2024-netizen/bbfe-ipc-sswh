@@ -278,3 +278,17 @@ input,select,textarea,button,.search input{font-family:inherit}
 .lab-doc .lr-box{width:18px;height:18px;border:1.5px solid #000;border-radius:3px;flex:0 0 auto}
 .lab-doc .lr-note{font-size:14px;color:#444;border:1px dashed #bbb;border-radius:8px;padding:8px 12px;margin-bottom:26px}
 .lab-doc .lr-sign{display:flex;justify-content:space-between;font-size:16px;margin-top:30px}
+
+/* แท็บ ICN — ตัวแสดงไฟล์/ลิงก์แชร์จากแท็บ docs */
+.doc-wrap{display:flex;flex-direction:column;gap:16px}
+.doc-card{border:1px solid var(--line,#e2e2ea);border-radius:14px;background:var(--panel,#fff);overflow:hidden;box-shadow:0 6px 18px -12px rgba(0,0,0,.4)}
+.doc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line,#e2e2ea)}
+.doc-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.doc-meta b{font-size:15px}
+.doc-meta small{color:var(--muted,#6b6b7a);font-size:12.5px}
+.doc-open{white-space:nowrap;flex:0 0 auto;text-decoration:none;font-size:13px;padding:8px 14px}
+.doc-frame{position:relative;width:100%;aspect-ratio:1/1.32;background:#f4f4f7}
+.doc-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.doc-noembed{display:flex;align-items:center;justify-content:center;aspect-ratio:auto;min-height:120px;padding:24px}
+.doc-noembed a{font-weight:600;color:var(--accent,#0b6b5e)}
+@media(max-width:640px){.doc-frame{aspect-ratio:1/1.42}}
