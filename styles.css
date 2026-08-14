@@ -331,7 +331,7 @@ input,select,textarea,button,.search input{font-family:inherit}
 /* กราฟ: เฟดสี + กำกับจำนวน/ร้อยละ */
 .chart-svg .cpct{font-size:10.5px;fill:var(--muted);font-weight:600}
 .legend .lv em{font-style:normal;font-weight:600;color:var(--teal);font-size:12px}
-.hbar-fill{background:linear-gradient(90deg,#5c1626,#b76e79 55%,#e6c9cf)!important;color:#111!important}
+.hbar-fill{background:linear-gradient(90deg,#8a1418,#c8102e 42%,#e46c2c 74%,#f2c07a)!important;color:#111!important}
 .chart-card.lead{grid-column:1/-1;border-color:var(--teal);box-shadow:0 6px 22px -12px rgba(200,16,46,.55);background:linear-gradient(180deg,#fff,#fff6f7)}
 .chart-card h3 .ch-sub{font-size:12px;font-weight:600;color:var(--teal);margin-left:4px}
 
@@ -354,7 +354,7 @@ input,select,textarea,button,.search input{font-family:inherit}
 
 /* จัดกลุ่มกราฟเป็นหมวดหมู่ */
 .stats-group{margin:0 0 26px}
-.stats-group-head{display:flex;align-items:center;gap:9px;font-size:17px;margin:0 0 14px;padding:8px 14px;border-radius:12px;color:#fff;background:linear-gradient(90deg,#5c1626,#a6485a)}
+.stats-group-head{display:flex;align-items:center;gap:9px;font-size:17px;margin:0 0 14px;padding:8px 14px;border-radius:12px;color:#fff;background:linear-gradient(90deg,#8a1418,#c8102e 55%,#e46c2c)}
 .stats-group-head span{font-size:18px;line-height:1}
 .stats-group .charts{margin-bottom:0}
 .stats-group .chart-card.lead{grid-column:1/-1}
@@ -373,11 +373,11 @@ input,select,textarea,button,.search input{font-family:inherit}
 @media(max-width:560px){.stats-group .charts>.chart-card{flex-direction:column;align-items:stretch;gap:10px}.chart-card .cc-head{flex:none}}
 
 /* เส้นแกน/กริดของกราฟแท่ง + ป้ายกำกับให้เห็นชัด */
-.chart-svg .grid{stroke:#e7d3d6;stroke-width:1;stroke-dasharray:3 4}
-.chart-svg .axis{stroke:#5c1626;stroke-opacity:.5;stroke-width:1.4}
+.chart-svg .grid{stroke:#e7d3c4;stroke-width:1;stroke-dasharray:3 4}
+.chart-svg .axis{stroke:#b06a48;stroke-width:1.4}
 .chart-svg .ctick{font-size:10px;fill:var(--muted)}
-.chart-svg .cval{font-size:13px;font-weight:800;fill:#5c1626}
-.chart-svg .cpct{font-size:11px;font-weight:600;fill:#8a4a58}
+.chart-svg .cval{font-size:13px;font-weight:800;fill:#7a0f14}
+.chart-svg .cpct{font-size:11px;font-weight:600;fill:#b3562a}
 .chart-svg .clbl{font-size:12px;fill:var(--ink)}
 /* กราฟรูปมือ (นิ้วที่สัมผัส) */
 .hand-wrap{display:flex;justify-content:center;width:100%}
