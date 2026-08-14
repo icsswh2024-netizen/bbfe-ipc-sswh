@@ -25,7 +25,6 @@ const DEFAULT_MENU = [
   { order:2, icon:'✚', title:'ICN / เวรตรวจการ', desc:'เลือกรายการเพื่อบันทึกการรักษาเพื่อป้องกัน (ส่วนที่ 4)', arrow:'เข้าโหมด ICN →', go:'icn', level:0 },
   { order:3, icon:'▤', title:'ทะเบียนอุบัติเหตุ', desc:'ดู ค้นหา และติดตามผลรายการที่บันทึกไว้ทั้งหมด', arrow:'เปิดทะเบียน →', go:'records', level:0 },
   { order:4, icon:'⚙', title:'ส่วนแอดมิน', desc:'บันทึกการรักษาและติดตามผล (ขั้นตอน 4-5) พร้อมส่งออก CSV และสำรองข้อมูล JSON', arrow:'เข้าส่วนแอดมิน →', go:'admin', level:0 },
-  { order:5, icon:'📊', title:'วิเคราะห์ / สถิติ', desc:'สรุปอุบัติเหตุเป็นกราฟ กรองตามปีงบ/หน่วยงาน/ตำแหน่ง/เพศ/อายุ และพิมพ์รายงาน', arrow:'ดูสถิติ →', go:'stats', level:2 },
 ];
 function menuLevel(v){ const s=String(v||'').trim().toLowerCase(); if(!s)return 0; if(/^(✓|ใช่|yes|true|y|เด่น|มาก|1)$/.test(s))return 1; if(/^(2|กลาง|ปานกลาง|medium|mid)$/.test(s))return 2; if(/^(3|อ่อน|น้อย|light|เฟด|fade)$/.test(s))return 3; return 0; }
 function menuAction(v){ const s=String(v||'').trim().toLowerCase(); if(/hero|แสดง|display|banner/.test(s))return'hero'; if(/vct|z114|คัดกรอง/.test(s))return'vct'; if(/stat|วิเคราะห์|สถิติ|analytic/.test(s))return'stats'; if(/new|บันทึกเหตุการณ์|บันทึก/.test(s))return'new'; if(/icn|เวรตรวจการ/.test(s))return'icn'; if(/admin|แอดมิน/.test(s))return'admin'; if(/record|ทะเบียน/.test(s))return'records'; return''; }
@@ -663,10 +662,16 @@ function renderStatsFilters(){
   box.innerHTML=sel('fy','ปีงบ',years)+sel('dept','หน่วยงาน',depts)+sel('type','ตำแหน่ง',types)+sel('gender','เพศ',genders)+sel('age','ช่วงอายุ',AGE_BANDS);
 }
 function statsFilterLabel(){ return `${STATS_F.fy?`ปีงบ ${STATS_F.fy}`:'ทุกปีงบ'}${STATS_F.dept?` · ${STATS_F.dept}`:''}${STATS_F.type?` · ${STATS_F.type}`:''}${STATS_F.gender?` · ${STATS_F.gender}`:''}${STATS_F.age?` · อายุ ${STATS_F.age} ปี`:''}`; }
-function renderStats(){
-  renderStatsFilters();
+function statsActive(){ return !!(STATS_F.fy||STATS_F.dept||STATS_F.type||STATS_F.gender||STATS_F.age); }
+// รายการที่ผ่านตัวกรองวิเคราะห์ (ใช้ร่วมกับตารางทะเบียนในหน้าเดียว)
+function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.fy)
+ &&(!STATS_F.dept||(r.department||'')===STATS_F.dept)
+ &&(!STATS_F.type||(r.staffType||'')===STATS_F.type)
+ &&(!STATS_F.gender||(r.gender||'')===STATS_F.gender)
+ &&(!STATS_F.age||ageBand(r.age)===STATS_F.age); }
+function renderStatsCharts(){
   const recs=statsFiltered(), total=recs.length;
-  $('#statsHeadline').innerHTML=`<b>${total}</b> ราย <span>${esc(statsFilterLabel())}</span>`;
+  const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`สรุปกราฟ <b>${total}</b> ราย <span>${esc(statsFilterLabel())}</span>`;
   const box=$('#statsCharts'); if(!box)return;
   if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; return; }
   const dept=topData(countBy(recs,r=>r.department||'ไม่ระบุ'),8);
@@ -705,6 +710,9 @@ function statsReportHtml(){
 function renderDashboard(query='') {
   let items = allRecords().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
   if(dashMode==='icn') items = items.slice().sort((a,b)=>(icnPending(b)?1:0)-(icnPending(a)?1:0)); // ICN: unsaved (new) first, saved stay in list
+  // ตัวกรองวิเคราะห์ (ปีงบ/หน่วยงาน/ตำแหน่ง/เพศ/อายุ) ใช้กับตาราง+กราฟในหน้าทะเบียน/แอดมิน
+  const statsOn = (dashMode==='records'||dashMode==='admin');
+  if(statsOn) items = items.filter(matchStatsF);
   const q=query.trim().toLowerCase();
   const filtered=items.filter(r=>[r.staffName,r.staffHn,r.soundex,r.location,r.incidentDescription].join(' ').toLowerCase().includes(q));
   $('#statTotal').textContent=items.length;
@@ -721,9 +729,8 @@ function renderDashboard(query='') {
     ? '<b>ยังไม่มีรายการอุบัติเหตุ</b><span>เมื่อเจ้าหน้าที่บันทึกเหตุการณ์ใหม่ จะปรากฏที่นี่</span>'
     : '<b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span>';
   $('#emptyState').classList.toggle('show',filtered.length===0);
-  const showCharts = dashMode==='records';
-  $('#dashCharts').classList.toggle('hidden',!showCharts);
-  if(showCharts) renderCharts();
+  $('#dashCharts').classList.add('hidden');           // กราฟภาพรวมเดิม ถูกแทนด้วยกราฟวิเคราะห์ที่กรองได้
+  if(statsOn) renderStatsCharts();
 }
 function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===name)); window.scrollTo({top:0}); }
 const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[0,1,2,3,4], ICN_PAGES=[3];
@@ -970,24 +977,25 @@ function icnRenderPane(k){
   requestAnimationFrame(scaleLabDoc);
 }
 function icnSelectTab(k){ $$('.icn-tab').forEach(t=>t.classList.toggle('active', t.dataset.icntab===k)); icnRenderPane(k); }
-function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct', stats=dashMode==='stats';
+function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
   $('#adminBar').classList.toggle('hidden',!admin);
   const hint=$('#adminHint');
-  hint.classList.toggle('hidden', dashMode==='records' || icn || stats);
-  hint.className = 'notice admin-hint'+((dashMode==='records'||icn||stats)?' hidden':'');
+  hint.classList.toggle('hidden', dashMode==='records' || icn);
+  hint.className = 'notice admin-hint'+((dashMode==='records'||icn)?' hidden':'');
   hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>แสดงรายการทั้งหมด เลือกรายการเพื่อแก้ไข/จัดการข้อมูลได้ทุกส่วน (1-5)</span>' : (vct ? '<b>VCT / คัดกรอง Z114</b><span>เลือกผู้รับบริการเพื่อกรอกเอกสารแนบ VCT — ข้อมูลชื่อ/HN/อายุ/ผลตรวจจะดึงจากรายการอัตโนมัติ</span>' : '');
   $('#icnTabs').classList.toggle('hidden', !icn);
   if(icn){ icnSelectTab('records'); } else { const pn=$('#icnPane'); if(pn)pn.classList.add('hidden'); }
-  const pnl=$('#dashboard .panel'); if(pnl)pnl.classList.toggle('hidden', stats);   // ซ่อนตารางรายการในโหมดวิเคราะห์
-  $('#statsPane').classList.toggle('hidden',!stats);
-  $('#openStats').classList.toggle('hidden', !(dashMode==='records'||admin));        // ปุ่มเข้าโหมดวิเคราะห์ เฉพาะทะเบียน/แอดมิน
-  if(stats) renderStats();
-  $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':(vct?'VCT':(stats?'ANALYTICS':'RECORDS')));
-  $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':(vct?'VCT / คัดกรอง Z114 — เอกสารแนบ':(stats?'วิเคราะห์ / สถิติอุบัติเหตุสัมผัสเชื้อ':'ทะเบียนอุบัติเหตุ')));
+  const pnl=$('#dashboard .panel'); if(pnl)pnl.classList.remove('hidden');
+  // ตัวกรอง+กราฟวิเคราะห์ ฝังอยู่ในหน้าทะเบียน/แอดมิน (หน้าเดียวกับตาราง)
+  const showStats = dashMode==='records'||admin;
+  $('#statsPane').classList.toggle('hidden',!showStats);
+  if(showStats) renderStatsFilters();
+  $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':(vct?'VCT':'RECORDS'));
+  $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':(vct?'VCT / คัดกรอง Z114 — เอกสารแนบ':'ทะเบียนอุบัติเหตุ'));
   $('#panelEyebrow').textContent=icn?'ICN':(vct?'VCT':'RECORDS');
   $('#panelTitle').textContent=icn?'รายการอุบัติเหตุ (ส่วนที่ 4)':(vct?'เลือกผู้รับบริการ':'รายการอุบัติเหตุ');
-  $('.stats').classList.toggle('hidden',icn||vct||stats); // hide the overview stat tiles in ICN/VCT/stats mode
-  showView('dashboard'); if(!stats) renderDashboard($('#search').value); setTab(icn?'icn':(dashMode==='records'?'records':'')); }
+  $('.stats').classList.toggle('hidden',icn||vct); // hide the overview stat tiles in ICN/VCT mode
+  showView('dashboard'); renderDashboard($('#search').value); setTab(icn?'icn':(dashMode==='records'?'records':'')); }
 function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); setTab('new'); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
@@ -1206,11 +1214,10 @@ $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
 renderMenu();
-$('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');} else if(go==='stats'){openDashboard('stats');}};
-$('#openStats').onclick=()=>openDashboard('stats');
-$('#statsReset').onclick=()=>{ Object.keys(STATS_F).forEach(k=>STATS_F[k]=''); renderStats(); };
+$('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
+$('#statsReset').onclick=()=>{ Object.keys(STATS_F).forEach(k=>STATS_F[k]=''); renderStatsFilters(); renderDashboard($('#search').value); };
 $('#statsPrint').onclick=()=>openReportHtml(statsReportHtml(), null, 'a4');
-$('#statsFilters').onchange=e=>{ const s=e.target.closest('[data-sf]'); if(!s)return; STATS_F[s.dataset.sf]=s.value; renderStats(); };
+$('#statsFilters').onchange=e=>{ const s=e.target.closest('[data-sf]'); if(!s)return; STATS_F[s.dataset.sf]=s.value; renderDashboard($('#search').value); };
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
 $('#vctBack').onclick=()=>$('#vct').close();
 $('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); $('#vct').close(); };
