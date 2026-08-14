@@ -160,6 +160,8 @@ function parseRegistryRows(rows){
     pHn:col('HN ผู้ป่วย'), pFn:col('ชื่อผู้ป่วย'), pLn:col('นามสกุลผู้ป่วย'),
     pHiv:col('Anti HIV CLIA'), pHivRap:col('Anti HIV rap'), pHbs:col('HBs Ag'), pHcv:col('Anti HCV') };
   if(c.fn<0)return null;
+  // คอลัมน์ค่าใช้จ่าย: ทุกหัวคอลัมน์ที่มีคำว่า "ราคา" หรือ "ค่ายา" (รวมค่าตรวจแล็บ+ค่ายา)
+  const costCols=[]; H.forEach((h,i)=>{ if(/ราคา|ค่ายา/.test(h)) costCols.push(i); });
   const g=(row,i)=>i>=0?String(row[i]||'').trim():'';
   const out=[];
   for(let r=hi+1;r<rows.length;r++){ const row=rows[r]||[];
@@ -168,13 +170,14 @@ function parseRegistryRows(rows){
     const gv=g(row,c.gender).toLowerCase();
     const pFn=g(row,c.pFn), pLn=g(row,c.pLn);
     const nature=g(row,c.nature), fluid=g(row,c.fluid), site=g(row,c.site), finger=g(row,c.finger);
+    let cost=0; costCols.forEach(i=>{ const n=parseFloat(String(row[i]||'').replace(/[, ฿]/g,'')); if(!isNaN(n))cost+=n; });
     const rec={
       id:'sheet-'+(seq||r), imported:true,
       staffName:fn, staffName2:ln, soundex:g(row,c.soundex), hn:g(row,c.hncode),
       staffHn:g(row,c.hn), age:g(row,c.age), phone:g(row,c.tel),
       gender:REG_GENDER[gv]||g(row,c.gender), department:g(row,c.dept), staffType:g(row,c.pos),
       incidentDate:parseThaiDate(g(row,c.date)), incidentTime:g(row,c.time),
-      workYears:g(row,c.workYears),
+      workYears:g(row,c.workYears), cost:cost,
       sharpType:nature, exposureType:fluid?[fluid]:[], bodySite:site?[site]:[], fingerSite:finger?[finger]:[],
       incidentDescription:g(row,c.event),
       sourceName:[pFn,pLn].filter(Boolean).join(' '), sourceHn:g(row,c.pHn),
@@ -582,7 +585,7 @@ function records() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) 
 function persist(items) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
 function esc(v='') { return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function thaiDate(v) { if(!v) return '—'; return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date(`${v}T00:00:00`)); }
-function isComplete(r) { return Boolean(r.follow6Date && (r.follow6HIV || r.follow6HbsAg || r.follow6HCV)); }
+function isComplete(r) { return r.imported ? true : Boolean(r.follow6Date && (r.follow6HIV || r.follow6HbsAg || r.follow6HCV)); } // เคสนำเข้า (ทะเบียนเดิม) ถือว่าติดตามครบแล้ว
 function exposureLabel(r) { const value = Array.isArray(r.exposureType) ? r.exposureType.join(', ') : r.exposureType; return value || 'ไม่ระบุ'; }
 // Prominent centered popup box (top layer). auto>0 = ปิดเองอัตโนมัติ (โหมด toast)
 function showPopup(message, kind, auto){ const d=$('#popupBox'); if(!d){ const el=$('#toast'); if(el){el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600);} return; } const k=kind||'ok'; const ico={ok:'✓',warn:'!',error:'✕',info:'i',note:'i'}[k]||'✓'; $('#popupIco').textContent=ico; $('#popupIco').className='popup-ico '+k; $('#popupMsg').textContent=message; d.classList.toggle('auto', !!auto); if(d.open)d.close(); d.showModal(); clearTimeout(d._t); if(auto) d._t=setTimeout(()=>{ try{d.close();}catch(e){} }, auto); }
@@ -637,24 +640,47 @@ function renderCharts(){
     +`<div class="chart-card"><h3>สถานะการติดตาม</h3><div class="donut-wrap">${svgDonut(status)}${chartLegend(status)}</div></div>`;
 }
 // ---- วิเคราะห์ / สถิติ : ตัวกรอง + กราฟ + รายงาน (ใช้ข้อมูลจากทะเบียน+นำเข้า) ----
-const STATS_F={fy:'',dept:'',type:'',gender:'',age:''};
+const STATS_F={fy:'',q:'',mo:'',fac:'',dept:'',type:'',gender:'',age:''};
 function feYear(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return ''; const be=d.getFullYear()+543; return String(d.getMonth()>=9?be+1:be); } // ปีงบไทย ต.ค.–ก.ย.
+function quarterOf(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return ''; const m=d.getMonth(); return m>=9?'Q1':(m<=2?'Q2':(m<=5?'Q3':'Q4')); } // ไตรมาสปีงบ
+function monthOf(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return ''; return THMON_SHORT[d.getMonth()]; }
 function ageBand(a){ a=parseInt(a,10); if(isNaN(a))return 'ไม่ระบุ'; if(a<=30)return '20-30'; if(a<=40)return '31-40'; if(a<=50)return '41-50'; if(a<=60)return '51-60'; return '60+'; }
 const AGE_BANDS=['20-30','31-40','41-50','51-60','60+','ไม่ระบุ'];
-function statsPool(){ return allRecords().filter(r=>r.incidentDate||r.staffName); }
-function statsFiltered(){ return statsPool().filter(r=>
-   (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.fy)
+const QUARTERS=['Q1','Q2','Q3','Q4'];
+const FACILITIES=['โรงพยาบาลศรีสังวรสุโขทัย','รพ.สต.'];
+// แบ่ง "ส่วน" (สังกัด): รพ.สต./สอ./สสอ. = รพ.สต. ; ที่เหลือ = โรงพยาบาลศรีสังวรสุโขทัย
+function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ\./.test((r.department||'')+' '+(r.workGroup||''))?'รพ.สต.':'โรงพยาบาลศรีสังวรสุโขทัย'; }
+// ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
+function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
+function statsPool(){ return allRecords().filter(countable); }
+// สีเฉดเดียว เข้ม→อ่อน (ตามที่ขอ)
+function hexRgb(h){ h=String(h).replace('#',''); return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); }
+const MONO_BASE='#c8102e';
+function monoShade(t){ const [r,g,b]=hexRgb(MONO_BASE),m=v=>Math.round(v+(255-v)*t); return `rgb(${m(r)},${m(g)},${m(b)})`; }
+function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:monoShade(n<=1?0:i*0.74/(n-1))})); } // ค่ามากสุด=เข้มสุด
+function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
+function topData(map,limit){ let e=Object.entries(map).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
+function statsMonths(recs){ const m=THMON_SHORT.map(label=>({label,value:0})); recs.forEach(r=>{ if(r.incidentDate){ const d=new Date(r.incidentDate+'T00:00:00'); if(!isNaN(d))m[d.getMonth()].value++; } }); return m; }
+function statsQuarters(recs){ return QUARTERS.map(q=>({label:q,value:recs.filter(r=>quarterOf(r.incidentDate)===q).length})); }
+function statsExpoArr(r){ return Array.isArray(r.exposureType)?(r.exposureType.length?r.exposureType:['ไม่ระบุ']):(r.exposureType?[r.exposureType]:['ไม่ระบุ']); }
+function statsAgeData(recs){ return AGE_BANDS.map(b=>({label:b,value:recs.filter(r=>ageBand(r.age)===b).length})).filter(d=>d.value); }
+function distinctVals(fn){ const s=new Set(); statsPool().forEach(r=>{ const v=fn(r); if(v)s.add(v); }); return [...s]; }
+// ค่าใช้จ่าย
+function costOf(r){ return Number(r.cost)||0; }
+function totalCost(recs){ return recs.reduce((s,r)=>s+costOf(r),0); }
+function baht(n){ return (Number(n)||0).toLocaleString('th-TH'); }
+function costByData(recs,keyFn,limit){ const m={}; recs.forEach(r=>{ const k=keyFn(r)||'ไม่ระบุ'; m[k]=(m[k]||0)+costOf(r); }); let e=Object.entries(m).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
+function chartMoneyBars(data){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูลค่าใช้จ่าย</p>'; const max=Math.max(1,...data.map(d=>d.value)); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(14,d.value/max*100)}%">฿${baht(d.value)}</div></div></div>`).join('')}</div>`; }
+// รายการที่ผ่านตัวกรองวิเคราะห์ (ใช้ร่วมกับตารางทะเบียนในหน้าเดียว)
+function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.fy)
+ &&(!STATS_F.q||quarterOf(r.incidentDate)===STATS_F.q)
+ &&(!STATS_F.mo||monthOf(r.incidentDate)===STATS_F.mo)
+ &&(!STATS_F.fac||facilityOf(r)===STATS_F.fac)
  &&(!STATS_F.dept||(r.department||'')===STATS_F.dept)
  &&(!STATS_F.type||(r.staffType||'')===STATS_F.type)
  &&(!STATS_F.gender||(r.gender||'')===STATS_F.gender)
- &&(!STATS_F.age||ageBand(r.age)===STATS_F.age)); }
-function distinctVals(fn){ const s=new Set(); statsPool().forEach(r=>{ const v=fn(r); if(v)s.add(v); }); return [...s]; }
-function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
-function topData(map,limit){ let e=Object.entries(map).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
-function colorize(arr){ return arr.map((d,i)=>({...d,color:CAT_COLORS[i%CAT_COLORS.length]})); }
-function statsMonths(recs){ const m=THMON_SHORT.map(label=>({label,value:0})); recs.forEach(r=>{ if(r.incidentDate){ const d=new Date(r.incidentDate+'T00:00:00'); if(!isNaN(d))m[d.getMonth()].value++; } }); return m; }
-function statsExpoArr(r){ return Array.isArray(r.exposureType)?(r.exposureType.length?r.exposureType:['ไม่ระบุ']):(r.exposureType?[r.exposureType]:['ไม่ระบุ']); }
-function statsAgeData(recs){ return AGE_BANDS.map(b=>({label:b,value:recs.filter(r=>ageBand(r.age)===b).length})).filter(d=>d.value); }
+ &&(!STATS_F.age||ageBand(r.age)===STATS_F.age); }
+function statsFiltered(){ return statsPool().filter(matchStatsF); }
 function renderStatsFilters(){
   const box=$('#statsFilters'); if(!box)return;
   const years=distinctVals(r=>feYear(r.incidentDate)).sort();
@@ -662,52 +688,54 @@ function renderStatsFilters(){
   const types=distinctVals(r=>r.staffType).sort();
   const genders=distinctVals(r=>r.gender).sort();
   const sel=(id,label,opts)=>`<label class="sf"><span>${label}</span><select data-sf="${id}"><option value="">ทั้งหมด</option>${opts.map(o=>`<option value="${esc(o)}"${o===STATS_F[id]?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
-  box.innerHTML=sel('fy','ปีงบ',years)+sel('dept','หน่วยงาน',depts)+sel('type','ตำแหน่ง',types)+sel('gender','เพศ',genders)+sel('age','ช่วงอายุ',AGE_BANDS);
+  box.innerHTML=sel('fy','ปีงบ',years)+sel('q','ไตรมาส',QUARTERS)+sel('mo','เดือน',THMON_SHORT)+sel('fac','ส่วน (สังกัด)',FACILITIES)+sel('dept','หน่วย (หน่วยงาน)',depts)+sel('type','ตำแหน่ง',types)+sel('gender','เพศ',genders)+sel('age','ช่วงอายุ',AGE_BANDS);
 }
-function statsFilterLabel(){ return `${STATS_F.fy?`ปีงบ ${STATS_F.fy}`:'ทุกปีงบ'}${STATS_F.dept?` · ${STATS_F.dept}`:''}${STATS_F.type?` · ${STATS_F.type}`:''}${STATS_F.gender?` · ${STATS_F.gender}`:''}${STATS_F.age?` · อายุ ${STATS_F.age} ปี`:''}`; }
-function statsActive(){ return !!(STATS_F.fy||STATS_F.dept||STATS_F.type||STATS_F.gender||STATS_F.age); }
-// รายการที่ผ่านตัวกรองวิเคราะห์ (ใช้ร่วมกับตารางทะเบียนในหน้าเดียว)
-function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.fy)
- &&(!STATS_F.dept||(r.department||'')===STATS_F.dept)
- &&(!STATS_F.type||(r.staffType||'')===STATS_F.type)
- &&(!STATS_F.gender||(r.gender||'')===STATS_F.gender)
- &&(!STATS_F.age||ageBand(r.age)===STATS_F.age); }
+function statsFilterLabel(){ const p=[]; if(STATS_F.fy)p.push('ปีงบ '+STATS_F.fy); if(STATS_F.q)p.push(STATS_F.q); if(STATS_F.mo)p.push(STATS_F.mo); if(STATS_F.fac)p.push(STATS_F.fac); if(STATS_F.dept)p.push(STATS_F.dept); if(STATS_F.type)p.push(STATS_F.type); if(STATS_F.gender)p.push(STATS_F.gender); if(STATS_F.age)p.push('อายุ '+STATS_F.age+' ปี'); return p.length?p.join(' · '):'ทั้งหมด'; }
 function renderStatsCharts(){
-  const recs=statsFiltered(), total=recs.length;
+  const recs=statsFiltered(), total=recs.length, cost=totalCost(recs);
   const fyTxt=STATS_F.fy?`ปีงบ ${STATS_F.fy}`:'ทุกปีงบ';
-  const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`ฐานการนับ <b>ตำแหน่ง × ${esc(fyTxt)}</b> · รวม <b>${total}</b> ราย <span>${esc(statsFilterLabel())}</span>`;
+  const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`ฐานการนับ <b>ตำแหน่ง × ${esc(fyTxt)}</b> · รวม <b>${total}</b> ราย · ค่าใช้จ่ายรวม <b>฿${baht(cost)}</b> <span>${esc(statsFilterLabel())}</span>`;
   const box=$('#statsCharts'); if(!box)return;
   if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; return; }
-  const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));   // ฐานหลัก: ตำแหน่ง (ตามปีงบที่เลือก)
+  const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));   // ฐานหลัก: ตำแหน่ง
+  const fac=colorize(topData(countBy(recs,facilityOf)));
   const dept=topData(countBy(recs,r=>r.department||'ไม่ระบุ'),8);
   const gender=colorize(topData(countBy(recs,r=>r.gender||'ไม่ระบุ')));
   const nature=colorize(topData(countBy(recs,r=>r.sharpType||'ไม่ระบุ')));
   const expo=topData(countBy(recs,statsExpoArr),8);
+  const costDept=costByData(recs,r=>r.department||'ไม่ระบุ',8);
   box.innerHTML=
      `<div class="chart-card lead"><h3>ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span></h3><div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div></div>`
-    +`<div class="chart-card"><h3>อุบัติเหตุรายเดือน</h3>${svgBars(statsMonths(recs))}</div>`
+    +`<div class="chart-card"><h3>ส่วน (สังกัด)</h3><div class="donut-wrap">${svgDonut(fac,'ราย')}${chartLegend(fac)}</div></div>`
     +`<div class="chart-card"><h3>หน่วยงาน (สูงสุด 8)</h3>${chartHBars(dept)}</div>`
+    +`<div class="chart-card"><h3>ไตรมาส (ปีงบ)</h3>${svgBars(statsQuarters(recs))}</div>`
+    +`<div class="chart-card"><h3>อุบัติเหตุรายเดือน</h3>${svgBars(statsMonths(recs))}</div>`
     +`<div class="chart-card"><h3>เพศ</h3><div class="donut-wrap">${svgDonut(gender,'ราย')}${chartLegend(gender)}</div></div>`
     +`<div class="chart-card"><h3>ช่วงอายุ</h3>${svgBars(statsAgeData(recs))}</div>`
     +`<div class="chart-card"><h3>ลักษณะเหตุ</h3><div class="donut-wrap">${svgDonut(nature,'ราย')}${chartLegend(nature)}</div></div>`
-    +`<div class="chart-card"><h3>การสัมผัส (สูงสุด 8)</h3>${chartHBars(expo)}</div>`;
+    +`<div class="chart-card"><h3>การสัมผัส (สูงสุด 8)</h3>${chartHBars(expo)}</div>`
+    +`<div class="chart-card"><h3>ค่าใช้จ่ายตามหน่วยงาน (บาท)</h3>${chartMoneyBars(costDept)}</div>`;
 }
 function pct(n,t){ return t?(n/t*100).toFixed(1):'0.0'; }
 function statsRepTable(title,data,total){ if(!data.length)return ''; return `<table class="rep-tbl"><caption>${esc(title)}</caption><thead><tr><th>รายการ</th><th>จำนวน</th><th>ร้อยละ</th></tr></thead><tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.value}</td><td>${pct(d.value,total)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${total}</td><td>100.0</td></tr></tbody></table>`; }
 function statsReportHtml(){
-  const recs=statsFiltered(), total=recs.length, today=new Date().toISOString().slice(0,10);
+  const recs=statsFiltered(), total=recs.length, today=new Date().toISOString().slice(0,10), cost=totalCost(recs);
+  const fac=topData(countBy(recs,facilityOf));
   const dept=topData(countBy(recs,r=>r.department||'ไม่ระบุ'));
   const type=topData(countBy(recs,r=>r.staffType||'ไม่ระบุ'));
   const gender=topData(countBy(recs,r=>r.gender||'ไม่ระบุ'));
   const age=statsAgeData(recs);
+  const quarter=statsQuarters(recs).filter(d=>d.value);
   const nature=topData(countBy(recs,r=>r.sharpType||'ไม่ระบุ'));
   const expo=topData(countBy(recs,statsExpoArr));
+  const costDept=costByData(recs,r=>r.department||'ไม่ระบุ');
   return `<div class="a4-page rep-doc">
     <div class="rep-head"><img src="assets/logo-sswh.png" alt=""><div><b>โรงพยาบาลศรีสังวรสุโขทัย</b><small>กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ (IC)</small></div></div>
     <h1 class="rep-title">รายงานสรุปอุบัติเหตุสัมผัสเชื้อจากการปฏิบัติงาน</h1>
-    <div class="rep-meta">ตัวกรอง: ${esc(statsFilterLabel())} · รวมทั้งสิ้น <b>${total}</b> ราย · วันที่พิมพ์ ${thaiDate(today)}</div>
-    ${total?`<div class="rep-charts"><div><h4>อุบัติเหตุรายเดือน</h4>${svgBars(statsMonths(recs))}</div><div><h4>หน่วยงาน</h4>${chartHBars(topData(countBy(recs,r=>r.department||'ไม่ระบุ'),8))}</div></div>
-    <div class="rep-tables">${statsRepTable('แยกตามหน่วยงาน',dept,total)}${statsRepTable('แยกตามตำแหน่ง',type,total)}${statsRepTable('แยกตามเพศ',gender,total)}${statsRepTable('แยกตามช่วงอายุ',age,total)}${statsRepTable('ลักษณะเหตุ',nature,total)}${statsRepTable('การสัมผัส',expo,total)}</div>`:'<p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p>'}
+    <div class="rep-meta">ฐานการนับ ตำแหน่ง × ปีงบ · ตัวกรอง: ${esc(statsFilterLabel())} · รวม <b>${total}</b> ราย · ค่าใช้จ่ายรวม <b>฿${baht(cost)}</b> · วันที่พิมพ์ ${thaiDate(today)}</div>
+    ${total?`<div class="rep-charts"><div><h4>ตำแหน่ง (ฐานการนับหลัก)</h4>${(()=>{const t=colorize(type);return `<div class="donut-wrap">${svgDonut(t,'ราย')}${chartLegend(t)}</div>`;})()}</div><div><h4>หน่วยงาน</h4>${chartHBars(topData(countBy(recs,r=>r.department||'ไม่ระบุ'),8))}</div></div>
+    <div class="rep-tables">${statsRepTable('แยกตามตำแหน่ง',type,total)}${statsRepTable('แยกตามส่วน (สังกัด)',fac,total)}${statsRepTable('แยกตามหน่วยงาน',dept,total)}${statsRepTable('แยกตามไตรมาส',quarter,total)}${statsRepTable('แยกตามเพศ',gender,total)}${statsRepTable('แยกตามช่วงอายุ',age,total)}${statsRepTable('ลักษณะเหตุ',nature,total)}${statsRepTable('การสัมผัส',expo,total)}</div>
+    <div class="rep-cost"><h4>ค่าใช้จ่ายตามหน่วยงาน</h4><table class="rep-tbl"><thead><tr><th>หน่วยงาน</th><th>บาท</th></tr></thead><tbody>${costDept.map(d=>`<tr><td>${esc(d.label)}</td><td>${baht(d.value)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${baht(cost)}</td></tr></tbody></table></div>`:'<p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p>'}
     <div class="rep-foot">ผู้รายงาน ............................................ / ผู้ตรวจสอบ ............................................</div>
   </div>`;
 }
