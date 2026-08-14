@@ -156,12 +156,16 @@ function parseRegistryRows(rows){
   const c={ seq:col('ลำดับที่','ลำดับ'), dept:col('หน่วยงาน'), pos:col('ตำแหน่ง'), fn:col('ชื่อบุคลากร'), ln:col('นามสกุลบุคลากร'),
     soundex:col('Soundex code'), hncode:col('HN code'), hn:col('HNบุคลากร','HN บุคลากร'), age:col('อายุ (ปี)','อายุ'), tel:col('Tel','เบอร์โทร'),
     gender:col('เพศ'), date:col('วันที่เกิดเหตุ'), time:col('เวลา'), nature:col('ลักษณะเหตุ'), site:col('ตำแหน่งสัมผัส'),
-    fluid:col('เลือด/สารคัดหลั่ง'), event:col('เหตุการณ์'), finger:col('นิ้ว'), workYears:col('อายุการทำงาน จนท. (ปี)','อายุการทำงาน จนท.'),
+    fluid:col('เลือด/สารคัดหลั่ง'), event:col('เหตุการณ์'), hand:col('มือ'), finger:col('นิ้ว'), workYears:col('อายุการทำงาน จนท. (ปี)','อายุการทำงาน จนท.'),
     pHn:col('HN ผู้ป่วย'), pFn:col('ชื่อผู้ป่วย'), pLn:col('นามสกุลผู้ป่วย'),
     pHiv:col('Anti HIV CLIA'), pHivRap:col('Anti HIV rap'), pHbs:col('HBs Ag'), pHcv:col('Anti HCV') };
   if(c.fn<0)return null;
   // คอลัมน์ค่าใช้จ่าย: ทุกหัวคอลัมน์ที่มีคำว่า "ราคา" หรือ "ค่ายา" (รวมค่าตรวจแล็บ+ค่ายา)
   const costCols=[]; H.forEach((h,i)=>{ if(/ราคา|ค่ายา/.test(h)) costCols.push(i); });
+  // คอลัมน์ผลแล็บ (เพื่อสรุป "Lab ที่เจาะ")
+  const LAB_NAMES=['Anti HIV rap','Anti B rap','Anti C rap','Anti HIV CLIA','HIV Ag','HBs Ag','Anti HBs','Anti HBc','HBe Ag','Anti HCV'];
+  const labCols=LAB_NAMES.map(n=>({name:n,i:col(n)})).filter(x=>x.i>=0);
+  const drawn=v=>{ v=String(v||'').trim(); return v && !/^(no\s*lab|0|-|ไม่ตรวจ|ไม่ได้ตรวจ)$/i.test(v); };
   const g=(row,i)=>i>=0?String(row[i]||'').trim():'';
   const out=[];
   for(let r=hi+1;r<rows.length;r++){ const row=rows[r]||[];
@@ -171,14 +175,15 @@ function parseRegistryRows(rows){
     const pFn=g(row,c.pFn), pLn=g(row,c.pLn);
     const nature=g(row,c.nature), fluid=g(row,c.fluid), site=g(row,c.site), finger=g(row,c.finger);
     let cost=0; costCols.forEach(i=>{ const n=parseFloat(String(row[i]||'').replace(/[, ฿]/g,'')); if(!isNaN(n))cost+=n; });
+    const labsDrawn=labCols.filter(x=>drawn(row[x.i])).map(x=>x.name);
     const rec={
       id:'sheet-'+(seq||r), imported:true,
       staffName:fn, staffName2:ln, soundex:g(row,c.soundex), hn:g(row,c.hncode),
       staffHn:g(row,c.hn), age:g(row,c.age), phone:g(row,c.tel),
       gender:REG_GENDER[gv]||g(row,c.gender), department:g(row,c.dept), staffType:g(row,c.pos),
       incidentDate:parseThaiDate(g(row,c.date)), incidentTime:g(row,c.time),
-      workYears:g(row,c.workYears), cost:cost,
-      sharpType:nature, exposureType:fluid?[fluid]:[], bodySite:site?[site]:[], fingerSite:finger?[finger]:[],
+      workYears:g(row,c.workYears), cost:cost, labsDrawn:labsDrawn,
+      sharpType:nature, exposureType:fluid?[fluid]:[], bodySite:site?[site]:[], hand:g(row,c.hand), fingerSite:finger?[finger]:[],
       incidentDescription:g(row,c.event),
       sourceName:[pFn,pLn].filter(Boolean).join(' '), sourceHn:g(row,c.pHn),
       sourceHiv:g(row,c.pHiv)||g(row,c.pHivRap), sourceHbsAg:g(row,c.pHbs), sourceHcv:g(row,c.pHcv),
@@ -642,6 +647,10 @@ function renderCharts(){
 // ---- วิเคราะห์ / สถิติ : ตัวกรอง + กราฟ + รายงาน (ใช้ข้อมูลจากทะเบียน+นำเข้า) ----
 const STATS_F={fy:'',q:'',mo:'',fac:'',dept:'',type:'',gender:'',age:''};
 function feYear(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return ''; const be=d.getFullYear()+543; return String(d.getMonth()>=9?be+1:be); } // ปีงบไทย ต.ค.–ก.ย.
+function currentFY(){ return feYear(new Date().toISOString().slice(0,10)); }
+// ค่าเริ่มต้น: ส่วน = โรงพยาบาลศรีสังวรสุโขทัย, ปีงบ = ปีงบปัจจุบัน (มิติอื่นล้าง)
+function statsApplyDefaults(){ STATS_F.fac='โรงพยาบาลศรีสังวรสุโขทัย'; STATS_F.fy=currentFY(); STATS_F.q=''; STATS_F.mo=''; STATS_F.dept=''; STATS_F.type=''; STATS_F.gender=''; STATS_F.age=''; }
+statsApplyDefaults();
 function quarterOf(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return ''; const m=d.getMonth(); return m>=9?'Q1':(m<=2?'Q2':(m<=5?'Q3':'Q4')); } // ไตรมาสปีงบ
 function monthOf(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return ''; return THMON_SHORT[d.getMonth()]; }
 function ageBand(a){ a=parseInt(a,10); if(isNaN(a))return 'ไม่ระบุ'; if(a<=30)return '20-30'; if(a<=40)return '31-40'; if(a<=50)return '41-50'; if(a<=60)return '51-60'; return '60+'; }
@@ -684,11 +693,9 @@ function statsFiltered(){ return statsPool().filter(matchStatsF); }
 function renderStatsFilters(){
   const box=$('#statsFilters'); if(!box)return;
   const years=distinctVals(r=>feYear(r.incidentDate)).sort();
-  const depts=distinctVals(r=>r.department).sort();
-  const types=distinctVals(r=>r.staffType).sort();
-  const genders=distinctVals(r=>r.gender).sort();
   const sel=(id,label,opts)=>`<label class="sf"><span>${label}</span><select data-sf="${id}"><option value="">ทั้งหมด</option>${opts.map(o=>`<option value="${esc(o)}"${o===STATS_F[id]?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
-  box.innerHTML=sel('fy','ปีงบ',years)+sel('q','ไตรมาส',QUARTERS)+sel('mo','เดือน',THMON_SHORT)+sel('fac','ส่วน (สังกัด)',FACILITIES)+sel('dept','หน่วย (หน่วยงาน)',depts)+sel('type','ตำแหน่ง',types)+sel('gender','เพศ',genders)+sel('age','ช่วงอายุ',AGE_BANDS);
+  // ส่วน (สังกัด) ลำดับแรก, ตามด้วย ปีงบ · ไตรมาส · เดือน
+  box.innerHTML=sel('fac','ส่วน (สังกัด)',FACILITIES)+sel('fy','ปีงบ',years)+sel('q','ไตรมาส',QUARTERS)+sel('mo','เดือน',THMON_SHORT);
 }
 function statsFilterLabel(){ const p=[]; if(STATS_F.fy)p.push('ปีงบ '+STATS_F.fy); if(STATS_F.q)p.push(STATS_F.q); if(STATS_F.mo)p.push(STATS_F.mo); if(STATS_F.fac)p.push(STATS_F.fac); if(STATS_F.dept)p.push(STATS_F.dept); if(STATS_F.type)p.push(STATS_F.type); if(STATS_F.gender)p.push(STATS_F.gender); if(STATS_F.age)p.push('อายุ '+STATS_F.age+' ปี'); return p.length?p.join(' · '):'ทั้งหมด'; }
 function renderStatsCharts(){
@@ -696,7 +703,7 @@ function renderStatsCharts(){
   const fyTxt=STATS_F.fy?`ปีงบ ${STATS_F.fy}`:'ทุกปีงบ';
   const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`ฐานการนับ <b>ตำแหน่ง × ${esc(fyTxt)}</b> · รวม <b>${total}</b> ราย · ค่าใช้จ่ายรวม <b>฿${baht(cost)}</b> <span>${esc(statsFilterLabel())}</span>`;
   const box=$('#statsCharts'); if(!box)return;
-  if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; return; }
+  if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; renderStatsList([]); return; }
   const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));   // ฐานหลัก: ตำแหน่ง
   const fac=colorize(topData(countBy(recs,facilityOf)));
   const dept=topData(countBy(recs,r=>r.department||'ไม่ระบุ'),8);
@@ -715,6 +722,18 @@ function renderStatsCharts(){
     +`<div class="chart-card"><h3>ลักษณะเหตุ</h3><div class="donut-wrap">${svgDonut(nature,'ราย')}${chartLegend(nature)}</div></div>`
     +`<div class="chart-card"><h3>การสัมผัส (สูงสุด 8)</h3>${chartHBars(expo)}</div>`
     +`<div class="chart-card"><h3>ค่าใช้จ่ายตามหน่วยงาน (บาท)</h3>${chartMoneyBars(costDept)}</div>`;
+  renderStatsList(recs);
+}
+// รายการรายเคส: ตำแหน่งสัมผัส · เหตุการณ์ · มือ · นิ้ว · Lab ที่เจาะ · ราคา
+function renderStatsList(recs){
+  const box=$('#statsList'); if(!box)return;
+  const arr=v=>Array.isArray(v)?v.filter(Boolean).join(', '):(v||'');
+  const rows=recs.slice().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
+  box.innerHTML=`<div class="stats-list-head"><h3>รายการรายเคส (${rows.length})</h3></div>`
+    +`<div class="stats-list-wrap"><table class="ll-tbl"><thead><tr><th>วันที่</th><th>ตำแหน่งสัมผัส</th><th>เหตุการณ์</th><th>มือ</th><th>นิ้ว</th><th>Lab ที่เจาะ</th><th>ราคา (บาท)</th></tr></thead><tbody>`
+    +(rows.length?rows.map(r=>`<tr><td>${thaiDate(r.incidentDate)}</td><td>${esc(arr(r.bodySite))||'—'}</td><td>${esc(r.incidentDescription||'—')}</td><td>${esc(r.hand||'—')}</td><td>${esc(arr(r.fingerSite))||'—'}</td><td>${esc(arr(r.labsDrawn))||'—'}</td><td class="ll-baht">${baht(costOf(r))}</td></tr>`).join('')
+       :`<tr><td colspan="7" class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</td></tr>`)
+    +`</tbody></table></div>`;
 }
 function pct(n,t){ return t?(n/t*100).toFixed(1):'0.0'; }
 function statsRepTable(title,data,total){ if(!data.length)return ''; return `<table class="rep-tbl"><caption>${esc(title)}</caption><thead><tr><th>รายการ</th><th>จำนวน</th><th>ร้อยละ</th></tr></thead><tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.value}</td><td>${pct(d.value,total)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${total}</td><td>100.0</td></tr></tbody></table>`; }
@@ -1247,7 +1266,7 @@ $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault()
 $('#dashHome').onclick=goHome;
 renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
-$('#statsReset').onclick=()=>{ Object.keys(STATS_F).forEach(k=>STATS_F[k]=''); renderStatsFilters(); renderDashboard($('#search').value); };
+$('#statsReset').onclick=()=>{ statsApplyDefaults(); renderStatsFilters(); renderDashboard($('#search').value); };
 $('#statsPrint').onclick=()=>openReportHtml(statsReportHtml(), null, 'a4');
 $('#statsFilters').onchange=e=>{ const s=e.target.closest('[data-sf]'); if(!s)return; STATS_F[s.dataset.sf]=s.value; renderDashboard($('#search').value); };
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
