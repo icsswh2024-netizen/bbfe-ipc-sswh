@@ -608,14 +608,19 @@ const THMON_SHORT=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.',
 const CAT_COLORS=['#c8102e','#f2857f','#f6b26b','#8e7cc3','#3d85c6','#2e9e5b','#e53935'];
 const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
-  const w=460,h=214,pl=24,pr=12,pt=30,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
+  const w=460,h=220,pl=34,pr=12,pt=32,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
   const gid='bg'+Math.random().toString(36).slice(2,8);
-  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b45c40" stop-opacity=".92"/><stop offset=".55" stop-color="#d68c56" stop-opacity=".8"/><stop offset="1" stop-color="#e9b682" stop-opacity=".58"/></linearGradient></defs>`;
+  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a1418" stop-opacity=".95"/><stop offset=".5" stop-color="#e46c2c" stop-opacity=".9"/><stop offset="1" stop-color="#f2c07a" stop-opacity=".7"/></linearGradient></defs>`;
+  // เส้นแกน + เส้นกริด + สเกลค่า
+  const nT=4; let grid='';
+  for(let t=0;t<=nT;t++){ const gy=(pt+ih-ih*t/nT).toFixed(1), val=Math.round(max*t/nT);
+    grid+=`<line x1="${pl}" y1="${gy}" x2="${w-pr}" y2="${gy}" class="grid"/><text x="${pl-6}" y="${(+gy+4).toFixed(1)}" text-anchor="end" class="ctick">${val}</text>`; }
+  const axis=`<line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" class="axis"/><line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>`;
   const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh,cx=(x+rw/2).toFixed(1);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#b45c40" stroke-opacity=".4"/>`
-      +(d.value?`<text x="${cx}" y="${(y-15).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#8a1418" stroke-opacity=".45"/>`
+      +(d.value?`<text x="${cx}" y="${(y-16).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
       +`<text x="${cx}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}<line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>${body}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}${grid}${axis}${body}</svg>`;
 }
 function svgDonut(data,cap='รายการ'){
   const size=170,thick=32,r=(size-thick)/2,cx=size/2,cy=size/2,C=2*Math.PI*r,total=data.reduce((s,d)=>s+d.value,0);
@@ -664,8 +669,8 @@ function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ
 // ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
 function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
 function statsPool(){ return allRecords().filter(countable); }
-// พาเลตต์โทนอบอุ่น (นุ่มลง) : ค่ามากสุด=อิฐเข้ม, น้อยสุด=ครีม
-const WARM_STOPS=[[150,60,48],[186,92,64],[214,140,86],[233,182,130],[247,232,208]]; // อิฐ→ส้มดิน→ส้มอ่อน→ครีมทอง→ครีม
+// พาเลตต์ ครีม–ส้ม–แดงเข้ม : ค่ามากสุด=แดงเข้มสุด, น้อยสุด=ครีม
+const WARM_STOPS=[[138,20,24],[196,42,38],[228,110,44],[242,176,98],[249,233,206]]; // แดงเข้ม→แดง→ส้ม→ส้มอ่อน→ครีม
 function warmRamp(t){ t=Math.max(0,Math.min(1,t)); const n=WARM_STOPS.length-1,f=t*n,i=Math.min(n-1,Math.floor(f)),g=f-i,a=WARM_STOPS[i],b=WARM_STOPS[i+1],m=k=>Math.round(a[k]+(b[k]-a[k])*g); return `rgb(${m(0)},${m(1)},${m(2)})`; }
 function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:warmRamp(n<=1?0:i/(n-1))})); }
 function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
@@ -674,6 +679,26 @@ function statsMonths(recs){ const m=THMON_SHORT.map(label=>({label,value:0})); r
 function statsQuarters(recs){ return QUARTERS.map(q=>({label:q,value:recs.filter(r=>quarterOf(r.incidentDate)===q).length})); }
 function statsExpoArr(r){ return Array.isArray(r.exposureType)?(r.exposureType.length?r.exposureType:['ไม่ระบุ']):(r.exposureType?[r.exposureType]:['ไม่ระบุ']); }
 function statsAgeData(recs){ return AGE_BANDS.map(b=>({label:b,value:recs.filter(r=>ageBand(r.age)===b).length})).filter(d=>d.value); }
+// นิ้ว: 0=โป้ง 1=ชี้ 2=กลาง 3=นาง 4=ก้อย
+const FINGER_NAMES=['โป้ง','ชี้','กลาง','นาง','ก้อย'];
+function fingerIndex(v){ v=String(v==null?'':v).trim(); if(/^[0-4]$/.test(v))return +v; for(let i=0;i<FINGER_NAMES.length;i++){ if(v.includes(FINGER_NAMES[i]))return i; } return -1; }
+function handChartHtml(recs){
+  const cnt=[0,0,0,0,0];
+  recs.forEach(r=>{ (Array.isArray(r.fingerSite)?r.fingerSite:[r.fingerSite]).forEach(v=>{ const i=fingerIndex(v); if(i>=0)cnt[i]++; }); });
+  const total=cnt.reduce((a,b)=>a+b,0), max=Math.max(1,...cnt);
+  const col=c=>c>0?warmRamp(1-c/max):'#f4ede0';               // มาก=แดงเข้ม, น้อย=ครีม, 0=ครีมจาง
+  const w=320,h=250,palmTop=170,fw=34;
+  const fx=[54,108,158,208,262], flen=[54,96,118,102,80];      // โป้ง..ก้อย : ความยาวนิ้วต่างกันให้เหมือนมือ
+  let s=`<svg viewBox="0 0 ${w} ${h}" class="hand-svg" preserveAspectRatio="xMidYMid meet">`;
+  s+=`<rect x="34" y="${palmTop}" width="252" height="60" rx="26" fill="${warmRamp(0.8)}" stroke="#8a1418" stroke-opacity=".3"/>`;
+  FINGER_NAMES.forEach((nm,i)=>{ const x=fx[i]-fw/2, top=palmTop-flen[i]+(i===0?18:0);
+    s+=`<rect x="${x}" y="${top}" width="${fw}" height="${palmTop-top+22}" rx="16" fill="${col(cnt[i])}" stroke="#8a1418" stroke-opacity=".35"/>`;
+    s+=`<text x="${fx[i]}" y="${top-16}" text-anchor="middle" class="cval">${cnt[i]}</text>`;
+    s+=`<text x="${fx[i]}" y="${top-5}" text-anchor="middle" class="cpct">${pct(cnt[i],total)}%</text>`;
+    s+=`<text x="${fx[i]}" y="${palmTop+38}" text-anchor="middle" class="hand-lbl">${nm}</text>`; });
+  s+=`</svg>`;
+  return `<div class="hand-wrap">${s}</div>`;
+}
 function distinctVals(fn){ const s=new Set(); statsPool().forEach(r=>{ const v=fn(r); if(v)s.add(v); }); return [...s]; }
 // ค่าใช้จ่าย
 function costOf(r){ return Number(r.cost)||0; }
@@ -724,11 +749,9 @@ function renderStatsCharts(){
   const expo=topData(countBy(recs,statsExpoArr),8);
   const body=colorize(topData(countBy(recs,r=>r.bodySite)));
   const hand=colorize(topData(countBy(recs,r=>r.hand||'ไม่ระบุ')));
-  const finger=topData(countBy(recs,r=>r.fingerSite),8);
   const event=topData(countBy(recs,r=>r.incidentDescription||'ไม่ระบุ'),8);
   const labs=topData(countBy(recs,r=>r.labsDrawn),10);
   const costDept=costByData(recs,r=>r.department||'ไม่ระบุ',8);
-  const costEvent=costByData(recs,r=>r.incidentDescription||'ไม่ระบุ',8);
   const leadCard=card(`ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span>`,`<div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div>`,'lead');
   box.innerHTML=
      group('👤','บุคลากร',
@@ -736,9 +759,9 @@ function renderStatsCharts(){
     +group('📅','ช่วงเวลา',
         barsC('ไตรมาส (ปีงบ)',statsQuarters(recs))+barsC('อุบัติเหตุรายเดือน',statsMonths(recs)))
     +group('🩹','ลักษณะการสัมผัส & เหตุการณ์',
-        donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+hbarsC('นิ้ว (สูงสุด 8)',finger)+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs))
+        donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+card('นิ้วที่สัมผัส',handChartHtml(recs))+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs))
     +group('💰','ค่าใช้จ่าย',
-        moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตามเหตุการณ์ (บาท)',costEvent)+moneyC('ตาม Lab (บาท)',costByLabData(recs,10)));
+        moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตาม Lab (บาท)',costByLabData(recs,10)));
 }
 function pct(n,t){ return t?(n/t*100).toFixed(1):'0.0'; }
 function statsRepTable(title,data,total){ if(!data.length)return ''; return `<table class="rep-tbl"><caption>${esc(title)}</caption><thead><tr><th>รายการ</th><th>จำนวน</th><th>ร้อยละ</th></tr></thead><tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.value}</td><td>${pct(d.value,total)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${total}</td><td>100.0</td></tr></tbody></table>`; }
