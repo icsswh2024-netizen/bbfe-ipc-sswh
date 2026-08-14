@@ -608,9 +608,9 @@ const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
   const w=460,h=214,pl=24,pr=12,pt=30,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
   const gid='bg'+Math.random().toString(36).slice(2,8);
-  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".92"/><stop offset="1" stop-color="${color}" stop-opacity=".32"/></linearGradient></defs>`;
+  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b3122e" stop-opacity=".95"/><stop offset=".55" stop-color="#e8562b" stop-opacity=".85"/><stop offset="1" stop-color="#f2a24d" stop-opacity=".6"/></linearGradient></defs>`;
   const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh,cx=(x+rw/2).toFixed(1);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="${color}" stroke-opacity=".45"/>`
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#b3122e" stroke-opacity=".4"/>`
       +(d.value?`<text x="${cx}" y="${(y-15).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
       +`<text x="${cx}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
   return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}<line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>${body}</svg>`;
@@ -662,11 +662,10 @@ function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ
 // ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
 function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
 function statsPool(){ return allRecords().filter(countable); }
-// สีเฉดเดียว เข้ม→อ่อน (ตามที่ขอ)
-function hexRgb(h){ h=String(h).replace('#',''); return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); }
-const MONO_BASE='#c8102e';
-function monoShade(t){ const [r,g,b]=hexRgb(MONO_BASE),m=v=>Math.round(v+(255-v)*t); return `rgb(${m(r)},${m(g)},${m(b)})`; }
-function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:monoShade(n<=1?0:i*0.74/(n-1))})); } // ค่ามากสุด=เข้มสุด
+// พาเลตต์ ครีม–ส้ม–แดง–เข้ม : ค่ามากสุด=แดงเข้มสุด, น้อยสุด=ครีม
+const WARM_STOPS=[[110,13,28],[179,18,46],[214,60,34],[240,150,70],[247,224,181]]; // แดงเข้ม→แดง→ส้ม→ส้มอ่อน→ครีม
+function warmRamp(t){ t=Math.max(0,Math.min(1,t)); const n=WARM_STOPS.length-1,f=t*n,i=Math.min(n-1,Math.floor(f)),g=f-i,a=WARM_STOPS[i],b=WARM_STOPS[i+1],m=k=>Math.round(a[k]+(b[k]-a[k])*g); return `rgb(${m(0)},${m(1)},${m(2)})`; }
+function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:warmRamp(n<=1?0:i/(n-1))})); }
 function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
 function topData(map,limit){ let e=Object.entries(map).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
 function statsMonths(recs){ const m=THMON_SHORT.map(label=>({label,value:0})); recs.forEach(r=>{ if(r.incidentDate){ const d=new Date(r.incidentDate+'T00:00:00'); if(!isNaN(d))m[d.getMonth()].value++; } }); return m; }
@@ -724,8 +723,7 @@ function renderStatsCharts(){
     +`<div class="chart-card"><h3>ค่าใช้จ่ายตามหน่วยงาน (บาท)</h3>${chartMoneyBars(costDept)}</div>`;
   renderStatsList(recs);
 }
-// รายการรายเคส: ตำแหน่งสัมผัส · เหตุการณ์ · มือ · นิ้ว · Lab ที่เจาะ · ราคา (สลับตาราง/กราฟได้)
-let STATS_LIST_VIEW='table';
+// รายการรายเคส (แสดงเป็นกราฟ): ตำแหน่งสัมผัส · เหตุการณ์ · มือ · นิ้ว · Lab ที่เจาะ · ค่าใช้จ่าย
 function statsListChartsHtml(recs){
   const body=colorize(topData(countBy(recs,r=>r.bodySite)));
   const event=topData(countBy(recs,r=>r.incidentDescription||'ไม่ระบุ'),8);
@@ -744,18 +742,8 @@ function statsListChartsHtml(recs){
 }
 function renderStatsList(recs){
   const box=$('#statsList'); if(!box)return;
-  const arr=v=>Array.isArray(v)?v.filter(Boolean).join(', '):(v||'');
-  const rows=recs.slice().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
-  const head=`<div class="stats-list-head"><h3>รายการรายเคส (${rows.length})</h3><div class="seg-toggle"><button type="button" data-listview="table" class="${STATS_LIST_VIEW==='table'?'on':''}">▤ ตาราง</button><button type="button" data-listview="chart" class="${STATS_LIST_VIEW==='chart'?'on':''}">📊 กราฟ</button></div></div>`;
-  if(STATS_LIST_VIEW==='chart'){
-    box.innerHTML=head+(rows.length?statsListChartsHtml(rows):'<p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p>');
-    return;
-  }
-  box.innerHTML=head
-    +`<div class="stats-list-wrap"><table class="ll-tbl"><thead><tr><th>วันที่</th><th>ตำแหน่งสัมผัส</th><th>เหตุการณ์</th><th>มือ</th><th>นิ้ว</th><th>Lab ที่เจาะ</th><th>ราคา (บาท)</th></tr></thead><tbody>`
-    +(rows.length?rows.map(r=>`<tr><td>${thaiDate(r.incidentDate)}</td><td>${esc(arr(r.bodySite))||'—'}</td><td>${esc(r.incidentDescription||'—')}</td><td>${esc(r.hand||'—')}</td><td>${esc(arr(r.fingerSite))||'—'}</td><td>${esc(arr(r.labsDrawn))||'—'}</td><td class="ll-baht">${baht(costOf(r))}</td></tr>`).join('')
-       :`<tr><td colspan="7" class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</td></tr>`)
-    +`</tbody></table></div>`;
+  box.innerHTML=`<div class="stats-list-head"><h3>รายการรายเคส — แยกตามหมวด (${recs.length} ราย)</h3></div>`
+    +(recs.length?statsListChartsHtml(recs):'<p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p>');
 }
 function pct(n,t){ return t?(n/t*100).toFixed(1):'0.0'; }
 function statsRepTable(title,data,total){ if(!data.length)return ''; return `<table class="rep-tbl"><caption>${esc(title)}</caption><thead><tr><th>รายการ</th><th>จำนวน</th><th>ร้อยละ</th></tr></thead><tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.value}</td><td>${pct(d.value,total)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${total}</td><td>100.0</td></tr></tbody></table>`; }
@@ -1291,7 +1279,6 @@ $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)
 $('#statsReset').onclick=()=>{ statsApplyDefaults(); renderStatsFilters(); renderDashboard($('#search').value); };
 $('#statsPrint').onclick=()=>openReportHtml(statsReportHtml(), null, 'a4');
 $('#statsFilters').onchange=e=>{ const s=e.target.closest('[data-sf]'); if(!s)return; STATS_F[s.dataset.sf]=s.value; renderDashboard($('#search').value); };
-$('#statsList').onclick=e=>{ const b=e.target.closest('[data-listview]'); if(!b)return; STATS_LIST_VIEW=b.dataset.listview; renderStatsList(statsFiltered()); };
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
 $('#vctBack').onclick=()=>$('#vct').close();
 $('#vctSave').onclick=()=>{ const r=records().find(x=>x.id===vctRecordId); if(!r)return; r.vct=collectVct(); commitSave(r); toast('บันทึกเอกสารแนบ VCT แล้ว'); $('#vct').close(); };
