@@ -162,10 +162,11 @@ function parseRegistryRows(rows){
   if(c.fn<0)return null;
   // คอลัมน์ค่าใช้จ่าย: ทุกหัวคอลัมน์ที่มีคำว่า "ราคา" หรือ "ค่ายา" (รวมค่าตรวจแล็บ+ค่ายา)
   const costCols=[]; H.forEach((h,i)=>{ if(/ราคา|ค่ายา/.test(h)) costCols.push(i); });
-  // คอลัมน์ผลแล็บ (เพื่อสรุป "Lab ที่เจาะ")
+  // คอลัมน์ผลแล็บ (เพื่อสรุป "Lab ที่เจาะ") + คอลัมน์ราคาที่อยู่ถัดไป (หัว "ราคา" หรือว่าง)
   const LAB_NAMES=['Anti HIV rap','Anti B rap','Anti C rap','Anti HIV CLIA','HIV Ag','HBs Ag','Anti HBs','Anti HBc','HBe Ag','Anti HCV'];
-  const labCols=LAB_NAMES.map(n=>({name:n,i:col(n)})).filter(x=>x.i>=0);
+  const labCols=LAB_NAMES.map(n=>{ const i=col(n); let pi=-1; if(i>=0){ const nx=(H[i+1]||'').trim(); if(nx===''||/ราคา/.test(nx)) pi=i+1; } return {name:n,i,pi}; }).filter(x=>x.i>=0);
   const drawn=v=>{ v=String(v||'').trim(); return v && !/^(no\s*lab|0|-|ไม่ตรวจ|ไม่ได้ตรวจ)$/i.test(v); };
+  const money=v=>{ const n=parseFloat(String(v||'').replace(/[, ฿]/g,'')); return isNaN(n)?0:n; };
   const g=(row,i)=>i>=0?String(row[i]||'').trim():'';
   const out=[];
   for(let r=hi+1;r<rows.length;r++){ const row=rows[r]||[];
@@ -175,14 +176,15 @@ function parseRegistryRows(rows){
     const pFn=g(row,c.pFn), pLn=g(row,c.pLn);
     const nature=g(row,c.nature), fluid=g(row,c.fluid), site=g(row,c.site), finger=g(row,c.finger);
     let cost=0; costCols.forEach(i=>{ const n=parseFloat(String(row[i]||'').replace(/[, ฿]/g,'')); if(!isNaN(n))cost+=n; });
-    const labsDrawn=labCols.filter(x=>drawn(row[x.i])).map(x=>x.name);
+    const labsDrawn=[], labCosts={};
+    labCols.forEach(x=>{ if(drawn(row[x.i])){ labsDrawn.push(x.name); if(x.pi>=0){ const c=money(row[x.pi]); if(c>0)labCosts[x.name]=(labCosts[x.name]||0)+c; } } });
     const rec={
       id:'sheet-'+(seq||r), imported:true,
       staffName:fn, staffName2:ln, soundex:g(row,c.soundex), hn:g(row,c.hncode),
       staffHn:g(row,c.hn), age:g(row,c.age), phone:g(row,c.tel),
       gender:REG_GENDER[gv]||g(row,c.gender), department:g(row,c.dept), staffType:g(row,c.pos),
       incidentDate:parseThaiDate(g(row,c.date)), incidentTime:g(row,c.time),
-      workYears:g(row,c.workYears), cost:cost, labsDrawn:labsDrawn,
+      workYears:g(row,c.workYears), cost:cost, labsDrawn:labsDrawn, labCosts:labCosts,
       sharpType:nature, exposureType:fluid?[fluid]:[], bodySite:site?[site]:[], hand:g(row,c.hand), fingerSite:finger?[finger]:[],
       incidentDescription:g(row,c.event),
       sourceName:[pFn,pLn].filter(Boolean).join(' '), sourceHn:g(row,c.pHn),
@@ -608,9 +610,9 @@ const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
   const w=460,h=214,pl=24,pr=12,pt=30,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
   const gid='bg'+Math.random().toString(36).slice(2,8);
-  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b3122e" stop-opacity=".95"/><stop offset=".55" stop-color="#e8562b" stop-opacity=".85"/><stop offset="1" stop-color="#f2a24d" stop-opacity=".6"/></linearGradient></defs>`;
+  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b45c40" stop-opacity=".92"/><stop offset=".55" stop-color="#d68c56" stop-opacity=".8"/><stop offset="1" stop-color="#e9b682" stop-opacity=".58"/></linearGradient></defs>`;
   const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh,cx=(x+rw/2).toFixed(1);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#b3122e" stroke-opacity=".4"/>`
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="#b45c40" stroke-opacity=".4"/>`
       +(d.value?`<text x="${cx}" y="${(y-15).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
       +`<text x="${cx}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
   return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}<line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>${body}</svg>`;
@@ -662,8 +664,8 @@ function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ
 // ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
 function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
 function statsPool(){ return allRecords().filter(countable); }
-// พาเลตต์ ครีม–ส้ม–แดง–เข้ม : ค่ามากสุด=แดงเข้มสุด, น้อยสุด=ครีม
-const WARM_STOPS=[[110,13,28],[179,18,46],[214,60,34],[240,150,70],[247,224,181]]; // แดงเข้ม→แดง→ส้ม→ส้มอ่อน→ครีม
+// พาเลตต์โทนอบอุ่น (นุ่มลง) : ค่ามากสุด=อิฐเข้ม, น้อยสุด=ครีม
+const WARM_STOPS=[[150,60,48],[186,92,64],[214,140,86],[233,182,130],[247,232,208]]; // อิฐ→ส้มดิน→ส้มอ่อน→ครีมทอง→ครีม
 function warmRamp(t){ t=Math.max(0,Math.min(1,t)); const n=WARM_STOPS.length-1,f=t*n,i=Math.min(n-1,Math.floor(f)),g=f-i,a=WARM_STOPS[i],b=WARM_STOPS[i+1],m=k=>Math.round(a[k]+(b[k]-a[k])*g); return `rgb(${m(0)},${m(1)},${m(2)})`; }
 function colorize(arr){ const n=arr.length; return arr.map((d,i)=>({...d,color:warmRamp(n<=1?0:i/(n-1))})); }
 function countBy(recs,fn){ const m={}; recs.forEach(r=>{ const vs=fn(r); (Array.isArray(vs)?vs:[vs]).forEach(v=>{ if(v)m[v]=(m[v]||0)+1; }); }); return m; }
@@ -678,6 +680,7 @@ function costOf(r){ return Number(r.cost)||0; }
 function totalCost(recs){ return recs.reduce((s,r)=>s+costOf(r),0); }
 function baht(n){ return (Number(n)||0).toLocaleString('th-TH'); }
 function costByData(recs,keyFn,limit){ const m={}; recs.forEach(r=>{ const k=keyFn(r)||'ไม่ระบุ'; m[k]=(m[k]||0)+costOf(r); }); let e=Object.entries(m).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
+function costByLabData(recs,limit){ const m={}; recs.forEach(r=>{ Object.entries(r.labCosts||{}).forEach(([k,v])=>{ m[k]=(m[k]||0)+(Number(v)||0); }); }); let e=Object.entries(m).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
 function chartMoneyBars(data){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูลค่าใช้จ่าย</p>'; const max=Math.max(1,...data.map(d=>d.value)); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(14,d.value/max*100)}%">฿${baht(d.value)}</div></div></div>`).join('')}</div>`; }
 // รายการที่ผ่านตัวกรองวิเคราะห์ (ใช้ร่วมกับตารางทะเบียนในหน้าเดียว)
 function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.fy)
@@ -734,7 +737,7 @@ function renderStatsCharts(){
     +group('🩹','ลักษณะการสัมผัส & เหตุการณ์',
         donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+hbarsC('นิ้ว (สูงสุด 8)',finger)+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs))
     +group('💰','ค่าใช้จ่าย',
-        moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตามเหตุการณ์ (บาท)',costEvent));
+        moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตามเหตุการณ์ (บาท)',costEvent)+moneyC('ตาม Lab (บาท)',costByLabData(recs,10)));
 }
 function pct(n,t){ return t?(n/t*100).toFixed(1):'0.0'; }
 function statsRepTable(title,data,total){ if(!data.length)return ''; return `<table class="rep-tbl"><caption>${esc(title)}</caption><thead><tr><th>รายการ</th><th>จำนวน</th><th>ร้อยละ</th></tr></thead><tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.value}</td><td>${pct(d.value,total)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${total}</td><td>100.0</td></tr></tbody></table>`; }
