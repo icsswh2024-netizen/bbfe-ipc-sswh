@@ -351,3 +351,11 @@ input,select,textarea,button,.search input{font-family:inherit}
 .seg-toggle button{border:0;background:#fff;color:var(--muted);font:600 13px inherit;padding:8px 14px;cursor:pointer}
 .seg-toggle button+button{border-left:1px solid var(--line)}
 .seg-toggle button.on{background:var(--teal);color:#fff}
+
+/* จัดกลุ่มกราฟเป็นหมวดหมู่ */
+.stats-group{margin:0 0 26px}
+.stats-group-head{display:flex;align-items:center;gap:9px;font-size:17px;margin:0 0 14px;padding:8px 14px;border-radius:12px;color:#fff;background:linear-gradient(90deg,#8b0f22,#c8102e 55%,#e8562b)}
+.stats-group-head span{font-size:18px;line-height:1}
+.stats-group .charts{margin-bottom:0}
+.stats-group .chart-card.lead{grid-column:1/-1}
+@media(max-width:780px){.stats-group-head{font-size:15px}}

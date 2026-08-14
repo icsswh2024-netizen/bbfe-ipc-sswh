@@ -702,48 +702,39 @@ function renderStatsCharts(){
   const fyTxt=STATS_F.fy?`ปีงบ ${STATS_F.fy}`:'ทุกปีงบ';
   const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`ฐานการนับ <b>ตำแหน่ง × ${esc(fyTxt)}</b> · รวม <b>${total}</b> ราย · ค่าใช้จ่ายรวม <b>฿${baht(cost)}</b> <span>${esc(statsFilterLabel())}</span>`;
   const box=$('#statsCharts'); if(!box)return;
-  if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; renderStatsList([]); return; }
-  const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));   // ฐานหลัก: ตำแหน่ง
+  const list=$('#statsList'); if(list)list.innerHTML='';   // รวมทุกกราฟไว้เป็นหมวดหมู่ในที่เดียว
+  if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; return; }
+  // ตัวช่วยสร้างการ์ด
+  const donutC=(t,d)=>`<div class="chart-card"><h3>${t}</h3><div class="donut-wrap">${svgDonut(d,'ราย')}${chartLegend(d)}</div></div>`;
+  const barsC=(t,d)=>`<div class="chart-card"><h3>${t}</h3>${svgBars(d)}</div>`;
+  const hbarsC=(t,d)=>`<div class="chart-card"><h3>${t}</h3>${chartHBars(d)}</div>`;
+  const moneyC=(t,d)=>`<div class="chart-card"><h3>${t}</h3>${chartMoneyBars(d)}</div>`;
+  const group=(icon,title,cards)=>`<section class="stats-group"><h2 class="stats-group-head"><span>${icon}</span>${title}</h2><div class="charts">${cards}</div></section>`;
+  // ข้อมูลแต่ละมิติ
+  const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));
   const fac=colorize(topData(countBy(recs,facilityOf)));
   const dept=topData(countBy(recs,r=>r.department||'ไม่ระบุ'),8);
   const gender=colorize(topData(countBy(recs,r=>r.gender||'ไม่ระบุ')));
+  const age=statsAgeData(recs);
   const nature=colorize(topData(countBy(recs,r=>r.sharpType||'ไม่ระบุ')));
   const expo=topData(countBy(recs,statsExpoArr),8);
-  const costDept=costByData(recs,r=>r.department||'ไม่ระบุ',8);
-  box.innerHTML=
-     `<div class="chart-card lead"><h3>ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span></h3><div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div></div>`
-    +`<div class="chart-card"><h3>ส่วน (สังกัด)</h3><div class="donut-wrap">${svgDonut(fac,'ราย')}${chartLegend(fac)}</div></div>`
-    +`<div class="chart-card"><h3>หน่วยงาน (สูงสุด 8)</h3>${chartHBars(dept)}</div>`
-    +`<div class="chart-card"><h3>ไตรมาส (ปีงบ)</h3>${svgBars(statsQuarters(recs))}</div>`
-    +`<div class="chart-card"><h3>อุบัติเหตุรายเดือน</h3>${svgBars(statsMonths(recs))}</div>`
-    +`<div class="chart-card"><h3>เพศ</h3><div class="donut-wrap">${svgDonut(gender,'ราย')}${chartLegend(gender)}</div></div>`
-    +`<div class="chart-card"><h3>ช่วงอายุ</h3>${svgBars(statsAgeData(recs))}</div>`
-    +`<div class="chart-card"><h3>ลักษณะเหตุ</h3><div class="donut-wrap">${svgDonut(nature,'ราย')}${chartLegend(nature)}</div></div>`
-    +`<div class="chart-card"><h3>การสัมผัส (สูงสุด 8)</h3>${chartHBars(expo)}</div>`
-    +`<div class="chart-card"><h3>ค่าใช้จ่ายตามหน่วยงาน (บาท)</h3>${chartMoneyBars(costDept)}</div>`;
-  renderStatsList(recs);
-}
-// รายการรายเคส (แสดงเป็นกราฟ): ตำแหน่งสัมผัส · เหตุการณ์ · มือ · นิ้ว · Lab ที่เจาะ · ค่าใช้จ่าย
-function statsListChartsHtml(recs){
   const body=colorize(topData(countBy(recs,r=>r.bodySite)));
-  const event=topData(countBy(recs,r=>r.incidentDescription||'ไม่ระบุ'),8);
   const hand=colorize(topData(countBy(recs,r=>r.hand||'ไม่ระบุ')));
   const finger=topData(countBy(recs,r=>r.fingerSite),8);
+  const event=topData(countBy(recs,r=>r.incidentDescription||'ไม่ระบุ'),8);
   const labs=topData(countBy(recs,r=>r.labsDrawn),10);
+  const costDept=costByData(recs,r=>r.department||'ไม่ระบุ',8);
   const costEvent=costByData(recs,r=>r.incidentDescription||'ไม่ระบุ',8);
-  return `<div class="charts">`
-    +`<div class="chart-card"><h3>ตำแหน่งสัมผัส</h3><div class="donut-wrap">${svgDonut(body,'ราย')}${chartLegend(body)}</div></div>`
-    +`<div class="chart-card"><h3>เหตุการณ์ (สูงสุด 8)</h3>${chartHBars(event)}</div>`
-    +`<div class="chart-card"><h3>มือ</h3><div class="donut-wrap">${svgDonut(hand,'ราย')}${chartLegend(hand)}</div></div>`
-    +`<div class="chart-card"><h3>นิ้ว (สูงสุด 8)</h3>${chartHBars(finger)}</div>`
-    +`<div class="chart-card"><h3>Lab ที่เจาะ (สูงสุด 10)</h3>${chartHBars(labs)}</div>`
-    +`<div class="chart-card"><h3>ค่าใช้จ่ายตามเหตุการณ์ (บาท)</h3>${chartMoneyBars(costEvent)}</div>`
-    +`</div>`;
-}
-function renderStatsList(recs){
-  const box=$('#statsList'); if(!box)return;
-  box.innerHTML=`<div class="stats-list-head"><h3>รายการรายเคส — แยกตามหมวด (${recs.length} ราย)</h3></div>`
-    +(recs.length?statsListChartsHtml(recs):'<p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p>');
+  const leadCard=`<div class="chart-card lead"><h3>ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span></h3><div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div></div>`;
+  box.innerHTML=
+     group('👤','บุคลากร',
+        leadCard+donutC('ส่วน (สังกัด)',fac)+hbarsC('หน่วยงาน (สูงสุด 8)',dept)+donutC('เพศ',gender)+barsC('ช่วงอายุ',age))
+    +group('📅','ช่วงเวลา',
+        barsC('ไตรมาส (ปีงบ)',statsQuarters(recs))+barsC('อุบัติเหตุรายเดือน',statsMonths(recs)))
+    +group('🩹','ลักษณะการสัมผัส & เหตุการณ์',
+        donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+hbarsC('นิ้ว (สูงสุด 8)',finger)+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs))
+    +group('💰','ค่าใช้จ่าย',
+        moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตามเหตุการณ์ (บาท)',costEvent));
 }
 function pct(n,t){ return t?(n/t*100).toFixed(1):'0.0'; }
 function statsRepTable(title,data,total){ if(!data.length)return ''; return `<table class="rep-tbl"><caption>${esc(title)}</caption><thead><tr><th>รายการ</th><th>จำนวน</th><th>ร้อยละ</th></tr></thead><tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.value}</td><td>${pct(d.value,total)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${total}</td><td>100.0</td></tr></tbody></table>`; }
