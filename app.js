@@ -596,22 +596,25 @@ function icnPending(r){ return !(r.staffHiv||r.staffHbsAg||r.staffAntiHbs||r.sta
 // ---- Overview charts (inline SVG/CSS, no external libraries) ----
 const THMON_SHORT=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const CAT_COLORS=['#c8102e','#f2857f','#f6b26b','#8e7cc3','#3d85c6','#2e9e5b','#e53935'];
+const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
-  const w=460,h=210,pl=24,pr=12,pt=18,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length;
-  const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="${color}"/>`
-      +(d.value?`<text x="${(x+rw/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text>`:'')
-      +`<text x="${(x+rw/2).toFixed(1)}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet"><line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>${body}</svg>`;
+  const w=460,h=214,pl=24,pr=12,pt=30,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
+  const gid='bg'+Math.random().toString(36).slice(2,8);
+  const grad=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".92"/><stop offset="1" stop-color="${color}" stop-opacity=".32"/></linearGradient></defs>`;
+  const body=data.map((d,i)=>{ const bh=Math.round(ih*d.value/max),rw=Math.min(46,bw*0.6),x=pl+i*bw+(bw-rw)/2,y=pt+ih-bh,cx=(x+rw/2).toFixed(1);
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${bh}" rx="6" fill="url(#${gid})" stroke="${color}" stroke-opacity=".45"/>`
+      +(d.value?`<text x="${cx}" y="${(y-15).toFixed(1)}" text-anchor="middle" class="cval">${d.value}</text><text x="${cx}" y="${(y-5).toFixed(1)}" text-anchor="middle" class="cpct">${pct(d.value,total)}%</text>`:'')
+      +`<text x="${cx}" y="${pt+ih+18}" text-anchor="middle" class="clbl">${d.label}</text>`; }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet">${grad}<line x1="${pl}" y1="${pt+ih}" x2="${w-pr}" y2="${pt+ih}" class="axis"/>${body}</svg>`;
 }
 function svgDonut(data,cap='รายการ'){
   const size=170,thick=32,r=(size-thick)/2,cx=size/2,cy=size/2,C=2*Math.PI*r,total=data.reduce((s,d)=>s+d.value,0);
   let off=0; const src=total?data:[{value:1,color:'#eee'}];
-  const segs=src.map(d=>{ const len=C*(total?d.value:1)/(total||1),s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-width="${thick}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`; off+=len; return s; }).join('');
+  const segs=src.map(d=>{ const len=C*(total?d.value:1)/(total||1),s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-opacity=".82" stroke-width="${thick}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`; off+=len; return s; }).join('');
   return `<svg viewBox="0 0 ${size} ${size}" class="donut-svg">${segs}<text x="${cx}" y="${cy-2}" text-anchor="middle" class="donut-num">${total}</text><text x="${cx}" y="${cy+16}" text-anchor="middle" class="donut-cap">${cap}</text></svg>`;
 }
-function chartLegend(data){ return `<div class="legend">${data.map(d=>`<div class="li"><span class="sw" style="background:${d.color}"></span><span>${esc(d.label)}</span><span class="lv">${d.value}</span></div>`).join('')}</div>`; }
-function chartHBars(data,color='#c8102e'){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูล</p>'; const max=Math.max(1,...data.map(d=>d.value)); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(12,d.value/max*100)}%">${d.value}</div></div></div>`).join('')}</div>`; }
+function chartLegend(data){ const total=sumVals(data); return `<div class="legend">${data.map(d=>`<div class="li"><span class="sw" style="background:${d.color}"></span><span>${esc(d.label)}</span><span class="lv">${d.value} <em>(${pct(d.value,total)}%)</em></span></div>`).join('')}</div>`; }
+function chartHBars(data,color='#c8102e'){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูล</p>'; const max=Math.max(1,...data.map(d=>d.value)),total=sumVals(data); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(14,d.value/max*100)}%">${d.value} · ${pct(d.value,total)}%</div></div></div>`).join('')}</div>`; }
 function renderCharts(){
   const box=$('#dashCharts'); if(!box)return; const items=allRecords();
   if(!items.length){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ยังไม่มีข้อมูลสำหรับสรุปภาพรวม</p></div>'; return; }
@@ -671,18 +674,19 @@ function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.f
  &&(!STATS_F.age||ageBand(r.age)===STATS_F.age); }
 function renderStatsCharts(){
   const recs=statsFiltered(), total=recs.length;
-  const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`สรุปกราฟ <b>${total}</b> ราย <span>${esc(statsFilterLabel())}</span>`;
+  const fyTxt=STATS_F.fy?`ปีงบ ${STATS_F.fy}`:'ทุกปีงบ';
+  const hl=$('#statsHeadline'); if(hl) hl.innerHTML=`ฐานการนับ <b>ตำแหน่ง × ${esc(fyTxt)}</b> · รวม <b>${total}</b> ราย <span>${esc(statsFilterLabel())}</span>`;
   const box=$('#statsCharts'); if(!box)return;
   if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; return; }
+  const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));   // ฐานหลัก: ตำแหน่ง (ตามปีงบที่เลือก)
   const dept=topData(countBy(recs,r=>r.department||'ไม่ระบุ'),8);
-  const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));
   const gender=colorize(topData(countBy(recs,r=>r.gender||'ไม่ระบุ')));
   const nature=colorize(topData(countBy(recs,r=>r.sharpType||'ไม่ระบุ')));
   const expo=topData(countBy(recs,statsExpoArr),8);
   box.innerHTML=
-     `<div class="chart-card"><h3>อุบัติเหตุรายเดือน</h3>${svgBars(statsMonths(recs))}</div>`
+     `<div class="chart-card lead"><h3>ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span></h3><div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div></div>`
+    +`<div class="chart-card"><h3>อุบัติเหตุรายเดือน</h3>${svgBars(statsMonths(recs))}</div>`
     +`<div class="chart-card"><h3>หน่วยงาน (สูงสุด 8)</h3>${chartHBars(dept)}</div>`
-    +`<div class="chart-card"><h3>ตำแหน่ง</h3><div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div></div>`
     +`<div class="chart-card"><h3>เพศ</h3><div class="donut-wrap">${svgDonut(gender,'ราย')}${chartLegend(gender)}</div></div>`
     +`<div class="chart-card"><h3>ช่วงอายุ</h3>${svgBars(statsAgeData(recs))}</div>`
     +`<div class="chart-card"><h3>ลักษณะเหตุ</h3><div class="donut-wrap">${svgDonut(nature,'ราย')}${chartLegend(nature)}</div></div>`
