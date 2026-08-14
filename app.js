@@ -605,7 +605,8 @@ let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'i
 function icnPending(r){ return !(r.staffHiv||r.staffHbsAg||r.staffAntiHbs||r.staffHcv||r.pepRegimen||r.hemoglobin||r.otherTreatment||r.noTreatmentReason); }
 // ---- Overview charts (inline SVG/CSS, no external libraries) ----
 const THMON_SHORT=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-const CAT_COLORS=['#c8102e','#f2857f','#f6b26b','#8e7cc3','#3d85c6','#2e9e5b','#e53935'];
+// พาเลทสีหลัก (ธีมแดง MOPH) สำหรับสีกราฟแบบหลายหมวด
+const CAT_COLORS=['#C8102E','#E53935','#F25C54','#FF8A80','#FFC1C8','#B71C1C','#D32F2F','#FAD2D2','#BDBDBD'];
 const sumVals=arr=>arr.reduce((s,d)=>s+(d.value||0),0);
 function svgBars(data,color='#c8102e'){
   const w=460,h=220,pl=34,pr=12,pt=32,pb=30,iw=w-pl-pr,ih=h-pt-pb,max=Math.max(1,...data.map(d=>d.value)),bw=iw/data.length,total=sumVals(data);
