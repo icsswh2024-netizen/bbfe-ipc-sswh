@@ -137,6 +137,81 @@ function docViewerHtml(list){
              :`<div class="doc-frame doc-noembed"><a href="${esc(e.open)}" target="_blank" rel="noopener">เปิดไฟล์ในแท็บใหม่</a></div>`);
   }).join('')+`</div>`;
 }
+// ---- ทะเบียนเดิมจากแท็บ "01-บันชีรายชื่อ" (อ่านอย่างเดียว ไม่มีการเขียนกลับ ป้องกันไฟล์ต้นฉบับเสียหาย) ----
+const REGISTRY_SHEET = '01-บันชีรายชื่อ';
+const REGISTRY_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(REGISTRY_SHEET)}`;
+const REGISTRY_CACHE_KEY = 'icsswh-registry-cache-v1';
+function loadCachedRegistry(){ try { const v=JSON.parse(localStorage.getItem(REGISTRY_CACHE_KEY)); return Array.isArray(v)?v:[]; } catch { return []; } }
+let IMPORTED_RECORDS = loadCachedRegistry();
+// วันที่ไทย dd/mm/พ.ศ. -> ISO yyyy-mm-dd (คืนค่าดิบถ้าแปลงไม่ได้)
+function parseThaiDate(s){ s=String(s||'').trim(); const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{3,4})$/); if(!m)return ''; let[_,d,mo,y]=m; y=+y; if(y>2400)y-=543; return `${y}-${String(+mo).padStart(2,'0')}-${String(+d).padStart(2,'0')}`; }
+const REG_GENDER={female:'หญิง',male:'ชาย',f:'หญิง',m:'ชาย'};
+function parseRegistryRows(rows){
+  if(!rows||!rows.length)return null;
+  // หาแถวหัวตาราง (มีคำว่า "ชื่อบุคลากร")
+  let hi=-1; for(let i=0;i<Math.min(rows.length,8);i++){ if((rows[i]||[]).some(c=>String(c).trim()==='ชื่อบุคลากร')){hi=i;break;} }
+  if(hi<0)return null;
+  const H=rows[hi].map(h=>String(h).trim());
+  const col=(...names)=>{ for(const n of names){ const i=H.indexOf(n); if(i>=0)return i; } return -1; };
+  const c={ seq:col('ลำดับที่','ลำดับ'), dept:col('หน่วยงาน'), pos:col('ตำแหน่ง'), fn:col('ชื่อบุคลากร'), ln:col('นามสกุลบุคลากร'),
+    soundex:col('Soundex code'), hncode:col('HN code'), hn:col('HNบุคลากร','HN บุคลากร'), age:col('อายุ (ปี)','อายุ'), tel:col('Tel','เบอร์โทร'),
+    gender:col('เพศ'), date:col('วันที่เกิดเหตุ'), time:col('เวลา'), nature:col('ลักษณะเหตุ'), site:col('ตำแหน่งสัมผัส'),
+    fluid:col('เลือด/สารคัดหลั่ง'), event:col('เหตุการณ์'), finger:col('นิ้ว'), workYears:col('อายุการทำงาน จนท. (ปี)','อายุการทำงาน จนท.'),
+    pHn:col('HN ผู้ป่วย'), pFn:col('ชื่อผู้ป่วย'), pLn:col('นามสกุลผู้ป่วย'),
+    pHiv:col('Anti HIV CLIA'), pHivRap:col('Anti HIV rap'), pHbs:col('HBs Ag'), pHcv:col('Anti HCV') };
+  if(c.fn<0)return null;
+  const g=(row,i)=>i>=0?String(row[i]||'').trim():'';
+  const out=[];
+  for(let r=hi+1;r<rows.length;r++){ const row=rows[r]||[];
+    const fn=g(row,c.fn), ln=g(row,c.ln), seq=g(row,c.seq);
+    if(!fn&&!ln&&!g(row,c.hn))continue;                 // ข้ามแถวว่าง
+    const gv=g(row,c.gender).toLowerCase();
+    const pFn=g(row,c.pFn), pLn=g(row,c.pLn);
+    const nature=g(row,c.nature), fluid=g(row,c.fluid), site=g(row,c.site), finger=g(row,c.finger);
+    const rec={
+      id:'sheet-'+(seq||r), imported:true,
+      staffName:fn, staffName2:ln, soundex:g(row,c.soundex), hn:g(row,c.hncode),
+      staffHn:g(row,c.hn), age:g(row,c.age), phone:g(row,c.tel),
+      gender:REG_GENDER[gv]||g(row,c.gender), department:g(row,c.dept), staffType:g(row,c.pos),
+      incidentDate:parseThaiDate(g(row,c.date)), incidentTime:g(row,c.time),
+      workYears:g(row,c.workYears),
+      sharpType:nature, exposureType:fluid?[fluid]:[], bodySite:site?[site]:[], fingerSite:finger?[finger]:[],
+      incidentDescription:g(row,c.event),
+      sourceName:[pFn,pLn].filter(Boolean).join(' '), sourceHn:g(row,c.pHn),
+      sourceHiv:g(row,c.pHiv)||g(row,c.pHivRap), sourceHbsAg:g(row,c.pHbs), sourceHcv:g(row,c.pHcv),
+    };
+    rec.createdAt=rec.incidentDate?rec.incidentDate+'T00:00:00':'';
+    out.push(rec);
+  }
+  return out;
+}
+async function loadRegistryFromSheet(){
+  try {
+    const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),8000);
+    const res=await fetch(REGISTRY_CSV_URL,{signal:ctrl.signal}); clearTimeout(timer);
+    if(!res.ok)return;
+    const recs=parseRegistryRows(parseCSV(await res.text()));
+    if(recs){ IMPORTED_RECORDS=recs; localStorage.setItem(REGISTRY_CACHE_KEY,JSON.stringify(recs));
+      if($('#dashboard').classList.contains('active')) renderDashboard($('#search').value); }
+  } catch { /* เก็บแคชไว้ ใช้งานต่อได้ */ }
+}
+// รายการทั้งหมด = ที่บันทึกในเครื่อง + ที่นำเข้าจากชีต (ชีตอ่านอย่างเดียว)
+function allRecords(){ return records().concat(IMPORTED_RECORDS||[]); }
+// ---- PDPA: ปกปิดข้อมูลส่วนบุคคลในหน้าทะเบียน (โหมด records) ; แอดมินเห็นครบ ----
+function maskMid(s,keep){ s=String(s==null?'':s); if(s.length<=keep)return s?'•'.repeat(Math.max(1,s.length)):''; return '•'.repeat(s.length-keep)+s.slice(-keep); }
+function maskName(s){ s=String(s==null?'':s).trim(); if(!s)return ''; const a=[...s]; return a[0]+'•'.repeat(Math.max(1,a.length-1)); }
+function pdpaClone(r){
+  const m={...r};
+  m.staffName=maskName(r.staffName); m.staffName2=maskName(r.staffName2);
+  m.staffHn=maskMid(r.staffHn,3); m.hn=maskMid(r.hn,3); m.soundex=r.soundex?maskMid(r.soundex,2):'';
+  m.phone=maskMid(r.phone,3); m.line=r.line?maskMid(r.line,2):'';
+  m.sourceName=r.sourceName?maskName(r.sourceName.split(' ')[0])+(r.sourceName.includes(' ')?' •••':''):'';
+  m.sourceHn=maskMid(r.sourceHn,3);
+  if(Array.isArray(r.sourcePatients)) m.sourcePatients=r.sourcePatients.map(p=>({...p,name:p.name?maskName(String(p.name).split(' ')[0]):'',hn:maskMid(p.hn,3)}));
+  return m;
+}
+// มุมมองตามโหมด: ทะเบียนสาธารณะ = ปกปิด PDPA, โหมดอื่น = ครบ
+function pdpaView(r){ return dashMode==='records' ? pdpaClone(r) : r; }
 // Header logos from the "logo" tab (col A=name, col B=file). Keeps the static assets/ images as fallback.
 function driveImg(u) { u = String(u || '').trim(); const m = u.match(/\/d\/([\w-]+)/) || u.match(/[?&]id=([\w-]+)/); return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w480` : u; }
 function applyLogos(map) { if (!map) return; Object.entries(map).forEach(([name, url]) => { const img = document.querySelector(`img[data-logo="${name}"]`); if (img && url) img.src = driveImg(url); }); }
@@ -538,7 +613,7 @@ function svgDonut(data,cap='รายการ'){
 function chartLegend(data){ return `<div class="legend">${data.map(d=>`<div class="li"><span class="sw" style="background:${d.color}"></span><span>${esc(d.label)}</span><span class="lv">${d.value}</span></div>`).join('')}</div>`; }
 function chartHBars(data,color='#c8102e'){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูล</p>'; const max=Math.max(1,...data.map(d=>d.value)); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(12,d.value/max*100)}%">${d.value}</div></div></div>`).join('')}</div>`; }
 function renderCharts(){
-  const box=$('#dashCharts'); if(!box)return; const items=records();
+  const box=$('#dashCharts'); if(!box)return; const items=allRecords();
   if(!items.length){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ยังไม่มีข้อมูลสำหรับสรุปภาพรวม</p></div>'; return; }
   const now=new Date(), months=[];
   for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1); months.push({y:d.getFullYear(),m:d.getMonth(),label:THMON_SHORT[d.getMonth()],value:0}); }
@@ -559,7 +634,7 @@ function renderCharts(){
     +`<div class="chart-card"><h3>สถานะการติดตาม</h3><div class="donut-wrap">${svgDonut(status)}${chartLegend(status)}</div></div>`;
 }
 function renderDashboard(query='') {
-  let items = records().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
+  let items = allRecords().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
   if(dashMode==='icn') items = items.slice().sort((a,b)=>(icnPending(b)?1:0)-(icnPending(a)?1:0)); // ICN: unsaved (new) first, saved stay in list
   const q=query.trim().toLowerCase();
   const filtered=items.filter(r=>[r.staffName,r.staffHn,r.soundex,r.location,r.incidentDescription].join(' ').toLowerCase().includes(q));
@@ -572,7 +647,7 @@ function renderDashboard(query='') {
     ? (hasVct(r)?'<span class="status done">แนบแล้ว</span>':'<span class="status">ยังไม่แนบ</span>')
     : `<span class="status ${isComplete(r)?'done':''}">${isComplete(r)?'ติดตามครบ':'รอติดตาม'}</span>`;
   const actionLabel=r=>dashMode==='icn'?(icnPending(r)?'กรอกส่วนที่ 4 →':'แก้ไขส่วนที่ 4 →'):(dashMode==='vct'?(hasVct(r)?'แก้ไข VCT →':'กรอก VCT →'):'ดูรายละเอียด →');
-  $('#recordRows').innerHTML=filtered.map(r=>`<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(r.staffName||'ไม่ระบุชื่อ')}</b><small>${esc(r.staffType||'')} ${r.staffHn?'• HN '+esc(r.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(r.location||'')}</small></td><td>${statusCell(r)}</td><td class="row-actions"><button data-view="${r.id}">${actionLabel(r)}</button></td></tr>`).join('');
+  $('#recordRows').innerHTML=filtered.map(r=>{ const v=pdpaView(r); const badge=r.imported?'<span class="reg-badge" title="นำเข้าจากชีตทะเบียนเดิม">ชีต</span>':''; return `<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(v.staffName||'ไม่ระบุชื่อ')}</b>${badge}<small>${esc(v.staffType||'')} ${v.staffHn?'• HN '+esc(v.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(v.location||'')}</small></td><td>${statusCell(r)}</td><td class="row-actions"><button data-view="${r.id}">${actionLabel(r)}</button></td></tr>`; }).join('');
   $('#emptyState').innerHTML = dashMode==='icn'
     ? '<b>ยังไม่มีรายการอุบัติเหตุ</b><span>เมื่อเจ้าหน้าที่บันทึกเหตุการณ์ใหม่ จะปรากฏที่นี่</span>'
     : '<b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span>';
@@ -632,7 +707,7 @@ function icnDetailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(
     + `<section class="detail-section"><h4>การรักษาอื่น / กรณีไม่ได้รับยา</h4><div class="detail-grid">${item('การรักษาอื่น ๆ',r.otherTreatment)}${item('เหตุผลที่ไม่ได้รับการรักษา',r.noTreatmentReason)}</div></section>`
     + `<section class="detail-section"><h4>ผล CBC และการทำงานของตับ/ไต</h4><div class="detail-grid">${baselineNames.map(([k,l])=>item(l,r[k])).join('')}</div></section>`;
 }
-function detailHtml(r){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); return `<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ระยะเวลาปฏิบัติงาน',(r.workYears||r.workMonths)?`${r.workYears||0} ปี ${r.workMonths||0} เดือน`:'')}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section>${(()=>{const pl=(r.sourcePatients&&r.sourcePatients.length)?r.sourcePatients:[{name:r.sourceName,hn:r.sourceHn,hiv:r.sourceHiv,hbsAg:r.sourceHbsAg,hcv:r.sourceHcv,risk:r.sourceRisk,riskDetail:r.sourceRiskDetail}];return `<section class="detail-section"><h4>ผู้ป่วยต้นเหตุ (${pl.length})</h4>${pl.map((p,i)=>`<div class="detail-grid">${item('คนที่ '+(i+1)+' • ชื่อ/HN',[p.name,p.hn].filter(Boolean).join(' / '))}${item('Anti HIV',p.hiv)}${item('HBs Ag',p.hbsAg)}${item('Anti HCV',p.hcv)}${item('พฤติกรรมเสี่ยง',[p.risk,p.riskDetail].filter(Boolean).join(' — '))}</div>`).join('')}</section>`;})()}<section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>${r.sign?`<section class="detail-section sign-detail"><h4>ลงชื่อผู้ให้ความยินยอม</h4><img class="sign-img" src="${r.sign}" alt="ลายเซ็น">${r.consentDate?`<div class="detail-meta" style="margin-top:8px">วันที่ ${thaiDate(r.consentDate)}</div>`:''}</section>`:''}`; }
+function detailHtml(r, imported){ const item=(label,value)=>`<div><b>${label}</b>${esc(value||'—')}</div>`; const labs=(pairs)=>pairs.map(([k,l])=>item(l,r[k])).join(''); const banner=imported?`<div class="reg-note">📄 นำเข้าจากทะเบียนเดิม (แท็บ ${esc(REGISTRY_SHEET)}) — อ่านอย่างเดียว แก้ไขที่ Google Sheet เท่านั้น</div>`:''; return banner+`<span class="eyebrow">INCIDENT RECORD</span><h2 class="detail-title">${esc(r.staffName||'ไม่ระบุชื่อ')}</h2><div class="detail-meta">${thaiDate(r.incidentDate)} เวลา ${esc(r.incidentTime||'—')} น. • ${esc(r.location||'ไม่ระบุสถานที่')}</div><section class="detail-section"><h4>ข้อมูลเหตุการณ์</h4><div class="detail-grid">${item('HN บุคลากร',r.staffHn)}${item('Soundex',r.soundex)}${item('หน่วยงาน',r.department)}${item('กลุ่มงาน',r.workGroup)}${item('ตำแหน่ง',r.staffType)}${item('ระยะเวลาปฏิบัติงาน',(r.workYears||r.workMonths)?`${r.workYears||0} ปี ${r.workMonths||0} เดือน`:'')}${item('ลักษณะอุบัติเหตุ',exposureLabel(r))}${item('อวัยวะที่สัมผัส',r.bodySite)}${item('การปฐมพยาบาล',r.firstAid)}</div><p>${esc(r.incidentDescription||'')}</p></section>${(()=>{const pl=(r.sourcePatients&&r.sourcePatients.length)?r.sourcePatients:[{name:r.sourceName,hn:r.sourceHn,hiv:r.sourceHiv,hbsAg:r.sourceHbsAg,hcv:r.sourceHcv,risk:r.sourceRisk,riskDetail:r.sourceRiskDetail}];return `<section class="detail-section"><h4>ผู้ป่วยต้นเหตุ (${pl.length})</h4>${pl.map((p,i)=>`<div class="detail-grid">${item('คนที่ '+(i+1)+' • ชื่อ/HN',[p.name,p.hn].filter(Boolean).join(' / '))}${item('Anti HIV',p.hiv)}${item('HBs Ag',p.hbsAg)}${item('Anti HCV',p.hcv)}${item('พฤติกรรมเสี่ยง',[p.risk,p.riskDetail].filter(Boolean).join(' — '))}</div>`).join('')}</section>`;})()}<section class="detail-section"><h4>ผลบุคลากร Day 0</h4><div class="detail-grid">${labs(staffLabNames)}</div></section><section class="detail-section"><h4>การรักษา</h4><div class="detail-grid">${item('สูตรยา',r.pepRegimen)}${item('ขนาดยา',r.pepDose)}${item('เริ่มยา',thaiDate(r.pepStart))}${item('ผลการรับประทาน',r.pepOutcome)}</div></section><section class="detail-section"><h4>การติดตาม</h4><div class="detail-grid">${item('เดือนที่ 1',`${thaiDate(r.follow1Date)} • HIV ${r.follow1HIV||'—'} • HCV ${r.follow1HCV||'—'}`)}${item('เดือนที่ 3',`${thaiDate(r.follow3Date)} • HIV ${r.follow3HIV||'—'}`)}${item('เดือนที่ 6',`${thaiDate(r.follow6Date)} • HIV ${r.follow6HIV||'—'} • HBsAg ${r.follow6HbsAg||'—'} • HCV ${r.follow6HCV||'—'}`)}</div></section>${r.sign?`<section class="detail-section sign-detail"><h4>ลงชื่อผู้ให้ความยินยอม</h4><img class="sign-img" src="${r.sign}" alt="ลายเซ็น">${r.consentDate?`<div class="detail-meta" style="margin-top:8px">วันที่ ${thaiDate(r.consentDate)}</div>`:''}</section>`:''}`; }
 
 // ---- Official A4 document (Form IC 1) — one continuous form: page 1 (items 1–10, staff) + page 2 (items 11–16, admin) ----
 const THAI_MONTHS=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -773,7 +848,7 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet(); loadDocsFromSheet();
+reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet(); loadDocsFromSheet(); loadRegistryFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
@@ -1090,20 +1165,25 @@ function printReport(){ if(!reportHtml)return; $('#pageStyle').textContent = (re
 $('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode('save'); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
-$('#viewReportDetail').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; openReport(r, ()=>{ $('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r); }); };
+$('#viewReportDetail').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; const rv=pdpaView(r); openReport(rv, r.imported?null:()=>{ $('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r); }); };
 $('#previewPrint').onclick=()=>printReport();
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='report'){ if(reportEditFn) reportEditFn(); } else if(previewState!=='ref'){ pendingSave=null; } };
 $('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=records().find(x=>x.id===selectedId);if(!r)return;if(dashMode==='icn'){openIcnEdit(r);return;}if(dashMode==='vct'){openVct(r);return;}$('#detailContent').innerHTML=detailHtml(r);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';$('#detailDialog').showModal();};
+$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=allRecords().find(x=>x.id===selectedId);if(!r)return;
+  // รายการนำเข้าจากชีต = อ่านอย่างเดียว เปิดหน้ารายละเอียดเสมอ (ทุกโหมด)
+  if(!r.imported){ if(dashMode==='icn'){openIcnEdit(r);return;} if(dashMode==='vct'){openVct(r);return;} }
+  $('#detailContent').innerHTML=detailHtml(pdpaView(r), r.imported);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';
+  $('#editRecord').classList.toggle('hidden',!!r.imported); const del=$('#deleteRecord'); if(del)del.classList.toggle('hidden',!!r.imported);
+  $('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
-$('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};
+$('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};  // imported (sheet-*) ไม่อยู่ใน records() จึงแก้ไม่ได้
 $('#attachVctBtn').onclick=openVctFromEditor;
 form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.target.checked && e.target.value==='ใช่'){ openVctFromEditor(); } });
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
-$('#printRecord').onclick=()=>{ const r=records().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(r); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
+$('#printRecord').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
 $('#exportCsv').onclick=csvExport;
