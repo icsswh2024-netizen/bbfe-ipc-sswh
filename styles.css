@@ -243,3 +243,10 @@ input,select,textarea,button,.search input{font-family:inherit}
 .popup-box.auto .popup-msg{margin-bottom:0}
 
 .dm-seg button.on.pull{background:#0b6b5e;color:#fff}
+
+/* การจัดการข้อมูล — แท็บสลับ 2 กลุ่ม */
+.dm-tabs{display:flex;gap:8px;margin:2px 0 16px;flex-wrap:wrap}
+.dm-tab{flex:1;min-width:220px;border:1px solid var(--line);background:#fff;color:var(--muted);font:700 13.5px "Prompt",system-ui,sans-serif;padding:12px 14px;border-radius:12px;cursor:pointer;text-align:center;transition:.15s}
+.dm-tab:hover{border-color:var(--teal);color:var(--ink)}
+.dm-tab.active[data-dmtab="main"]{background:linear-gradient(120deg,#c8102e,#e5484d);color:#fff;border-color:transparent;box-shadow:0 8px 20px -10px rgba(200,16,46,.6)}
+.dm-tab.active[data-dmtab="vct"]{background:linear-gradient(120deg,#4a2b8c,#7350c9);color:#fff;border-color:transparent;box-shadow:0 8px 20px -10px rgba(74,43,140,.6)}

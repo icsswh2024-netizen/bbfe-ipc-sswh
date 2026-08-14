@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=78">
+  <link rel="stylesheet" href="styles.css?v=79">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -123,12 +123,15 @@
     <dialog id="dataMgr" class="vct-dialog dm-dialog">
       <div class="vct-head"><button class="back" id="dmClose" aria-label="ปิด"><span class="back-ico">←</span><span class="back-txt">ปิด</span></button><div><span class="eyebrow">ส่วนแอดมิน</span><h1>การจัดการข้อมูล</h1></div><div class="vct-head-actions"><button type="button" class="btn ghost dark" id="dmSetupBtn">⚙ ตั้งค่าเชื่อมต่อ</button><a class="btn ghost dark" id="dmOpenSheet" target="_blank" rel="noopener">↗ เปิดชีต fields</a></div></div>
       <div class="vct-body"><div id="dmIntro" class="dm-intro"></div>
-        <div class="dm-grouphead">ฟอร์มหลัก · ข้อมูลบุคลากรและเหตุการณ์</div>
-        <div class="dm-toolbar"><button type="button" class="btn ghost dark" id="dmAddSection">+ เพิ่มส่วน</button><button type="button" class="btn ghost dark" id="dmAddField">+ เพิ่มคำถาม</button></div>
-        <div id="dmList"></div>
-        <div class="dm-grouphead dm-grouphead-vct">VCT / เอกสารแนบ · ใบยินยอมตรวจเลือด</div>
-        <div class="dm-toolbar"><button type="button" class="btn ghost dark" id="dmVAddSection">+ เพิ่มส่วน</button><button type="button" class="btn ghost dark" id="dmVAddField">+ เพิ่มคำถาม</button></div>
-        <div id="dmVct"></div></div>
+        <div class="dm-tabs"><button type="button" class="dm-tab active" data-dmtab="main">📋 ฟอร์มหลัก · ข้อมูลบุคลากรและเหตุการณ์</button><button type="button" class="dm-tab" data-dmtab="vct">🧪 VCT / เอกสารแนบ · ใบยินยอมตรวจเลือด</button></div>
+        <div class="dm-pane" data-pane="main">
+          <div class="dm-toolbar"><button type="button" class="btn ghost dark" id="dmAddSection">+ เพิ่มส่วน</button><button type="button" class="btn ghost dark" id="dmAddField">+ เพิ่มคำถาม</button></div>
+          <div id="dmList"></div>
+        </div>
+        <div class="dm-pane hidden" data-pane="vct">
+          <div class="dm-toolbar"><button type="button" class="btn ghost dark" id="dmVAddSection">+ เพิ่มส่วน</button><button type="button" class="btn ghost dark" id="dmVAddField">+ เพิ่มคำถาม</button></div>
+          <div id="dmVct"></div>
+        </div></div>
       <div class="form-actions vct-foot"><span id="dmHint" style="margin-right:auto;color:var(--muted);font-size:13px"></span><button type="button" class="btn ghost dark" id="dmReset">↺ รีเซ็ตให้ตรงกับชีต</button><button type="button" class="btn ghost dark" id="dmCopy">📋 คัดลอก</button><button type="button" class="btn primary" id="dmSave">💾 บันทึกลงชีต</button></div>
     </dialog>
 
@@ -162,6 +165,6 @@
     <button type="button" data-tab="icn"><span class="ti">✚</span><span>ICN</span></button>
     <button type="button" data-tab="records"><span class="ti">▤</span><span>ทะเบียน</span></button>
   </nav>
-  <script src="app.js?v=78"></script>
+  <script src="app.js?v=79"></script>
 </body>
 </html>
