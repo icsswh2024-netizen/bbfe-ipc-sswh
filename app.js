@@ -707,11 +707,12 @@ function renderStatsCharts(){
   const box=$('#statsCharts'); if(!box)return;
   const list=$('#statsList'); if(list)list.innerHTML='';   // รวมทุกกราฟไว้เป็นหมวดหมู่ในที่เดียว
   if(!total){ box.innerHTML='<div class="chart-card" style="grid-column:1/-1"><p class="chart-empty">ไม่มีข้อมูลตามตัวกรองนี้</p></div>'; return; }
-  // ตัวช่วยสร้างการ์ด
-  const donutC=(t,d)=>`<div class="chart-card"><h3>${t}</h3><div class="donut-wrap">${svgDonut(d,'ราย')}${chartLegend(d)}</div></div>`;
-  const barsC=(t,d)=>`<div class="chart-card"><h3>${t}</h3>${svgBars(d)}</div>`;
-  const hbarsC=(t,d)=>`<div class="chart-card"><h3>${t}</h3>${chartHBars(d)}</div>`;
-  const moneyC=(t,d)=>`<div class="chart-card"><h3>${t}</h3>${chartMoneyBars(d)}</div>`;
+  // ตัวช่วยสร้างการ์ด — หัวข้ออยู่คอลัมน์ซ้าย กราฟอยู่ขวา
+  const card=(t,inner,cls='')=>`<div class="chart-card ${cls}"><div class="cc-head"><h3>${t}</h3></div><div class="cc-body">${inner}</div></div>`;
+  const donutC=(t,d)=>card(t,`<div class="donut-wrap">${svgDonut(d,'ราย')}${chartLegend(d)}</div>`);
+  const barsC=(t,d)=>card(t,svgBars(d));
+  const hbarsC=(t,d)=>card(t,chartHBars(d));
+  const moneyC=(t,d)=>card(t,chartMoneyBars(d));
   const group=(icon,title,cards)=>`<section class="stats-group"><h2 class="stats-group-head"><span>${icon}</span>${title}</h2><div class="charts">${cards}</div></section>`;
   // ข้อมูลแต่ละมิติ
   const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));
@@ -728,7 +729,7 @@ function renderStatsCharts(){
   const labs=topData(countBy(recs,r=>r.labsDrawn),10);
   const costDept=costByData(recs,r=>r.department||'ไม่ระบุ',8);
   const costEvent=costByData(recs,r=>r.incidentDescription||'ไม่ระบุ',8);
-  const leadCard=`<div class="chart-card lead"><h3>ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span></h3><div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div></div>`;
+  const leadCard=card(`ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span>`,`<div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div>`,'lead');
   box.innerHTML=
      group('👤','บุคลากร',
         leadCard+donutC('ส่วน (สังกัด)',fac)+hbarsC('หน่วยงาน (สูงสุด 8)',dept)+donutC('เพศ',gender)+barsC('ช่วงอายุ',age))
