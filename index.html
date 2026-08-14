@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=82">
+  <link rel="stylesheet" href="styles.css?v=83">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -29,7 +29,7 @@
     </section>
 
     <section id="dashboard" class="view">
-      <div class="editor-head"><button class="back" id="dashHome" aria-label="กลับหน้าหลัก"><span class="back-ico">←</span><span class="back-txt">หน้าหลัก</span></button><div><span class="eyebrow" id="dashEyebrow">RECORDS</span><h1 id="dashTitle">ทะเบียนอุบัติเหตุ</h1></div><div class="admin-bar hidden" id="adminBar"><button type="button" class="btn ghost dark" id="openDataMgr">⚙ การจัดการข้อมูล</button><button type="button" class="btn ghost dark" id="exportCsv">ส่งออก CSV</button><button type="button" class="btn ghost dark" id="exportJson">สำรอง JSON</button></div></div>
+      <div class="editor-head"><button class="back" id="dashHome" aria-label="กลับหน้าหลัก"><span class="back-ico">←</span><span class="back-txt">หน้าหลัก</span></button><div><span class="eyebrow" id="dashEyebrow">RECORDS</span><h1 id="dashTitle">ทะเบียนอุบัติเหตุ</h1></div><div class="admin-bar hidden" id="adminBar"><button type="button" class="btn ghost dark" id="openDataMgr">⚙ การจัดการข้อมูล</button><button type="button" class="btn ghost dark" id="exportCsv">ส่งออก CSV</button><button type="button" class="btn ghost dark" id="exportJson">สำรอง JSON</button></div><button type="button" class="btn ghost dark hidden" id="openStats" style="margin-left:auto">📊 วิเคราะห์ / สถิติ</button></div>
       <aside class="notice admin-hint hidden" id="adminHint"><b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span></aside>
       <div class="stats">
         <article><span>เหตุการณ์ทั้งหมด</span><strong id="statTotal">0</strong><small>รายการ</small></article>
@@ -44,6 +44,14 @@
         <button type="button" class="icn-tab" data-icntab="lab-patient">🧾 ตัวอย่างใบส่ง LAB (ผู้ป่วย)</button>
       </div>
       <div id="icnPane" class="icn-pane hidden"></div>
+      <div id="statsPane" class="stats-pane hidden">
+        <div class="stats-bar">
+          <div class="stats-filters" id="statsFilters"></div>
+          <div class="stats-actions"><button type="button" class="btn ghost dark" id="statsReset">ล้างตัวกรอง</button><button type="button" class="btn primary" id="statsPrint">🖨 พิมพ์รายงาน / บันทึก PDF</button></div>
+        </div>
+        <div class="stats-headline" id="statsHeadline"></div>
+        <div id="statsCharts" class="charts"></div>
+      </div>
       <div class="panel">
         <div class="panel-head"><div><span class="eyebrow" id="panelEyebrow">RECORDS</span><h2 id="panelTitle">รายการอุบัติเหตุ</h2></div><label class="search">⌕ <input id="search" placeholder="ค้นหาชื่อ, HN, Soundex, สถานที่..."></label></div>
         <div class="table-wrap"><table><thead><tr><th>วันที่เกิดเหตุ</th><th>บุคลากร</th><th>ลักษณะอุบัติเหตุ</th><th>สถานะ</th><th></th></tr></thead><tbody id="recordRows"></tbody></table><div id="emptyState" class="empty"><b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span></div></div>
@@ -172,6 +180,6 @@
     <button type="button" data-tab="icn"><span class="ti">✚</span><span>ICN</span></button>
     <button type="button" data-tab="records"><span class="ti">▤</span><span>ทะเบียน</span></button>
   </nav>
-  <script src="app.js?v=82"></script>
+  <script src="app.js?v=83"></script>
 </body>
 </html>
