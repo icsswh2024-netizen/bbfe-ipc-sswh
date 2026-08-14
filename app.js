@@ -94,7 +94,7 @@ async function loadFlowFromSheet(){
     const res=await fetch(FLOW_CSV_URL,{signal:ctrl.signal}); clearTimeout(timer);
     if(!res.ok)return;
     const flow=parseFlowRows(parseCSV(await res.text()));
-    if(flow){ FLOW_STEPS=flow; localStorage.setItem(FLOW_CACHE_KEY,JSON.stringify(flow)); if(dashMode==='icn'&&$('#dashboard').classList.contains('active')) $('#adminHint').innerHTML=icnFlowHtml(); }
+    if(flow){ FLOW_STEPS=flow; localStorage.setItem(FLOW_CACHE_KEY,JSON.stringify(flow)); const at=$('.icn-tab.active'); if(dashMode==='icn'&&$('#dashboard').classList.contains('active')&&at&&at.dataset.icntab==='flow') icnRenderPane('flow'); }
   } catch { /* keep DEFAULT_FLOW / cache */ }
 }
 // Header logos from the "logo" tab (col A=name, col B=file). Keeps the static assets/ images as fallback.
@@ -754,12 +754,44 @@ function icnFlowHtml(){
   }).join('');
   return `<div class="flow-title">ขั้นตอนการทำงาน ICN / เวรตรวจการ</div>${body}`;
 }
+// ตัวอย่างใบส่งตรวจ LAB (เจ้าหน้าที่ / ผู้ป่วยต้นทาง)
+function labReqHtml(kind){
+  const staff = kind==='staff';
+  const title = staff ? 'ใบส่งตรวจทางห้องปฏิบัติการ — เจ้าหน้าที่ผู้สัมผัส' : 'ใบส่งตรวจทางห้องปฏิบัติการ — ผู้ป่วยต้นทาง (Source)';
+  const line=l=>`<div class="lr-line"><span class="lr-lb">${l}</span><span class="lr-dot"></span></div>`;
+  const chk=t=>`<label class="lr-chk"><span class="lr-box"></span>${esc(t)}</label>`;
+  const tests = staff ? ['Anti-HIV (rapid/CLIA)','HBsAg','Anti-HBs','Anti-HCV','CBC','Creatinine (Cr)','SGOT / SGPT (LFT)'] : ['Anti-HIV (rapid)','HBsAg','Anti-HCV'];
+  return `<div class="a4-page lab-doc">
+    <div class="lr-head"><img src="assets/logo-sswh.png" alt=""><div class="lr-org"><b>โรงพยาบาลศรีสังวรสุโขทัย</b><small>กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ (IC)</small></div><span class="lr-badge">ตัวอย่าง</span></div>
+    <div class="lr-title">${title}</div>
+    <div class="lr-grid">${line('ชื่อ - สกุล')}${line('HN')}${line('อายุ / เพศ')}${line(staff?'หน่วยงาน / ตำแหน่ง':'สิทธิการรักษา')}${line('วันที่ส่งตรวจ')}${line('แพทย์ / ผู้สั่งตรวจ')}</div>
+    <div class="lr-sec">รายการตรวจ (Occupational Exposure — Z114)</div>
+    <div class="lr-tests">${tests.map(chk).join('')}${chk('อื่น ๆ .......................................')}</div>
+    <div class="lr-note">${staff?'ตรวจพื้นฐานก่อนเริ่มยา PEP (Day 0) และติดตามผลเดือนที่ 1, 3, 6 ตามแนวทาง':'ตรวจหาสถานะการติดเชื้อของผู้ป่วยต้นทาง เพื่อประเมินความเสี่ยงของผู้สัมผัส'}</div>
+    <div class="lr-sign"><div>ผู้ส่งตรวจ ...........................................</div><div>วันที่ ................ / ................ / ................</div></div>
+  </div>`;
+}
+function scaleLabDoc(){ const wrap=$('#icnPane .lab-view'); if(!wrap)return; const pg=wrap.querySelector('.a4-page'); if(!pg)return; const avail=wrap.clientWidth-4; const s=Math.min(1,avail/794); pg.style.transformOrigin='top left'; pg.style.transform=`scale(${s})`; wrap.style.height=(pg.offsetHeight*s+6)+'px'; }
+function icnRenderPane(k){
+  const pane=$('#icnPane'), panel=$('#dashboard .panel'); if(!pane)return;
+  const isRecords = k==='records';
+  if(panel) panel.classList.toggle('hidden', !isRecords);
+  pane.classList.toggle('hidden', isRecords);
+  if(isRecords){ pane.innerHTML=''; return; }
+  if(k==='flow'){ pane.innerHTML=`<div class="notice admin-hint icn-flow icn-flowpane">${icnFlowHtml()}</div>`; return; }
+  const kind = k==='lab-staff'?'staff':'patient';
+  pane.innerHTML=`<div class="lab-wrap"><div class="lab-actions"><span class="lab-hint">ตัวอย่างแบบฟอร์ม — พิมพ์หรือบันทึก PDF ไปใช้ได้</span><button type="button" class="btn ghost dark" data-labprint="${kind}">🖨 พิมพ์ / บันทึก PDF</button></div><div class="a4-viewport lab-view">${labReqHtml(kind)}</div></div>`;
+  requestAnimationFrame(scaleLabDoc);
+}
+function icnSelectTab(k){ $$('.icn-tab').forEach(t=>t.classList.toggle('active', t.dataset.icntab===k)); icnRenderPane(k); }
 function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
   $('#adminBar').classList.toggle('hidden',!admin);
   const hint=$('#adminHint');
-  hint.classList.toggle('hidden',dashMode==='records');
-  hint.className = icn ? 'admin-hint icn-flow' : ('notice admin-hint'+(dashMode==='records'?' hidden':''));
-  hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>แสดงรายการทั้งหมด เลือกรายการเพื่อแก้ไข/จัดการข้อมูลได้ทุกส่วน (1-5)</span>' : (icn ? icnFlowHtml() : (vct ? '<b>VCT / คัดกรอง Z114</b><span>เลือกผู้รับบริการเพื่อกรอกเอกสารแนบ VCT — ข้อมูลชื่อ/HN/อายุ/ผลตรวจจะดึงจากรายการอัตโนมัติ</span>' : ''));
+  hint.classList.toggle('hidden', dashMode==='records' || icn);
+  hint.className = 'notice admin-hint'+((dashMode==='records'||icn)?' hidden':'');
+  hint.innerHTML = admin ? '<b>โหมดแอดมิน</b><span>แสดงรายการทั้งหมด เลือกรายการเพื่อแก้ไข/จัดการข้อมูลได้ทุกส่วน (1-5)</span>' : (vct ? '<b>VCT / คัดกรอง Z114</b><span>เลือกผู้รับบริการเพื่อกรอกเอกสารแนบ VCT — ข้อมูลชื่อ/HN/อายุ/ผลตรวจจะดึงจากรายการอัตโนมัติ</span>' : '');
+  $('#icnTabs').classList.toggle('hidden', !icn);
+  if(icn){ icnSelectTab('records'); } else { const pn=$('#icnPane'); if(pn)pn.classList.add('hidden'); const pnl=$('#dashboard .panel'); if(pnl)pnl.classList.remove('hidden'); }
   $('#dashEyebrow').textContent=admin?'ADMIN':(icn?'ICN':(vct?'VCT':'RECORDS'));
   $('#dashTitle').textContent=admin?'ส่วนแอดมิน — การรักษาและติดตามผล':(icn?'ICN / เวรตรวจการ — การรักษาเพื่อป้องกัน (ส่วนที่ 4)':(vct?'VCT / คัดกรอง Z114 — เอกสารแนบ':'ทะเบียนอุบัติเหตุ'));
   $('#panelEyebrow').textContent=icn?'ICN':(vct?'VCT':'RECORDS');
@@ -1084,6 +1116,9 @@ function dmSelectTab(k){ $$('.dm-tab').forEach(t=>t.classList.toggle('active', t
 $$('.dm-tab').forEach(t=>t.onclick=()=>dmSelectTab(t.dataset.dmtab));
 function openDataMgr(){ $('#dmOpenSheet').href=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; DM_EDIT=dmCloneOf(FIELD_CFG); DM_VEDIT=dmCloneOf(VCT_CFG); DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr(); dmSelectTab('main'); const d=$('#dataMgr'); if(d.open)d.close(); d.showModal(); d.querySelector('.vct-body').scrollTop=0; }
 $('#openDataMgr').onclick=openDataMgr;
+$$('.icn-tab').forEach(t=>t.onclick=()=>icnSelectTab(t.dataset.icntab));
+$('#icnPane')&&$('#icnPane').addEventListener('click',e=>{ const b=e.target.closest('[data-labprint]'); if(b) openReportHtml(labReqHtml(b.dataset.labprint), null, 'a4'); });
+window.addEventListener('resize',()=>{ if(dashMode==='icn'&&$('#dashboard').classList.contains('active')) scaleLabDoc(); });
 $('#dmClose').onclick=()=>$('#dataMgr').close();
 function dmOnInput(e){ const el=e.target, wrap=el.closest('[data-scope]'); if(!wrap)return; const scope=wrap.dataset.scope, obj=dmScopeObj(scope), key=el.dataset.key, f=el.dataset.f; if(!key||!f||!obj[key])return; if(f==='required')obj[key].required=el.checked; else obj[key][f]=el.value; if(f==='section'){ if(el.value!=='')dmScopeNew(scope).delete(key); renderDataMgr(); } }
 function dmOnClick(e){
