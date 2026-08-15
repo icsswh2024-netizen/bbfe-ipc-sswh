@@ -1157,11 +1157,11 @@ function openVct(r){
   html+=`<div class="form-page active"><div class="section-title"><span>✎</span><div><h2>ลายเซ็นและพยาน</h2><p>ลายเซ็นผู้ขอรับการตรวจดึงจาก “ลงชื่อผู้ให้ความยินยอม” อัตโนมัติ</p></div></div>`
     + `<div class="grid cols-2"><label>จำนวนพยาน<input name="witnessCount" type="number" min="0" max="8" value="${esc(vWitnessCount(v))}"></label></div>`
     + `<div class="subsection sign-block"><h3>ลายเซ็นผู้ให้คำปรึกษา <span class="v-note">(นำไปแสดงที่ “แพทย์ / เจ้าหน้าที่ทางการแพทย์”)</span></h3><p class="sign-hint">เซ็นในกรอบด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="vctCounselPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="vctSignClear">ล้างลายเซ็น</button></div><input type="hidden" name="counselorSign" value="${esc(v.counselorSign||'')}"></div>`
-    + `<div class="subsection sign-block"><h3>ลายเซ็นพยาน <span class="v-note">(นำไปแสดงที่ “พยาน” คนที่ 1)</span></h3><p class="sign-hint">เซ็นในกรอบด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="vctWitnessPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="vctWitnessClear">ล้างลายเซ็น</button></div><input type="hidden" name="witnessSign" value="${esc(v.witnessSign||'')}"></div></div>`;
+    + `<div class="subsection sign-block"><h3>ลายเซ็นพยาน <span class="v-note">(เพิ่มกรอบตามจำนวนพยานที่เลือก)</span></h3><p class="sign-hint">เซ็นในกรอบด้วยนิ้วหรือเมาส์</p><div id="vctWitnessPads" class="witness-pads"></div></div></div>`;
   $('#vctForm').innerHTML=html;
   $('#vctHint').textContent='แนบกับ: '+(full||'ไม่ระบุชื่อ')+(r.staffHn?(' • HN '+r.staffHn):'');
   const dlg=$('#vct'); if(dlg.open)dlg.close(); dlg.showModal(); dlg.querySelector('.vct-body').scrollTop=0;
-  requestAnimationFrame(()=>{ vctPadSetupAll(); });
+  requestAnimationFrame(()=>{ vctRenderWitnessPads(vWitnessCount(v), v); bindVctForm(); vctPadSetupAll(); });
 }
 // ---- signature pads ในกล่อง VCT (ผู้ให้คำปรึกษา + พยาน) ----
 let VCT_PADS=[];
@@ -1175,13 +1175,31 @@ function makeVctPad(canvasId, fieldName, clearId){
   pad.setup=()=>{ const c=el(); if(!c)return; const pos=e=>{const r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}; c.addEventListener('pointerdown',e=>{ if(!pad.ctx)pad.init(); if(!pad.ctx)return; pad.draw=true; pad.last=pos(e); pad.ink=true; c.setPointerCapture?.(e.pointerId); e.preventDefault(); }); c.addEventListener('pointermove',e=>{ if(!pad.draw||!pad.ctx)return; const p=pos(e); pad.ctx.beginPath(); pad.ctx.moveTo(pad.last.x,pad.last.y); pad.ctx.lineTo(p.x,p.y); pad.ctx.stroke(); pad.last=p; e.preventDefault(); }); const stop=()=>{ if(!pad.draw)return; pad.draw=false; pad.save(); }; c.addEventListener('pointerup',stop); c.addEventListener('pointercancel',stop); c.addEventListener('pointerleave',stop); const b=clearId&&document.getElementById(clearId); if(b)b.onclick=pad.clear; };
   return pad;
 }
-function vctPadSetupAll(){ VCT_PADS=[ makeVctPad('vctCounselPad','counselorSign','vctSignClear'), makeVctPad('vctWitnessPad','witnessSign','vctWitnessClear') ]; VCT_PADS.forEach(p=>{ p.setup(); p.init(); }); }
+// สร้างกรอบลายเซ็นพยานตามจำนวนที่เลือก (เก็บค่าเดิมไว้)
+function vctRenderWitnessPads(count, src){
+  const box=$('#vctWitnessPads'); if(!box)return; src=src||{};
+  count=Math.max(0,Math.min(8, parseInt(count,10)||0));
+  const valOf=i=> (src['witnessSign'+i]!=null&&src['witnessSign'+i]!=='') ? src['witnessSign'+i] : (i===0&&src.witnessSign?src.witnessSign:'');
+  let html='';
+  for(let i=0;i<count;i++){ html+=`<div class="wit-pad"><div class="wit-cap">พยานคนที่ ${i+1}</div><div class="sign-pad"><canvas id="vctWitnessPad${i}"></canvas><button type="button" class="btn ghost dark sign-clear" id="vctWitnessClear${i}">ล้างลายเซ็น</button></div><input type="hidden" name="witnessSign${i}" value="${esc(valOf(i))}"></div>`; }
+  box.innerHTML=html||'<p class="sign-hint">ตั้งจำนวนพยานมากกว่า 0 เพื่อเพิ่มกรอบลายเซ็น</p>';
+}
+function witnessSignsFromForm(){ const out={}; $$('#vctWitnessPads input[type=hidden]').forEach(inp=>{ out[inp.name]=inp.value; }); return out; }
+function vctPadSetupAll(){
+  VCT_PADS=[ makeVctPad('vctCounselPad','counselorSign','vctSignClear') ];
+  $$('#vctWitnessPads .wit-pad').forEach((wp,i)=>{ VCT_PADS.push(makeVctPad('vctWitnessPad'+i,'witnessSign'+i,'vctWitnessClear'+i)); });
+  VCT_PADS.forEach(p=>{ p.setup(); p.init(); });
+}
+let vctFormBound=false;
+function bindVctForm(){ if(vctFormBound)return; const f=$('#vctForm'); if(!f)return; vctFormBound=true;
+  f.addEventListener('input', e=>{ if(e.target&&e.target.name==='witnessCount'){ vctPadSave(); vctRenderWitnessPads(e.target.value, witnessSignsFromForm()); vctPadSetupAll(); } });
+}
 function vctPadSave(){ VCT_PADS.forEach(p=>{ try{p.save();}catch(e){} }); }
 function collectVct(){ try{vctPadSave();}catch(e){} const fd=new FormData($('#vctForm')),out={}; for(const[k,val] of fd){ if(vctIsMulti(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } Object.keys(VCT_CFG).forEach(k=>{ if(vctIsMulti(k)&&!out[k])out[k]=[]; }); VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
 function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
 function vSig(cap,cap2,img){ const sig=img?`<div class="v-signimg"><img src="${img}" alt=""></div>`:''; return `<div class="v-sigbox">${sig}<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap"><span class="v-paren">(...............................................)</span> ${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}</div>`; }
 function vWitnessCount(v){ const raw=(v&&v.witnessCount!=null&&v.witnessCount!=='')?v.witnessCount:2; const n=parseInt(raw,10); return Math.max(0,Math.min(8,isNaN(n)?2:n)); }
-function vWitnesses(v){ const n=vWitnessCount(v); return Array.from({length:n},(_,i)=>vSig('พยาน','', i===0?(v&&v.witnessSign):'')).join(''); }
+function vWitnesses(v){ const n=vWitnessCount(v); return Array.from({length:n},(_,i)=>{ const img=(v&&(v['witnessSign'+i]|| (i===0?v.witnessSign:''))); return vSig('พยาน','',img); }).join(''); }
 function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
   const op=(c,l)=>`<span class="v-op">${ck(!!c)} ${l}</span>`;
   const cell=(lb,val)=>`<td><div class="v-lb">${lb}</div><div class="v-cellval">${esc(val||'')}</div></td>`;
