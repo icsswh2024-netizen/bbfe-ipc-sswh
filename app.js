@@ -725,7 +725,8 @@ function renderStatsCharts(){
   const barsC=(t,d)=>card(t,svgBars(d));
   const hbarsC=(t,d)=>card(t,chartHBars(d));
   const moneyC=(t,d)=>card(t,chartMoneyBars(d));
-  const group=(icon,title,cards)=>`<section class="stats-group"><h2 class="stats-group-head"><span>${icon}</span>${title}</h2><div class="charts">${cards}</div></section>`;
+  const group=(icon,title,cards,meta)=>`<section class="stats-group"><h2 class="stats-group-head"><span class="sg-ico">${icon}</span>${title}${meta?`<span class="sg-meta">${meta}</span>`:''}</h2><div class="charts">${cards}</div></section>`;
+  const cntMeta=`จำนวน ${total} ราย`, costMeta=`จำนวน ${baht(cost)} บาท`;
   // ข้อมูลแต่ละมิติ
   const type=colorize(topData(countBy(recs,r=>r.staffType||'ไม่ระบุ')));
   const fac=colorize(topData(countBy(recs,facilityOf)));
@@ -742,13 +743,13 @@ function renderStatsCharts(){
   const leadCard=card(`ตำแหน่ง · ${esc(fyTxt)} <span class="ch-sub">(ฐานการนับหลัก)</span>`,`<div class="donut-wrap">${svgDonut(type,'ราย')}${chartLegend(type)}</div>`,'lead');
   box.innerHTML=
      group('👤','บุคลากร',
-        leadCard+donutC('ส่วน (สังกัด)',fac)+hbarsC('หน่วยงาน (สูงสุด 8)',dept)+donutC('เพศ',gender)+barsC('ช่วงอายุ',age))
+        leadCard+donutC('ส่วน (สังกัด)',fac)+hbarsC('หน่วยงาน (สูงสุด 8)',dept)+donutC('เพศ',gender)+barsC('ช่วงอายุ',age),cntMeta)
     +group('📅','ช่วงเวลา',
-        barsC('ไตรมาส (ปีงบ)',statsQuarters(recs))+barsC('อุบัติเหตุรายเดือน',statsMonths(recs))+barsC('เวร',statsShift(recs))+barsC('เวลา (ช่วงชั่วโมง)',statsTime(recs)))
+        barsC('ไตรมาส (ปีงบ)',statsQuarters(recs))+barsC('อุบัติเหตุรายเดือน',statsMonths(recs))+barsC('เวร',statsShift(recs))+barsC('เวลา (ช่วงชั่วโมง)',statsTime(recs)),cntMeta)
     +group('🩹','ลักษณะการสัมผัส & เหตุการณ์',
-        donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+barsC('นิ้วที่สัมผัส',fingerBarData(recs))+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs))
+        donutC('ลักษณะเหตุ',nature)+hbarsC('การสัมผัส (สูงสุด 8)',expo)+donutC('ตำแหน่งสัมผัส',body)+donutC('มือ',hand)+barsC('นิ้วที่สัมผัส',fingerBarData(recs))+hbarsC('เหตุการณ์ (สูงสุด 8)',event)+hbarsC('Lab ที่เจาะ (สูงสุด 10)',labs),cntMeta)
     +group('💰','ค่าใช้จ่าย',
-        moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตาม Lab (บาท)',costByLabData(recs,10)));
+        moneyC('ตามหน่วยงาน (บาท)',costDept)+moneyC('ตาม Lab (บาท)',costByLabData(recs,10)),costMeta);
 }
 function pct(n,t){ return t?(n/t*100).toFixed(1):'0.0'; }
 function statsRepTable(title,data,total){ if(!data.length)return ''; return `<table class="rep-tbl"><caption>${esc(title)}</caption><thead><tr><th>รายการ</th><th>จำนวน</th><th>ร้อยละ</th></tr></thead><tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.value}</td><td>${pct(d.value,total)}</td></tr>`).join('')}<tr class="rep-sum"><td>รวม</td><td>${total}</td><td>100.0</td></tr></tbody></table>`; }
