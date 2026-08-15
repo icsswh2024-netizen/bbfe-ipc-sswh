@@ -1420,7 +1420,18 @@ $('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','ke
 const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
 const DEFAULT_SHEET_HOOK='https://script.google.com/macros/s/AKfycbzG11Z-HV-WN-JEo1DT4pYd_-tldC0I6Y2s-Wo7VecCixRmz0lMR-S_84ykOIpNQdOg/exec';
 const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||DEFAULT_SHEET_HOOK;}catch{return DEFAULT_SHEET_HOOK;} };
-const APPS_SCRIPT_CODE=`function doPost(e){
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-08-15';
+// เปิด URL นี้ในเบราว์เซอร์เพื่อทดสอบ: จะเห็นชื่อชีต + รายชื่อแท็บ + เวอร์ชันโค้ด
+function doGet(e){
+  var out = { ok:true, version:IC_VERSION };
+  try{
+    var ss = SpreadsheetApp.getActive();
+    out.spreadsheet = ss.getName();
+    out.sheets = ss.getSheets().map(function(s){ return s.getName(); });
+  }catch(err){ out.ok=false; out.error=String(err); }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+function doPost(e){
   try{
     var body = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActive();
@@ -1467,7 +1478,7 @@ const APPS_SCRIPT_CODE=`function doPost(e){
         var d2 = sh.getDataRange().getValues();
         for (var r=d2.length-1; r>=1; r--){ var dk=d2[r][keyCol]; if (dk && del.indexOf(dk)>=0) sh.deleteRow(r+1); }
       }
-      return ContentService.createTextOutput(JSON.stringify({ok:true, updated:fields.length, deleted:del.length}))
+      return ContentService.createTextOutput(JSON.stringify({ok:true, version:IC_VERSION, sheet:name, updated:fields.length, deleted:del.length}))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -1482,6 +1493,8 @@ function openDmSetup(){ $('#dmScript').textContent=APPS_SCRIPT_CODE; $('#dmUrl')
 $('#dmSetupBtn').onclick=openDmSetup;
 $('#dmCopyCode').onclick=async()=>{ try{await navigator.clipboard.writeText(APPS_SCRIPT_CODE);}catch{const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกโค้ดแล้ว — ไปวางใน Apps Script'); };
 $('#dmSetupCancel').onclick=()=>$('#dmSetup').close();
+// ทดสอบการเชื่อมต่อ: เปิด URL ในแท็บใหม่ (อ่านผลได้ ไม่ติด CORS) เห็นชื่อชีต+แท็บ+เวอร์ชัน
+$('#dmTest').onclick=()=>{ const u=($('#dmUrl').value.trim()||getSheetHook()); if(!u){ popup('ยังไม่ได้ใส่ Web app URL','warn'); return; } window.open(u,'_blank','noopener'); popup('เปิดหน้าใหม่เพื่อทดสอบ — ควรเห็น {"ok":true,"version":...,"spreadsheet":ชื่อชีต,"sheets":[แท็บ...]}\nถ้าไม่ขึ้นชื่อชีตของคุณ หรือไม่มี version แปลว่ายังไม่ได้ deploy โค้ดล่าสุด','info'); };
 $('#dmSetupClear').onclick=()=>{ localStorage.removeItem(SHEET_HOOK_KEY); $('#dmUrl').value=''; toast('ลบการเชื่อมต่อแล้ว'); };
 $('#dmSetupSave').onclick=()=>{ const u=$('#dmUrl').value.trim(); if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(u)){ if(!confirm('URL ไม่ตรงรูปแบบ Web App ปกติ ต้องการบันทึกต่อหรือไม่?'))return; } if(u)localStorage.setItem(SHEET_HOOK_KEY,u); else localStorage.removeItem(SHEET_HOOK_KEY); $('#dmSetup').close(); toast(u?'บันทึกการเชื่อมต่อแล้ว':'ลบการเชื่อมต่อแล้ว'); };
 function dmFieldsPayload(obj){ return Object.entries(obj).map(([k,e])=>({key:k,section:e.section,order:e.order,label:e.label,type:e.type,options:e.options,required:!!e.required,status:dmStatusOf(e)})); }
