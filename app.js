@@ -776,7 +776,7 @@ function statsReportHtml(){
 }
 function renderDashboard(query='') {
   let items = allRecords().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
-  if(dashMode==='icn') items = items.slice().sort((a,b)=>(icnPending(b)?1:0)-(icnPending(a)?1:0)); // ICN: unsaved (new) first, saved stay in list
+  if(dashMode==='icn') items = items.filter(r=>!r.imported && icnPending(r)); // ICN: แสดงเฉพาะรายใหม่ (ยังไม่กรอกส่วนที่ 4) ไม่รวมรายการเดิม/นำเข้า
   // ตัวกรองวิเคราะห์ (ปีงบ/หน่วยงาน/ตำแหน่ง/เพศ/อายุ) ใช้กับตาราง+กราฟในหน้าทะเบียน/แอดมิน
   const statsOn = (dashMode==='records'||dashMode==='admin');
   if(statsOn) items = items.filter(matchStatsF);
