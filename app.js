@@ -1429,7 +1429,10 @@ function doGet(e){
     out.spreadsheet = ss.getName();
     out.sheets = ss.getSheets().map(function(s){ return s.getName(); });
   }catch(err){ out.ok=false; out.error=String(err); }
-  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+  var js = JSON.stringify(out);
+  var cb = e && e.parameter && e.parameter.callback;   // JSONP: อ่านผลข้ามโดเมนได้ (ไม่ติด CORS)
+  if (cb) return ContentService.createTextOutput(cb + '(' + js + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(js).setMimeType(ContentService.MimeType.JSON);
 }
 function doPost(e){
   try{
@@ -1494,10 +1497,23 @@ $('#dmSetupBtn').onclick=openDmSetup;
 $('#dmCopyCode').onclick=async()=>{ try{await navigator.clipboard.writeText(APPS_SCRIPT_CODE);}catch{const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกโค้ดแล้ว — ไปวางใน Apps Script'); };
 $('#dmSetupCancel').onclick=()=>$('#dmSetup').close();
 // ทดสอบการเชื่อมต่อ: เปิด URL ในแท็บใหม่ (อ่านผลได้ ไม่ติด CORS) เห็นชื่อชีต+แท็บ+เวอร์ชัน
-$('#dmTest').onclick=()=>{ const u=($('#dmUrl').value.trim()||getSheetHook()); if(!u){ popup('ยังไม่ได้ใส่ Web app URL','warn'); return; } window.open(u,'_blank','noopener'); popup('เปิดหน้าใหม่เพื่อทดสอบ — ควรเห็น {"ok":true,"version":...,"spreadsheet":ชื่อชีต,"sheets":[แท็บ...]}\nถ้าไม่ขึ้นชื่อชีตของคุณ หรือไม่มี version แปลว่ายังไม่ได้ deploy โค้ดล่าสุด','info'); };
+$('#dmTest').onclick=async()=>{ const u=($('#dmUrl').value.trim()||getSheetHook()); if(!u){ popup('ยังไม่ได้ใส่ Web app URL','warn'); return; } const btn=$('#dmTest'),o=btn.textContent; btn.disabled=true; btn.textContent='กำลังทดสอบ...'; const ping=await jsonpPing(u); btn.disabled=false; btn.textContent=o; if(ping&&ping.ok&&ping.version) popup('เชื่อมต่อสำเร็จ ✓\nชีต: '+(ping.spreadsheet||'-')+'\nเวอร์ชันโค้ด: '+ping.version+'\nแท็บ: '+((ping.sheets||[]).join(', ')||'-'),'ok'); else popup('เชื่อมต่อไม่สำเร็จ หรือยังไม่ได้ deploy โค้ดล่าสุด\nตรวจว่า: (1) วางโค้ดล่าสุดแล้ว (2) Deploy → Manage deployments → ✎ → New version → Deploy (3) Who has access: Anyone','error'); };
 $('#dmSetupClear').onclick=()=>{ localStorage.removeItem(SHEET_HOOK_KEY); $('#dmUrl').value=''; toast('ลบการเชื่อมต่อแล้ว'); };
 $('#dmSetupSave').onclick=()=>{ const u=$('#dmUrl').value.trim(); if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(u)){ if(!confirm('URL ไม่ตรงรูปแบบ Web App ปกติ ต้องการบันทึกต่อหรือไม่?'))return; } if(u)localStorage.setItem(SHEET_HOOK_KEY,u); else localStorage.removeItem(SHEET_HOOK_KEY); $('#dmSetup').close(); toast(u?'บันทึกการเชื่อมต่อแล้ว':'ลบการเชื่อมต่อแล้ว'); };
 function dmFieldsPayload(obj){ return Object.entries(obj).map(([k,e])=>({key:k,section:e.section,order:e.order,label:e.label,type:e.type,options:e.options,required:!!e.required,status:dmStatusOf(e)})); }
+// JSONP ping — อ่านผลข้ามโดเมนได้จริง (ไม่ติด CORS) ใช้ยืนยันว่า deploy โค้ดล่าสุด+ผูกชีตถูก
+function jsonpPing(url,timeout=9000){
+  return new Promise(resolve=>{
+    const cb='icping'+Math.random().toString(36).slice(2,8); let done=false;
+    const s=document.createElement('script');
+    const fin=(v)=>{ if(done)return; done=true; try{delete window[cb];}catch(e){window[cb]=undefined;} s.remove(); resolve(v); };
+    window[cb]=(d)=>fin(d||{ok:true});
+    s.onerror=()=>fin(null);
+    s.src=url+(url.includes('?')?'&':'?')+'action=ping&callback='+cb+'&t='+Date.now();
+    document.body.appendChild(s);
+    setTimeout(()=>fin(null),timeout);
+  });
+}
 async function dmPost(url,sheet,fields,deleteKeys){
   const body=JSON.stringify({action:'saveFields',sheet,fields,deleteKeys});
   try{
@@ -1523,8 +1539,13 @@ async function dmSaveToSheet(){
     const r1=await dmPost(url,'fields',mainFields,mainDel);
     const r2=await dmPost(url,'vct',vctFields,vctDel);
     DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr();
-    if(r1==='ok'&&r2==='ok') popup('บันทึกลงชีตเรียบร้อย และปรับใช้กับฟอร์มแล้ว','ok');
-    else popup('ส่งคำสั่งบันทึกแล้ว — โปรดเปิด Google Sheet ตรวจแท็บ fields / vct\n(เบราว์เซอร์อ่านผลตอบกลับไม่ได้ตามข้อกำหนด CORS แต่ข้อมูลถูกส่งไปแล้ว)','info');
+    if(r1==='ok'&&r2==='ok'){ popup('บันทึกลงชีตเรียบร้อย และปรับใช้กับฟอร์มแล้ว','ok'); }
+    else {
+      // อ่านผลไม่ได้ (CORS) → ยืนยันด้วย JSONP ping ว่าชีต deploy โค้ดล่าสุดจริงไหม
+      const ping=await jsonpPing(url);
+      if(ping&&ping.ok&&ping.version) popup('บันทึกลงชีตแล้ว ✓\nชีต: '+(ping.spreadsheet||'-')+' · เวอร์ชันโค้ด '+ping.version+'\nโปรดตรวจแท็บ fields / vct','ok');
+      else popup('บันทึกไม่เข้าชีต — เชื่อมต่อไม่ได้ หรือยังไม่ได้ deploy โค้ดล่าสุด\nวิธีแก้: หน้าตั้งค่า → คัดลอกโค้ดใหม่ไปวาง → Deploy → Manage deployments → ✎ → New version → Deploy\n(ปรับใช้บนเครื่องนี้แล้ว)','error');
+    }
   }catch(err){
     if(err.message==='no-url'){ popup('ปรับใช้บนเครื่องนี้แล้ว — ยังไม่ได้ตั้งค่าการเชื่อมต่อชีต','warn'); openDmSetup(); }
     else { const m=String(err&&err.message||err); const hint=/Failed to fetch|NetworkError|Load failed|CORS/i.test(m) ? 'เชื่อมต่อ Apps Script ไม่ได้\nตรวจ deploy เป็น Web app · Who has access: Anyone · redeploy เวอร์ชันใหม่' : ('สคริปต์แจ้ง: '+m.slice(0,140)); popup('ปรับใช้บนเครื่องนี้แล้ว แต่บันทึกลงชีตไม่สำเร็จ\n'+hint,'error'); console.error('saveToSheet error:', err); }
