@@ -1420,12 +1420,14 @@ $('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','ke
 const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
 const DEFAULT_SHEET_HOOK='https://script.google.com/macros/s/AKfycbzG11Z-HV-WN-JEo1DT4pYd_-tldC0I6Y2s-Wo7VecCixRmz0lMR-S_84ykOIpNQdOg/exec';
 const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||DEFAULT_SHEET_HOOK;}catch{return DEFAULT_SHEET_HOOK;} };
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-08-15';
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-08-15.2';
+var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
+function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // เปิด URL นี้ในเบราว์เซอร์เพื่อทดสอบ: จะเห็นชื่อชีต + รายชื่อแท็บ + เวอร์ชันโค้ด
 function doGet(e){
   var out = { ok:true, version:IC_VERSION };
   try{
-    var ss = SpreadsheetApp.getActive();
+    var ss = getSS();
     out.spreadsheet = ss.getName();
     out.sheets = ss.getSheets().map(function(s){ return s.getName(); });
   }catch(err){ out.ok=false; out.error=String(err); }
@@ -1437,7 +1439,7 @@ function doGet(e){
 function doPost(e){
   try{
     var body = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.getActive();
+    var ss = getSS();
     var name = body.sheet || 'fields';
     var sh = ss.getSheetByName(name);
     if (!sh){ sh = ss.insertSheet(name); sh.getRange(1,1,1,8).setValues([['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']]); }
