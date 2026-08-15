@@ -388,3 +388,7 @@ input,select,textarea,button,.search input{font-family:inherit}
 .stats-headline:empty{display:none}
 
 .stats-group-head .sg-meta{margin-left:auto;font-size:14px;font-weight:600;white-space:nowrap}
+
+/* กรอบลายเซ็นพยาน (เพิ่มตามจำนวน) */
+.witness-pads{display:flex;flex-direction:column;gap:14px}
+.wit-pad .wit-cap{font-weight:600;font-size:14px;margin-bottom:6px;color:var(--ink)}
