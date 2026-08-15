@@ -1497,7 +1497,7 @@ $('#dmSetupBtn').onclick=openDmSetup;
 $('#dmCopyCode').onclick=async()=>{ try{await navigator.clipboard.writeText(APPS_SCRIPT_CODE);}catch{const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();} toast('คัดลอกโค้ดแล้ว — ไปวางใน Apps Script'); };
 $('#dmSetupCancel').onclick=()=>$('#dmSetup').close();
 // ทดสอบการเชื่อมต่อ: เปิด URL ในแท็บใหม่ (อ่านผลได้ ไม่ติด CORS) เห็นชื่อชีต+แท็บ+เวอร์ชัน
-$('#dmTest').onclick=async()=>{ const u=($('#dmUrl').value.trim()||getSheetHook()); if(!u){ popup('ยังไม่ได้ใส่ Web app URL','warn'); return; } const btn=$('#dmTest'),o=btn.textContent; btn.disabled=true; btn.textContent='กำลังทดสอบ...'; const ping=await jsonpPing(u); btn.disabled=false; btn.textContent=o; if(ping&&ping.ok&&ping.version) popup('เชื่อมต่อสำเร็จ ✓\nชีต: '+(ping.spreadsheet||'-')+'\nเวอร์ชันโค้ด: '+ping.version+'\nแท็บ: '+((ping.sheets||[]).join(', ')||'-'),'ok'); else popup('เชื่อมต่อไม่สำเร็จ หรือยังไม่ได้ deploy โค้ดล่าสุด\nตรวจว่า: (1) วางโค้ดล่าสุดแล้ว (2) Deploy → Manage deployments → ✎ → New version → Deploy (3) Who has access: Anyone','error'); };
+$('#dmTest').onclick=async()=>{ const u=($('#dmUrl').value.trim()||getSheetHook()); if(!u){ popup('ยังไม่ได้ใส่ Web app URL','warn'); return; } const btn=$('#dmTest'),o=btn.textContent; btn.disabled=true; btn.textContent='กำลังทดสอบ...'; const ping=await jsonpPing(u); btn.disabled=false; btn.textContent=o; if(ping&&ping.ok&&ping.version){ popup('เชื่อมต่อสำเร็จ ✓\nชีต: '+(ping.spreadsheet||'-')+'\nเวอร์ชันโค้ด: '+ping.version+'\nแท็บ: '+((ping.sheets||[]).join(', ')||'-'),'ok'); } else { window.open(u,'_blank','noopener'); popup('ยืนยันอัตโนมัติไม่ได้ — เปิดหน้าผลการเชื่อมต่อในแท็บใหม่ให้แล้ว โปรดดูข้อความในแท็บนั้น:\n• เห็น JSON ที่มี "version":"2568-08-15" และชื่อชีตของคุณ = ใช้งานได้ (การบันทึกจะทำงาน)\n• เห็นหน้าล็อกอิน/ขอสิทธิ์ = ตั้ง Who has access เป็น Anyone แล้ว Deploy ใหม่\n• ไม่มี "version" หรือเป็นโค้ดเก่า = คัดลอก "โค้ดล่าสุด" ไปวางใหม่ทั้งหมด แล้ว Deploy → New version','warn'); } };
 $('#dmSetupClear').onclick=()=>{ localStorage.removeItem(SHEET_HOOK_KEY); $('#dmUrl').value=''; toast('ลบการเชื่อมต่อแล้ว'); };
 $('#dmSetupSave').onclick=()=>{ const u=$('#dmUrl').value.trim(); if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(u)){ if(!confirm('URL ไม่ตรงรูปแบบ Web App ปกติ ต้องการบันทึกต่อหรือไม่?'))return; } if(u)localStorage.setItem(SHEET_HOOK_KEY,u); else localStorage.removeItem(SHEET_HOOK_KEY); $('#dmSetup').close(); toast(u?'บันทึกการเชื่อมต่อแล้ว':'ลบการเชื่อมต่อแล้ว'); };
 function dmFieldsPayload(obj){ return Object.entries(obj).map(([k,e])=>({key:k,section:e.section,order:e.order,label:e.label,type:e.type,options:e.options,required:!!e.required,status:dmStatusOf(e)})); }
@@ -1541,10 +1541,10 @@ async function dmSaveToSheet(){
     DM_DELETED=new Set(); DM_VDELETED=new Set(); DM_NEW=new Set(); DM_VNEW=new Set(); renderDataMgr();
     if(r1==='ok'&&r2==='ok'){ popup('บันทึกลงชีตเรียบร้อย และปรับใช้กับฟอร์มแล้ว','ok'); }
     else {
-      // อ่านผลไม่ได้ (CORS) → ยืนยันด้วย JSONP ping ว่าชีต deploy โค้ดล่าสุดจริงไหม
+      // อ่านผล POST ไม่ได้ (CORS) → ลองยืนยันด้วย JSONP ping
       const ping=await jsonpPing(url);
       if(ping&&ping.ok&&ping.version) popup('บันทึกลงชีตแล้ว ✓\nชีต: '+(ping.spreadsheet||'-')+' · เวอร์ชันโค้ด '+ping.version+'\nโปรดตรวจแท็บ fields / vct','ok');
-      else popup('บันทึกไม่เข้าชีต — เชื่อมต่อไม่ได้ หรือยังไม่ได้ deploy โค้ดล่าสุด\nวิธีแก้: หน้าตั้งค่า → คัดลอกโค้ดใหม่ไปวาง → Deploy → Manage deployments → ✎ → New version → Deploy\n(ปรับใช้บนเครื่องนี้แล้ว)','error');
+      else popup('ส่งคำสั่งบันทึกแล้ว แต่ยืนยันผลอัตโนมัติไม่ได้\n• เปิดแท็บ fields ในชีต ตรวจคอลัมน์ "สถานะ" ว่ามีค่าหรือไม่\n• ถ้ายังไม่เข้า: คัดลอก "โค้ดล่าสุด" ไปวางใหม่ทั้งหมด → Deploy → Manage deployments → ✎ → New version → Deploy → ตั้ง Who has access: Anyone\n(ปรับใช้บนเครื่องนี้แล้ว)','info');
     }
   }catch(err){
     if(err.message==='no-url'){ popup('ปรับใช้บนเครื่องนี้แล้ว — ยังไม่ได้ตั้งค่าการเชื่อมต่อชีต','warn'); openDmSetup(); }
