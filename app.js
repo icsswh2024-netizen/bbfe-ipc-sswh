@@ -1309,10 +1309,14 @@ function setPreviewMode(state){ previewState=state; const report=state==='report
   $('#previewConfirm').textContent = report ? 'ปิด' : 'ยืนยันบันทึก';
 }
 let reportPaper='a4';
-const A5_PAGE_CSS='@page{size:148mm 210mm;margin:8mm}@page vctland{size:210mm 148mm;margin:8mm}#printArea .a5-page.land{page:vctland}';
+// margin:0 เพื่อให้เบราว์เซอร์ไม่แสดงหัว/ท้ายกระดาษ (URL/ชื่อเว็บ/วันที่); ระยะขอบจริงใช้ padding ในหน้า
+const A4_PAGE_CSS='@page{size:A4;margin:0}';
+const A5_PAGE_CSS='@page{size:148mm 210mm;margin:0}@page vctland{size:210mm 148mm;margin:0}#printArea .a5-page.land{page:vctland}';
+const MIX_PAGE_CSS='@page{size:A4;margin:0}@page vctland{size:210mm 148mm;margin:0}#printArea .a5-page.land{page:vctland}';
+function printPageCss(paper){ return paper==='a5'?A5_PAGE_CSS:(paper==='mix'?MIX_PAGE_CSS:A4_PAGE_CSS); }
 function openReportHtml(html, editFn, paper){ reportEditFn=editFn||null; reportHtml=html; reportPaper=paper||'a4'; setPreviewMode('report'); $('#previewBody').innerHTML=html; $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; }
 function openReport(r, editFn){ reportRecord=r; openReportHtml(fullDocHtml(r), editFn, hasVct(r)?'mix':'a4'); }
-function printReport(){ if(!reportHtml)return; $('#pageStyle').textContent = (reportPaper==='a5') ? A5_PAGE_CSS : ''; $('#printArea').innerHTML=reportHtml; $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
+function printReport(){ if(!reportHtml)return; $('#pageStyle').textContent = printPageCss(reportPaper); $('#printArea').innerHTML=reportHtml; $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
 $('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode('save'); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
@@ -1334,7 +1338,7 @@ $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r)
 $('#attachVctBtn').onclick=openVctFromEditor;
 form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.target.checked && e.target.value==='ใช่'){ openVctFromEditor(); } });
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
-$('#printRecord').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
+$('#printRecord').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#pageStyle').textContent=printPageCss(hasVct(r)?'mix':'a4'); $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
 $('#exportCsv').onclick=csvExport;
