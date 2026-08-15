@@ -1156,25 +1156,32 @@ function openVct(r){
   // signature & witnesses block (fixed UI, not from config)
   html+=`<div class="form-page active"><div class="section-title"><span>✎</span><div><h2>ลายเซ็นและพยาน</h2><p>ลายเซ็นผู้ขอรับการตรวจดึงจาก “ลงชื่อผู้ให้ความยินยอม” อัตโนมัติ</p></div></div>`
     + `<div class="grid cols-2"><label>จำนวนพยาน<input name="witnessCount" type="number" min="0" max="8" value="${esc(vWitnessCount(v))}"></label></div>`
-    + `<div class="subsection sign-block"><h3>ลายเซ็นผู้ให้คำปรึกษา <span class="v-note">(นำไปแสดงที่ “แพทย์ / เจ้าหน้าที่ทางการแพทย์”)</span></h3><p class="sign-hint">เซ็นในกรอบด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="vctCounselPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="vctSignClear">ล้างลายเซ็น</button></div><input type="hidden" name="counselorSign" value="${esc(v.counselorSign||'')}"></div></div>`;
+    + `<div class="subsection sign-block"><h3>ลายเซ็นผู้ให้คำปรึกษา <span class="v-note">(นำไปแสดงที่ “แพทย์ / เจ้าหน้าที่ทางการแพทย์”)</span></h3><p class="sign-hint">เซ็นในกรอบด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="vctCounselPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="vctSignClear">ล้างลายเซ็น</button></div><input type="hidden" name="counselorSign" value="${esc(v.counselorSign||'')}"></div>`
+    + `<div class="subsection sign-block"><h3>ลายเซ็นพยาน <span class="v-note">(นำไปแสดงที่ “พยาน” คนที่ 1)</span></h3><p class="sign-hint">เซ็นในกรอบด้วยนิ้วหรือเมาส์</p><div class="sign-pad"><canvas id="vctWitnessPad"></canvas><button type="button" class="btn ghost dark sign-clear" id="vctWitnessClear">ล้างลายเซ็น</button></div><input type="hidden" name="witnessSign" value="${esc(v.witnessSign||'')}"></div></div>`;
   $('#vctForm').innerHTML=html;
   $('#vctHint').textContent='แนบกับ: '+(full||'ไม่ระบุชื่อ')+(r.staffHn?(' • HN '+r.staffHn):'');
   const dlg=$('#vct'); if(dlg.open)dlg.close(); dlg.showModal(); dlg.querySelector('.vct-body').scrollTop=0;
-  requestAnimationFrame(()=>{ vctPadSetup(); vctPadInit(); });
+  requestAnimationFrame(()=>{ vctPadSetupAll(); });
 }
-// counselor signature pad (inside the VCT modal)
-let vctPadCtx=null, vctPadDraw=false, vctPadInk=false, vctPadLast=null;
-function vctPadEl(){ return $('#vctCounselPad'); }
-function vctPadField(){ return $('#vctForm').elements.counselorSign; }
-function vctPadSave(){ const c=vctPadEl(), f=vctPadField(); if(c&&f) f.value = vctPadInk ? c.toDataURL('image/png') : ''; }
-function vctPadClear(){ const c=vctPadEl(); if(!c||!vctPadCtx)return; vctPadCtx.clearRect(0,0,c.clientWidth,c.clientHeight); vctPadInk=false; const f=vctPadField(); if(f)f.value=''; }
-function vctPadInit(){ const c=vctPadEl(); if(!c)return; const w=c.clientWidth, h=c.clientHeight||150; if(!w)return; const dpr=window.devicePixelRatio||1; c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); vctPadCtx=c.getContext('2d'); vctPadCtx.setTransform(dpr,0,0,dpr,0,0); vctPadCtx.lineWidth=2.2; vctPadCtx.lineJoin='round'; vctPadCtx.lineCap='round'; vctPadCtx.strokeStyle='#1a1a1a'; vctPadCtx.clearRect(0,0,w,h); vctPadInk=false; const f=vctPadField(), data=f&&f.value; if(data){ vctPadInk=true; const img=new Image(); img.onload=()=>{try{vctPadCtx.drawImage(img,0,0,w,h);}catch(e){}}; img.src=data; } }
-function vctPadSetup(){ const c=vctPadEl(); if(!c)return; const pos=e=>{const r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}; c.addEventListener('pointerdown',e=>{ if(!vctPadCtx)vctPadInit(); if(!vctPadCtx)return; vctPadDraw=true; vctPadLast=pos(e); vctPadInk=true; c.setPointerCapture?.(e.pointerId); e.preventDefault(); }); c.addEventListener('pointermove',e=>{ if(!vctPadDraw||!vctPadCtx)return; const p=pos(e); vctPadCtx.beginPath(); vctPadCtx.moveTo(vctPadLast.x,vctPadLast.y); vctPadCtx.lineTo(p.x,p.y); vctPadCtx.stroke(); vctPadLast=p; e.preventDefault(); }); const stop=()=>{ if(!vctPadDraw)return; vctPadDraw=false; vctPadSave(); }; c.addEventListener('pointerup',stop); c.addEventListener('pointercancel',stop); c.addEventListener('pointerleave',stop); const b=$('#vctSignClear'); if(b)b.onclick=vctPadClear; }
+// ---- signature pads ในกล่อง VCT (ผู้ให้คำปรึกษา + พยาน) ----
+let VCT_PADS=[];
+function makeVctPad(canvasId, fieldName, clearId){
+  const pad={ ctx:null, draw:false, ink:false, last:null };
+  const el=()=>document.getElementById(canvasId);
+  const field=()=>$('#vctForm').elements[fieldName];
+  pad.save=()=>{ const c=el(), f=field(); if(c&&f) f.value = pad.ink ? c.toDataURL('image/png') : ''; };
+  pad.clear=()=>{ const c=el(); if(!c||!pad.ctx)return; pad.ctx.clearRect(0,0,c.clientWidth,c.clientHeight); pad.ink=false; const f=field(); if(f)f.value=''; };
+  pad.init=()=>{ const c=el(); if(!c)return; const w=c.clientWidth, h=c.clientHeight||150; if(!w)return; const dpr=window.devicePixelRatio||1; c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); pad.ctx=c.getContext('2d'); pad.ctx.setTransform(dpr,0,0,dpr,0,0); pad.ctx.lineWidth=2.2; pad.ctx.lineJoin='round'; pad.ctx.lineCap='round'; pad.ctx.strokeStyle='#1a1a1a'; pad.ctx.clearRect(0,0,w,h); pad.ink=false; const f=field(), data=f&&f.value; if(data){ pad.ink=true; const img=new Image(); img.onload=()=>{try{pad.ctx.drawImage(img,0,0,w,h);}catch(e){}}; img.src=data; } };
+  pad.setup=()=>{ const c=el(); if(!c)return; const pos=e=>{const r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}; c.addEventListener('pointerdown',e=>{ if(!pad.ctx)pad.init(); if(!pad.ctx)return; pad.draw=true; pad.last=pos(e); pad.ink=true; c.setPointerCapture?.(e.pointerId); e.preventDefault(); }); c.addEventListener('pointermove',e=>{ if(!pad.draw||!pad.ctx)return; const p=pos(e); pad.ctx.beginPath(); pad.ctx.moveTo(pad.last.x,pad.last.y); pad.ctx.lineTo(p.x,p.y); pad.ctx.stroke(); pad.last=p; e.preventDefault(); }); const stop=()=>{ if(!pad.draw)return; pad.draw=false; pad.save(); }; c.addEventListener('pointerup',stop); c.addEventListener('pointercancel',stop); c.addEventListener('pointerleave',stop); const b=clearId&&document.getElementById(clearId); if(b)b.onclick=pad.clear; };
+  return pad;
+}
+function vctPadSetupAll(){ VCT_PADS=[ makeVctPad('vctCounselPad','counselorSign','vctSignClear'), makeVctPad('vctWitnessPad','witnessSign','vctWitnessClear') ]; VCT_PADS.forEach(p=>{ p.setup(); p.init(); }); }
+function vctPadSave(){ VCT_PADS.forEach(p=>{ try{p.save();}catch(e){} }); }
 function collectVct(){ try{vctPadSave();}catch(e){} const fd=new FormData($('#vctForm')),out={}; for(const[k,val] of fd){ if(vctIsMulti(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } Object.keys(VCT_CFG).forEach(k=>{ if(vctIsMulti(k)&&!out[k])out[k]=[]; }); VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
 function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
 function vSig(cap,cap2,img){ const sig=img?`<div class="v-signimg"><img src="${img}" alt=""></div>`:''; return `<div class="v-sigbox">${sig}<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap"><span class="v-paren">(...............................................)</span> ${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}</div>`; }
 function vWitnessCount(v){ const raw=(v&&v.witnessCount!=null&&v.witnessCount!=='')?v.witnessCount:2; const n=parseInt(raw,10); return Math.max(0,Math.min(8,isNaN(n)?2:n)); }
-function vWitnesses(v){ return Array.from({length:vWitnessCount(v)},()=>vSig('พยาน')).join(''); }
+function vWitnesses(v){ const n=vWitnessCount(v); return Array.from({length:n},(_,i)=>vSig('พยาน','', i===0?(v&&v.witnessSign):'')).join(''); }
 function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
   const op=(c,l)=>`<span class="v-op">${ck(!!c)} ${l}</span>`;
   const cell=(lb,val)=>`<td><div class="v-lb">${lb}</div><div class="v-cellval">${esc(val||'')}</div></td>`;
