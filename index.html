@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=112">
+  <link rel="stylesheet" href="styles.css?v=113">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -47,7 +47,7 @@
       <div id="statsPane" class="stats-pane hidden">
         <div class="stats-bar">
           <div class="stats-filters" id="statsFilters"></div>
-          <div class="stats-actions"><button type="button" class="btn ghost dark" id="statsReset">ล้างตัวกรอง</button><button type="button" class="btn primary" id="statsPrint">🖨 พิมพ์รายงาน / บันทึก PDF</button></div>
+          <div class="stats-actions"><button type="button" class="btn ghost dark" id="statsReset">ล้างตัวกรอง</button><button type="button" class="btn primary" id="statsPrint">🖨 พิมพ์รายงาน</button></div>
         </div>
         <div class="stats-headline" id="statsHeadline"></div>
         <div id="statsCharts" class="charts"></div>
@@ -172,9 +172,9 @@
 
   <div id="toast" class="toast" role="status"></div>
   <dialog id="popupBox" class="popup-box"><div class="popup-card"><div class="popup-ico" id="popupIco">✓</div><div class="popup-msg" id="popupMsg"></div><button type="button" class="btn primary" id="popupOk">ตกลง</button></div></dialog>
-  <dialog id="detailDialog"><button class="dialog-close" aria-label="ปิด">×</button><button type="button" class="btn ghost dark" id="viewReportDetail" style="float:right;margin-right:12px">📄 ดูใบรายงาน</button><div id="detailContent"></div><div class="dialog-actions"><button class="btn ghost dark" id="printRecord">พิมพ์</button><button class="btn ghost dark" id="editRecord">แก้ไข</button><button class="btn danger" id="deleteRecord">ลบรายการ</button></div></dialog>
+  <dialog id="detailDialog"><button class="dialog-close" aria-label="ปิด">×</button><button type="button" class="btn ghost dark" id="viewReportDetail" style="float:right;margin-right:12px">📄 ดูใบรายงาน</button><div id="detailContent"></div><div class="dialog-actions"><button class="btn ghost dark" id="printRecord">🖨 พิมพ์</button><button class="btn ghost dark" id="printRecordPdf">📄 บันทึก PDF</button><button class="btn ghost dark" id="editRecord">แก้ไข</button><button class="btn danger" id="deleteRecord">ลบรายการ</button></div></dialog>
   <dialog id="warnDialog" class="warn-dialog"><div class="warn-box"><div class="warn-ico">⚠️</div><h3>ตรวจสอบข้อมูลก่อนบันทึก</h3><p>โปรดตรวจสอบข้อมูลให้ถูกต้องครบถ้วน เมื่อกด “ตกลง” ระบบจะแสดงตัวอย่างเอกสารเพื่อให้ตรวจทานก่อนยืนยันการบันทึก</p><div class="warn-actions"><button type="button" class="btn ghost dark" id="warnCancel">ยกเลิก</button><button type="button" class="btn primary" id="warnOk">ตกลง</button></div></div></dialog>
-  <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn ghost dark hidden" id="previewPrint">🖨 พิมพ์ / บันทึก PDF</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
+  <dialog id="previewDialog" class="preview-dialog"><div class="a4-viewport"><div id="previewBody"></div></div><div class="dialog-actions"><button type="button" class="btn ghost dark" id="previewEdit">← แก้ไข</button><button type="button" class="btn ghost dark hidden" id="previewPrint">🖨 พิมพ์</button><button type="button" class="btn ghost dark hidden" id="previewPdf">📄 บันทึก PDF</button><button type="button" class="btn primary" id="previewConfirm">ยืนยันบันทึก</button></div></dialog>
   <div id="printArea" aria-hidden="true"></div>
   <nav class="tabbar" id="tabbar" aria-label="เมนูด้านล่าง">
     <button type="button" data-tab="home"><span class="ti">⌂</span><span>หน้าหลัก</span></button>
@@ -182,6 +182,6 @@
     <button type="button" data-tab="icn"><span class="ti">✚</span><span>ICN</span></button>
     <button type="button" data-tab="records"><span class="ti">▤</span><span>ทะเบียน</span></button>
   </nav>
-  <script src="app.js?v=112"></script>
+  <script src="app.js?v=113"></script>
 </body>
 </html>

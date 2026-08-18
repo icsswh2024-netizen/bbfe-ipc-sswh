@@ -1040,7 +1040,7 @@ function icnRenderPane(k){
   const kind = k==='lab-staff'?'staff':'patient';
   const docs=docsFor(k);
   if(docs.length){ pane.innerHTML=docViewerHtml(docs); return; }
-  pane.innerHTML=`<div class="lab-wrap"><div class="lab-actions"><span class="lab-hint">ตัวอย่างแบบฟอร์ม — พิมพ์หรือบันทึก PDF ไปใช้ได้</span><button type="button" class="btn ghost dark" data-labprint="${kind}">🖨 พิมพ์ / บันทึก PDF</button></div><div class="a4-viewport lab-view">${labReqHtml(kind)}</div></div>`;
+  pane.innerHTML=`<div class="lab-wrap"><div class="lab-actions"><span class="lab-hint">ตัวอย่างแบบฟอร์ม — พิมพ์หรือบันทึก PDF ไปใช้ได้</span><button type="button" class="btn ghost dark" data-labprint="${kind}">🖨 พิมพ์แบบฟอร์ม</button></div><div class="a4-viewport lab-view">${labReqHtml(kind)}</div></div>`;
   requestAnimationFrame(scaleLabDoc);
 }
 function icnSelectTab(k){ $$('.icn-tab').forEach(t=>t.classList.toggle('active', t.dataset.icntab===k)); icnRenderPane(k); }
@@ -1327,7 +1327,7 @@ function fitPreview(){ const vp=$('.a4-viewport'); if(!vp)return; const avail=vp
 // preview dialog states: 'save' (edit + confirm), 'ref' (read-only close), 'report' (edit + print/PDF + close)
 let previewState='save', reportRecord=null, reportEditFn=null, reportHtml='';
 function setPreviewMode(state){ previewState=state; const report=state==='report', ref=state==='ref';
-  $('#previewPrint').classList.toggle('hidden',!report);
+  $('#previewPrint').classList.toggle('hidden',!report); $('#previewPdf').classList.toggle('hidden',!report);
   $('#previewConfirm').classList.toggle('hidden',ref);
   $('#previewEdit').classList.toggle('hidden', report && !reportEditFn);
   $('#previewEdit').textContent = report ? '✎ แก้ไขข้อมูล' : (ref ? 'ปิด' : '← แก้ไข');
@@ -1347,6 +1347,7 @@ $('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHT
 $('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
 $('#viewReportDetail').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; const rv=pdpaView(r); openReport(rv, r.imported?null:()=>{ $('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r); }); };
 $('#previewPrint').onclick=()=>printReport();
+$('#previewPdf').onclick=()=>printReport();   // เบราว์เซอร์เลือกปลายทาง "บันทึกเป็น PDF" ในกล่องพิมพ์
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='report'){ if(reportEditFn) reportEditFn(); } else if(previewState!=='ref'){ pendingSave=null; } };
 $('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
@@ -1363,7 +1364,9 @@ $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r)
 $('#attachVctBtn').onclick=openVctFromEditor;
 form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.target.checked && e.target.value==='ใช่'){ openVctFromEditor(); } });
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
-$('#printRecord').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#pageStyle').textContent=printPageCss(hasVct(r)?'mix':'a4'); $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); };
+function printSelectedRecord(){ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#pageStyle').textContent=printPageCss(hasVct(r)?'mix':'a4'); $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
+$('#printRecord').onclick=printSelectedRecord;
+$('#printRecordPdf').onclick=printSelectedRecord;   // เลือก "บันทึกเป็น PDF" ในกล่องพิมพ์ของเบราว์เซอร์
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
 $('#exportCsv').onclick=csvExport;
