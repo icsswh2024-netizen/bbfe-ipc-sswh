@@ -1342,12 +1342,46 @@ function printPageCss(paper){ return paper==='a5'?A5_PAGE_CSS:(paper==='mix'?MIX
 function openReportHtml(html, editFn, paper){ reportEditFn=editFn||null; reportHtml=html; reportPaper=paper||'a4'; setPreviewMode('report'); $('#previewBody').innerHTML=html; $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; }
 function openReport(r, editFn){ reportRecord=r; openReportHtml(fullDocHtml(r), editFn, hasVct(r)?'mix':'a4'); }
 function printReport(){ if(!reportHtml)return; $('#pageStyle').textContent = printPageCss(reportPaper); $('#printArea').innerHTML=reportHtml; $('#previewDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
+// ---- ดาวน์โหลด PDF ลงอุปกรณ์ (html2canvas + jsPDF) ----
+function pdfLibReady(){ return !!(window.html2canvas && window.jspdf && window.jspdf.jsPDF); }
+function pageSizeMm(el){ if(el.classList.contains('a5-page')) return el.classList.contains('land')?{w:210,h:148}:{w:148,h:210}; return {w:210,h:297}; }
+function pdfFileName(r,prefix){ const nm=(r&&(r.staffName||''))||'', d=(r&&r.incidentDate)||new Date().toISOString().slice(0,10); return `${prefix||'เอกสาร'}-${(nm||'record')}-${d}.pdf`.replace(/\s+/g,'_'); }
+async function downloadPdfFromHtml(html, filename){
+  if(!pdfLibReady()) throw new Error('no-lib');
+  const wrap=document.createElement('div'); wrap.style.cssText='position:fixed;left:-10000px;top:0;background:#fff;z-index:-1';
+  const st=document.createElement('style'); st.textContent='.pdf-src .a4-page{width:794px;min-height:1123px;padding:20px 34px;margin:0;box-shadow:none;background:#fff}.pdf-src .a5-page{width:559px;min-height:794px;margin:0;box-shadow:none;background:#fff}.pdf-src .a5-page.land{width:794px;min-height:559px}';
+  wrap.innerHTML=`<div class="pdf-src">${html}</div>`; wrap.appendChild(st); document.body.appendChild(wrap);
+  try{
+    await (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve());
+    await new Promise(r=>setTimeout(r,80));
+    const pages=[...wrap.querySelectorAll('.a4-page,.a5-page')]; if(!pages.length)throw new Error('no-pages');
+    const {jsPDF}=window.jspdf; let pdf=null;
+    for(const el of pages){ const sz=pageSizeMm(el);
+      const canvas=await window.html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false,windowWidth:el.scrollWidth});
+      const land=sz.w>sz.h;
+      if(!pdf) pdf=new jsPDF({unit:'mm',format:[sz.w,sz.h],orientation:land?'landscape':'portrait'});
+      else pdf.addPage([sz.w,sz.h], land?'landscape':'portrait');
+      let w=sz.w, h=sz.w*canvas.height/canvas.width; if(h>sz.h){ h=sz.h; w=sz.h*canvas.width/canvas.height; }
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(sz.w-w)/2,(sz.h-h)/2,w,h);
+    }
+    pdf.save(filename||'เอกสาร.pdf');
+  } finally { wrap.remove(); }
+}
+async function savePdf(html, filename, btn){
+  const o=btn&&btn.textContent; if(btn){btn.disabled=true;btn.textContent='กำลังสร้าง PDF...';}
+  try{ await downloadPdfFromHtml(html, filename); }
+  catch(err){ const m=String(err&&err.message||err);
+    if(m==='no-lib') popup('ตัวสร้าง PDF ยังโหลดไม่เสร็จ (หรือเครือข่ายบล็อก)\nใช้ปุ่ม "พิมพ์" แล้วเลือกปลายทางเป็น "Save as PDF" แทนได้','warn');
+    else { console.error('savePdf:',err); popup('สร้าง PDF ไม่สำเร็จ ลองใหม่ หรือใช้ปุ่มพิมพ์','error'); }
+  } finally { if(btn){btn.disabled=false;btn.textContent=o;} }
+}
+function savePdfReport(btn){ if(!reportHtml)return; savePdf(reportHtml, pdfFileName(reportRecord, reportPaper==='a5'?'VCT':'Form-IC'), btn); }
 $('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode('save'); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
 $('#viewReportDetail').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; const rv=pdpaView(r); openReport(rv, r.imported?null:()=>{ $('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r); }); };
 $('#previewPrint').onclick=()=>printReport();
-$('#previewPdf').onclick=()=>printReport();   // เบราว์เซอร์เลือกปลายทาง "บันทึกเป็น PDF" ในกล่องพิมพ์
+$('#previewPdf').onclick=e=>savePdf(reportHtml, pdfFileName(reportRecord, reportPaper==='a5'?'VCT':'Form-IC'), e.currentTarget);   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='report'){ if(reportEditFn) reportEditFn(); } else if(previewState!=='ref'){ pendingSave=null; } };
 $('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
@@ -1366,7 +1400,7 @@ form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.
 $('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
 function printSelectedRecord(){ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#pageStyle').textContent=printPageCss(hasVct(r)?'mix':'a4'); $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
 $('#printRecord').onclick=printSelectedRecord;
-$('#printRecordPdf').onclick=printSelectedRecord;   // เลือก "บันทึกเป็น PDF" ในกล่องพิมพ์ของเบราว์เซอร์
+$('#printRecordPdf').onclick=e=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; savePdf(fullDocHtml(pdpaView(r)), pdfFileName(r,'Form-IC'), e.currentTarget); };   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
 $('#exportCsv').onclick=csvExport;
