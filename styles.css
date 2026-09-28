@@ -245,6 +245,10 @@ input,select,textarea,button,.search input{font-family:inherit}
 .popup-ico.ask{background:linear-gradient(135deg,var(--teal,#0e7c86),#3aa6b0)}
 .confirm-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .confirm-actions .btn{min-width:130px;padding:12px 20px;font-size:15px}
+.popup-ico.ask{font-size:28px}
+.prompt-input{width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid var(--line,#e3d7d9);border-radius:11px;font-size:15px;font-family:inherit;margin-bottom:10px;text-align:center}
+.prompt-input:focus{outline:none;border-color:var(--brand,#C8102E);box-shadow:0 0 0 3px rgba(200,16,46,.14)}
+.prompt-err{color:#b71c1c;font-size:13px;margin:-4px 0 12px;text-align:center}
 
 .dm-seg button.on.pull{background:#0b6b5e;color:#fff}
 
