@@ -1000,7 +1000,7 @@ function setTab(name){ $$('#tabbar button').forEach(b=>b.classList.toggle('activ
 const AUTH_KEY='icsswh-auth-v1';
 const AUTH_USERS={ icn:{pass:'10725',role:'admin',name:'แอดมิน'}, sup:{pass:'10725',role:'sup',name:'เวรตรวจการ'} };
 const PUBLIC_PERMS=['new'];                                   // ไม่ล็อกอิน: บันทึกเหตุการณ์เท่านั้น
-const ROLE_PERMS={ admin:['new','records','icn','admin','vct'], sup:['new','records'] };
+const ROLE_PERMS={ admin:['new','records','icn','admin','vct'], sup:['new','records','icn','vct'] };
 const ROLE_LABEL={ admin:'แอดมิน', sup:'เวรตรวจการ' };
 let AUTH=(()=>{ try{ return JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch{ return null; } })();
 let pendingNav=null;
