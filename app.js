@@ -988,15 +988,16 @@ function docPage2(r){
 }
 let pendingSave = null;
 const APPENDED_IDS = new Set();   // เรคคอร์ดที่เขียนลงชีตแล้วในเซสชันนี้ (กันเขียนซ้ำ)
-// เขียนเรคคอร์ดใหม่ลงแท็บทะเบียน 1 ครั้ง + แจ้งผลเป็นป๊อปอัพชัดเจน
+// เขียนเรคคอร์ดใหม่ลงแท็บทะเบียนกลาง 1 ครั้ง + แจ้งผลเป็นป๊อปอัพเดียวที่ชัดเจน (แยกจากบันทึกในเครื่อง)
 function pushNewToSheet(data){
   if (!data || !data.id || data.imported || APPENDED_IDS.has(data.id)) return;
   APPENDED_IDS.add(data.id);
+  toast('⏳ กำลังส่งขึ้นทะเบียนกลาง…');
   appendRecordToSheet(data).then(res=>{
-    if (res.ok) popup('✓ บันทึกลงทะเบียนในชีตแล้ว'+(res.seq?` (ลำดับที่ ${res.seq})`:''), 'ok');
+    if (res.ok) popup('🟢 ขึ้นทะเบียนกลางสำเร็จ\n\nเลขลำดับที่ '+(res.seq||'-')+'\n(แท็บ 01-บันชีรายชื่อ ในชีต)', 'ok');
     else if (res.skipped) { /* ยังไม่ได้ตั้งค่า URL — เงียบไว้ */ }
-    else if (res.unverified) popup('ส่งข้อมูลไปยังชีตแล้ว แต่เบราว์เซอร์อ่านผลกลับไม่ได้\nตรวจในแท็บ 01-บันชีรายชื่อ ว่ามีแถวใหม่หรือไม่', 'info');
-    else { APPENDED_IDS.delete(data.id); popup('เขียนลงชีตไม่สำเร็จ:\n'+(res.error||'ไม่ทราบสาเหตุ'), 'warn'); }
+    else if (res.unverified) popup('🟡 ส่งขึ้นทะเบียนกลางแล้ว\n\nแต่เบราว์เซอร์อ่านผลยืนยันกลับไม่ได้\nโปรดเปิดแท็บ 01-บันชีรายชื่อ เช็กว่ามีแถวใหม่', 'info');
+    else { APPENDED_IDS.delete(data.id); popup('🔴 ยังไม่ขึ้นทะเบียนกลาง\n\nบันทึกในเครื่องแล้ว แต่เขียนลงชีตไม่สำเร็จ:\n'+(res.error||'ไม่ทราบสาเหตุ'), 'error'); }
   }).catch(e=>{ APPENDED_IDS.delete(data.id); });
 }
 function commitSave(data){
@@ -1459,7 +1460,7 @@ $('#previewPrint').onclick=()=>printReport();
 $('#previewPdf').onclick=e=>savePdf(reportHtml, pdfFileName(reportRecord, reportPaper==='a5'?'VCT':'Form-IC'), e.currentTarget);   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='report'){ if(reportEditFn) reportEditFn(); } else if(previewState!=='ref'){ pendingSave=null; } };
-$('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };   // commitSave จะเขียนลงชีตให้เอง (เรคคอร์ดใหม่)
+$('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; const wasNew=!pendingSave.id; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); if(!wasNew) toast('✏️ บันทึกการแก้ไขแล้ว'); editorBack(); };   // เรคคอร์ดใหม่: commitSave เขียนลงชีต + เด้งป๊อปอัพผลเดียวชัดเจน (ไม่ต้อง toast ซ้ำ)
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=allRecords().find(x=>x.id===selectedId);if(!r)return;
