@@ -996,6 +996,27 @@ form.addEventListener('change', e => { if (e.target.matches('select,input[type=c
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
 function setTab(name){ $$('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); }
+// ---- เข้าสู่ระบบ + บทบาท (ระบบภายในฝั่งเบราว์เซอร์) ----
+const AUTH_KEY='icsswh-auth-v1';
+const AUTH_USERS={ admin:{pass:'1234',role:'admin',name:'ผู้ดูแลระบบ'}, icn:{pass:'1234',role:'icn',name:'เวรตรวจการ'}, records:{pass:'1234',role:'records',name:'ทะเบียน'} };
+const ROLE_PERMS={ admin:['new','records','icn','admin','vct'], icn:['new','records','icn','vct'], records:['new','records'] };
+const ROLE_LABEL={ admin:'แอดมิน', icn:'เวรตรวจการ', records:'ทะเบียน' };
+let AUTH=(()=>{ try{ return JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch{ return null; } })();
+function can(go){ return !!AUTH && (ROLE_PERMS[AUTH.role]||[]).includes(go); }
+function applyAuthUI(){
+  const authed=!!AUTH;
+  $('#loginView').classList.toggle('hidden',authed);
+  document.body.classList.toggle('no-auth',!authed);
+  const badge=$('#userBadge'); if(badge){ badge.classList.toggle('hidden',!authed); if(authed) badge.textContent=`👤 ${ROLE_LABEL[AUTH.role]||AUTH.role}`; }
+  $('#logoutBtn')&&$('#logoutBtn').classList.toggle('hidden',!authed);
+  if(authed){
+    $$('.menu-grid .menu-card').forEach(c=>c.classList.toggle('hidden', !can(c.dataset.go)));
+    $$('#tabbar button').forEach(b=>{ const t=b.dataset.tab; if(t==='home')return; b.classList.toggle('hidden', !can(t)); });
+    $('#newRecord')&&$('#newRecord').classList.toggle('hidden', !can('new'));
+  }
+}
+function doLogin(u,p){ const key=(u||'').trim().toLowerCase(); const acc=AUTH_USERS[key]; if(acc&&acc.pass===p){ AUTH={user:key,role:acc.role,name:acc.name}; try{sessionStorage.setItem(AUTH_KEY,JSON.stringify(AUTH));}catch(e){} applyAuthUI(); goHome(); return true; } return false; }
+function logout(){ AUTH=null; try{sessionStorage.removeItem(AUTH_KEY);}catch(e){} applyAuthUI(); }
 function goHome(){ showView('home'); setTab('home'); }
 function icnFlowHtml(){
   const steps=(FLOW_STEPS&&FLOW_STEPS.length?FLOW_STEPS:DEFAULT_FLOW).slice()
@@ -1044,7 +1065,7 @@ function icnRenderPane(k){
   requestAnimationFrame(scaleLabDoc);
 }
 function icnSelectTab(k){ $$('.icn-tab').forEach(t=>t.classList.toggle('active', t.dataset.icntab===k)); icnRenderPane(k); }
-function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
+function openDashboard(mode){ dashMode=mode||'records'; if(!can(dashMode)){ popup('บทบาทของคุณไม่มีสิทธิ์เข้าส่วนนี้','warn'); goHome(); return; } const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
   $('#adminBar').classList.toggle('hidden',!admin);
   const hint=$('#adminHint');
   hint.classList.toggle('hidden', dashMode==='records' || icn);
@@ -1063,7 +1084,7 @@ function openDashboard(mode){ dashMode=mode||'records'; const admin=dashMode==='
   $('#panelTitle').textContent=icn?'รายการอุบัติเหตุ (ส่วนที่ 4)':(vct?'เลือกผู้รับบริการ':'รายการอุบัติเหตุ');
   $('.stats').classList.toggle('hidden',icn||vct); // hide the overview stat tiles in ICN/VCT mode
   showView('dashboard'); renderDashboard($('#search').value); setTab(icn?'icn':(dashMode==='records'?'records':'')); }
-function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); setTab('new'); }
+function openStaffNew(){ if(!can('new')){ popup('บทบาทของคุณไม่มีสิทธิ์บันทึกเหตุการณ์','warn'); goHome(); return; } editorReturn='home'; resetForm(); showView('editor'); initSignPad(); setTab('new'); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
@@ -1305,6 +1326,11 @@ $('#fillDemo').onclick=fillDemo;
 $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
+// ---- login wiring ----
+$('#loginForm')&&($('#loginForm').onsubmit=e=>{ e.preventDefault(); const f=e.target, u=f.user.value, p=f.pass.value; const err=$('#loginErr'); if(doLogin(u,p)){ f.reset(); err.classList.add('hidden'); } else { err.textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'; err.classList.remove('hidden'); } });
+$('#passEye')&&($('#passEye').onclick=()=>{ const inp=$('#loginForm').pass; inp.type = inp.type==='password'?'text':'password'; });
+$('#logoutBtn')&&($('#logoutBtn').onclick=()=>{ if(confirm('ออกจากระบบ?')) logout(); });
+applyAuthUI();
 renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
 $('#statsReset').onclick=()=>{ statsApplyDefaults(); renderStatsFilters(); renderDashboard($('#search').value); };
