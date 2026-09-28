@@ -991,17 +991,37 @@ function commitSave(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet(); loadDocsFromSheet(); loadRegistryFromSheet();
+reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet(); loadDocsFromSheet(); loadRegistryFromSheet(); loadUsersFromSheet();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
 function setTab(name){ $$('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); }
 // ---- เข้าสู่ระบบ + บทบาท (บันทึกเหตุการณ์ไม่ต้องล็อกอิน; ทะเบียน/ICN/แอดมิน ต้องล็อกอิน) ----
 const AUTH_KEY='icsswh-auth-v1';
-const AUTH_USERS={ icn:{pass:'10725',role:'admin',name:'แอดมิน'}, sup:{pass:'10725',role:'sup',name:'เวรตรวจการ'} };
+const DEFAULT_AUTH_USERS={ icn:{pass:'10725',role:'admin',name:'แอดมิน'}, sup:{pass:'10725',role:'sup',name:'เวรตรวจการ'} };
+// บัญชีจากแท็บ "users" ในชีต (ชื่อผู้ใช้ | รหัสผ่าน | บทบาท | ชื่อ | สถานะ) — ไม่มี/โหลดไม่ได้ ใช้ค่าเริ่มต้น
+const USERS_CSV_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=users`;
+const USERS_CACHE_KEY='icsswh-users-cache-v1';
+function loadCachedUsers(){ try{ const v=JSON.parse(localStorage.getItem(USERS_CACHE_KEY)); return (v&&typeof v==='object'&&Object.keys(v).length)?v:null; }catch{ return null; } }
+let AUTH_USERS = loadCachedUsers() || {...DEFAULT_AUTH_USERS};
 const PUBLIC_PERMS=['new'];                                   // ไม่ล็อกอิน: บันทึกเหตุการณ์เท่านั้น
-const ROLE_PERMS={ admin:['new','records','icn','admin','vct'], sup:['new','records','icn','vct'] };
-const ROLE_LABEL={ admin:'แอดมิน', sup:'เวรตรวจการ' };
+const ROLE_PERMS={ admin:['new','records','icn','admin','vct'], sup:['new','records','icn','vct'], records:['new','records'] };
+const ROLE_LABEL={ admin:'แอดมิน', sup:'เวรตรวจการ', records:'ทะเบียน' };
+function userRoleKey(v){ v=String(v||'').trim().toLowerCase(); if(/admin|แอดมิน|ผู้ดูแล/.test(v))return 'admin'; if(/record|ทะเบียน/.test(v))return 'records'; return 'sup'; } // sup=เวรตรวจการ (ค่าปริยาย)
+function parseUsersRows(rows){
+  if(!rows||rows.length<2)return null;
+  const H=rows[0].map(h=>String(h).trim());
+  const idx=(...n)=>{ for(const x of n){ const i=H.indexOf(x); if(i>=0)return i; } return -1; };
+  const cu=idx('ชื่อผู้ใช้','username','user'), cp=idx('รหัสผ่าน','password','pass'), cr=idx('บทบาท','role','สิทธิ์'), cn=idx('ชื่อ','name'), cs=idx('สถานะ','status');
+  if(cu<0||cp<0)return null;
+  const out={};
+  for(let r=1;r<rows.length;r++){ const row=rows[r]||[]; const u=String(row[cu]||'').trim().toLowerCase(), p=String(row[cp]||'').trim(); if(!u||!p)continue;
+    if(cs>=0){ const s=String(row[cs]||'').trim().toLowerCase(); const on=/เปิด|on|active|ใช้|yes|true/.test(s); const off=/ปิด|off|disable|inactive|ระงับ|ไม่ใช้|false/.test(s); if(off&&!on)continue; }
+    const role=userRoleKey(cr>=0?row[cr]:''); const name=cn>=0?String(row[cn]||'').trim():'';
+    out[u]={pass:p, role, name:name||ROLE_LABEL[role]||role}; }
+  return Object.keys(out).length?out:null;
+}
+async function loadUsersFromSheet(){ try{ const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000); const res=await fetch(USERS_CSV_URL,{signal:ctrl.signal}); clearTimeout(t); if(!res.ok)return; const u=parseUsersRows(parseCSV(await res.text())); if(u){ AUTH_USERS=u; try{localStorage.setItem(USERS_CACHE_KEY,JSON.stringify(u));}catch(e){} } }catch{ /* keep cache/defaults */ } }
 let AUTH=(()=>{ try{ return JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch{ return null; } })();
 let pendingNav=null;
 function can(go){ return (AUTH?(ROLE_PERMS[AUTH.role]||[]):PUBLIC_PERMS).includes(go); }
