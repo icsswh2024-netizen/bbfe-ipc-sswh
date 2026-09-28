@@ -1562,23 +1562,53 @@ function registryValuesOf(r){ const p0=(r.sourcePatients&&r.sourcePatients[0])||
     'พฤติกรรมเสี่ยง':p0.risk||r.sourceRisk||'', 'ยา 28 day':r.pepRegimen||''
   };
 }
-// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน (opaque/CORS: ยิงแล้วถือว่าส่งออกไป ตรวจซ้ำได้จาก dmTest)
-async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return {skipped:true}; const body=JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:registryValuesOf(r)});
-  try{ const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body}); const d=await res.json().catch(()=>null); if(d&&d.ok===false) return {ok:false,error:d.error}; return (d&&d.ok===true)?{ok:true,seq:d.seq}:{unverified:true}; }
-  catch(e){ const m=String(e&&e.message||e); if(/Failed to fetch|NetworkError|Load failed|CORS|Type ?Error/i.test(m)) return {unverified:true}; return {ok:false,error:m}; } }
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.1';
+// เรียก Apps Script แบบ JSONP GET (อ่านผลข้ามโดเมนได้จริง ไม่ติด CORS)
+function jsonpGet(url, params, timeout){ return new Promise(res=>{ const cb='__ic_cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6); const s=document.createElement('script'); let done=false; const fin=v=>{ if(done)return; done=true; try{delete window[cb];}catch(e){} s.remove(); res(v); }; window[cb]=d=>fin(d); s.onerror=()=>fin(null); const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&'); s.src=url+(url.includes('?')?'&':'?')+qs+'&callback='+cb+'&t='+Date.now(); document.body.appendChild(s); setTimeout(()=>fin(null), timeout||15000); }); }
+// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — ช่องทางหลัก JSONP GET (อ่านผลได้) สำรองด้วย POST
+async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return {skipped:true};
+  const vals=registryValuesOf(r), slim={}; Object.keys(vals).forEach(k=>{ if(String(vals[k]).trim()!=='') slim[k]=vals[k]; });
+  const d=await jsonpGet(url,{action:'appendRow', sheet:REGISTRY_SHEET, payload:JSON.stringify(slim)}, 15000);
+  if(d&&d.ok===true) return {ok:true, seq:d.seq};
+  if(d&&d.ok===false) return {ok:false, error:d.error};
+  // สำรอง: POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
+  try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:slim})}); return {unverified:true}; }
+  catch(e){ return {unverified:true}; } }
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.2';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
-// เปิด URL นี้ในเบราว์เซอร์เพื่อทดสอบ: จะเห็นชื่อชีต + รายชื่อแท็บ + เวอร์ชันโค้ด
+// หาคอลัมน์จากชื่อหัวตาราง (ตัดช่องว่างหน้า-หลัง เผื่อหัวตารางมีเว้นวรรค)
+function icHcol(HH, name){ for (var i=0;i<HH.length;i++){ if (String(HH[i]).trim()===name) return i; } return -1; }
+// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — จับคู่ค่าตามชื่อหัวคอลัมน์ + รันเลขลำดับที่
+function icAppend(ss, name, vals){
+  var sh = ss.getSheetByName(name);
+  if (!sh) return {ok:false, error:'ไม่พบแท็บ '+name};
+  var rdata = sh.getDataRange().getValues();
+  var hi=-1; for (var i=0;i<Math.min(rdata.length,8);i++){ if (icHcol(rdata[i],'ชื่อบุคลากร')>=0){ hi=i; break; } }
+  if (hi<0) return {ok:false, error:'ไม่พบหัวตาราง (ชื่อบุคลากร)'};
+  var HH = rdata[hi];
+  var newRow=[]; for (var c=0;c<HH.length;c++) newRow.push('');
+  Object.keys(vals).forEach(function(k){ var ci=icHcol(HH,k); if (ci>=0 && newRow[ci]==='') newRow[ci]=vals[k]; });
+  var seqCol=icHcol(HH,'ลำดับที่'); if (seqCol<0) seqCol=icHcol(HH,'ลำดับ');
+  if (seqCol>=0){ var mx=0; for (var r=hi+1;r<rdata.length;r++){ var n=parseInt(rdata[r][seqCol],10); if(!isNaN(n)&&n>mx) mx=n; } newRow[seqCol]=mx+1; }
+  var nameCol=icHcol(HH,'ชื่อบุคลากร');
+  var lastRow=hi+1; for (var r=hi+1;r<rdata.length;r++){ if (String(rdata[r][nameCol]||'').trim()!=='' || (seqCol>=0 && String(rdata[r][seqCol]||'').trim()!=='')) lastRow=r+1; }
+  sh.getRange(lastRow+1,1,1,newRow.length).setValues([newRow]);
+  return {ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1};
+}
+// เปิด URL นี้ในเบราว์เซอร์เพื่อทดสอบ: จะเห็นชื่อชีต + รายชื่อแท็บ + เวอร์ชันโค้ด / รองรับ appendRow ผ่าน JSONP ด้วย
 function doGet(e){
-  var out = { ok:true, version:IC_VERSION };
-  try{
-    var ss = getSS();
-    out.spreadsheet = ss.getName();
-    out.sheets = ss.getSheets().map(function(s){ return s.getName(); });
-  }catch(err){ out.ok=false; out.error=String(err); }
+  var p = (e && e.parameter) || {};
+  var out;
+  if (p.action === 'appendRow'){
+    try{ var vals = JSON.parse(p.payload || '{}'); out = icAppend(getSS(), p.sheet || '01-บันชีรายชื่อ', vals); }
+    catch(err){ out = {ok:false, error:String(err)}; }
+  } else {
+    out = { ok:true, version:IC_VERSION };
+    try{ var ss = getSS(); out.spreadsheet = ss.getName(); out.sheets = ss.getSheets().map(function(s){ return s.getName(); }); }
+    catch(err){ out.ok=false; out.error=String(err); }
+  }
   var js = JSON.stringify(out);
-  var cb = e && e.parameter && e.parameter.callback;   // JSONP: อ่านผลข้ามโดเมนได้ (ไม่ติด CORS)
+  var cb = p.callback;   // JSONP: อ่านผลข้ามโดเมนได้ (ไม่ติด CORS)
   if (cb) return ContentService.createTextOutput(cb + '(' + js + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(js).setMimeType(ContentService.MimeType.JSON);
 }
@@ -1591,27 +1621,8 @@ function doPost(e){
 
     // append a new incident row to the registry — handled first so it never touches the fields-style header logic below
     if (body.action === 'appendRow'){
-      if (!sh) return ContentService.createTextOutput(JSON.stringify({ok:false, error:'ไม่พบแท็บ '+name})).setMimeType(ContentService.MimeType.JSON);
-      var rdata = sh.getDataRange().getValues();
-      var hi = -1;
-      for (var i=0; i<Math.min(rdata.length,8); i++){ if (rdata[i].indexOf('ชื่อบุคลากร') >= 0){ hi=i; break; } }
-      if (hi < 0) return ContentService.createTextOutput(JSON.stringify({ok:false, error:'ไม่พบหัวตาราง (ชื่อบุคลากร)'})).setMimeType(ContentService.MimeType.JSON);
-      var HH = rdata[hi];
-      var vals = body.values || {};
-      var newRow = [];
-      for (var c=0; c<HH.length; c++) newRow.push('');
-      // fill by header name — first matching column only (duplicated headers keep their first slot)
-      Object.keys(vals).forEach(function(k){ var ci = HH.indexOf(k); if (ci>=0 && newRow[ci]==='') newRow[ci] = vals[k]; });
-      // running number in ลำดับที่ = max existing + 1
-      var seqCol = HH.indexOf('ลำดับที่'); if (seqCol < 0) seqCol = HH.indexOf('ลำดับ');
-      if (seqCol >= 0){ var mx=0; for (var r=hi+1; r<rdata.length; r++){ var n=parseInt(rdata[r][seqCol],10); if(!isNaN(n)&&n>mx) mx=n; } newRow[seqCol]=mx+1; }
-      // find the real last data row (by name/seq column) and write right after it
-      var nameCol = HH.indexOf('ชื่อบุคลากร');
-      var lastRow = hi+1;
-      for (var r=hi+1; r<rdata.length; r++){ if (String(rdata[r][nameCol]||'').trim() !== '' || (seqCol>=0 && String(rdata[r][seqCol]||'').trim() !== '')) lastRow = r+1; }
-      sh.getRange(lastRow+1, 1, 1, newRow.length).setValues([newRow]);
-      return ContentService.createTextOutput(JSON.stringify({ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1}))
-        .setMimeType(ContentService.MimeType.JSON);
+      var outA = icAppend(ss, name, body.values || {});
+      return ContentService.createTextOutput(JSON.stringify(outA)).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (!sh){ sh = ss.insertSheet(name); sh.getRange(1,1,1,8).setValues([['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']]); }
