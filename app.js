@@ -1573,19 +1573,11 @@ async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return
   // สำรอง: POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
   try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:slim})}); return {unverified:true}; }
   catch(e){ return {unverified:true}; } }
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.5';
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.6';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // หาคอลัมน์จากชื่อหัวตาราง (ตัดช่องว่างหน้า-หลัง เผื่อหัวตารางมีเว้นวรรค)
 function icHcol(HH, name){ for (var i=0;i<HH.length;i++){ if (String(HH[i]).trim()===name) return i; } return -1; }
-// ค่าที่จะเขียนผ่าน dropdown/validation ของช่องนั้นได้ไหม (ลิสต์ หรือช่วงเซลล์); ชนิดอื่นปล่อยผ่าน
-function icDvAllows(dv, val){
-  var crit, args;
-  try { crit = String(dv.getCriteriaType()); args = dv.getCriteriaValues(); } catch(e){ return true; }
-  if (crit === 'VALUE_IN_LIST'){ var list = args[0] || []; for (var i=0;i<list.length;i++){ if (String(list[i]).trim() === String(val).trim()) return true; } return false; }
-  if (crit === 'VALUE_IN_RANGE'){ try { var vs = args[0].getValues(); for (var i=0;i<vs.length;i++){ for (var j=0;j<vs[i].length;j++){ if (String(vs[i][j]).trim() === String(val).trim()) return true; } } return false; }catch(e){ return true; } }
-  return true;   // ตัวเลข/วันที่/อื่น ๆ ปล่อยให้ setValues ลองเขียนตามปกติ
-}
 // เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — จับคู่ค่าตามชื่อหัวคอลัมน์ + รันเลขลำดับที่
 function icAppend(ss, name, vals){
   var sh = ss.getSheetByName(name);
@@ -1601,19 +1593,15 @@ function icAppend(ss, name, vals){
   var nameCol=icHcol(HH,'ชื่อบุคลากร');
   var lastRow=hi+1; for (var r=hi+1;r<rdata.length;r++){ if (String(rdata[r][nameCol]||'').trim()!=='' || (seqCol>=0 && String(rdata[r][seqCol]||'').trim()!=='')) lastRow=r+1; }
   var rng = sh.getRange(lastRow+1, 1, 1, newRow.length);
-  // เช็ก dropdown/validation ของแต่ละช่องก่อนเขียน — ช่องที่ค่าไม่อยู่ในลิสต์ให้เว้นว่าง (ไม่แตะ validation เดิม dropdown ยังอยู่ครบ ไม่มีทาง error)
-  var dvs; try { dvs = rng.getDataValidations()[0]; } catch(e){ dvs = null; }
+  // ล้าง validation เฉพาะแถวใหม่ + flush ก่อนเขียน เพื่อให้เขียน "ค่าจากแบบบันทึกตามจริง" ได้ทุกช่อง แม้ไม่ตรง dropdown (แถวเดิมไม่กระทบ)
   var skipped=[];
-  for (var c=0;c<newRow.length;c++){
-    if (newRow[c]==='') continue;
-    if (dvs && dvs[c] && !icDvAllows(dvs[c], newRow[c])){ skipped.push(String(HH[c]).trim()); newRow[c]=''; }
-  }
+  try { rng.clearDataValidations(); SpreadsheetApp.flush(); } catch(e){}
   try {
     rng.setValues([newRow]);
-    SpreadsheetApp.flush();   // บังคับเขียนทันที เพื่อจับ error (ถ้ามี validation แบบอื่นที่ตรวจไม่ได้ล่วงหน้า)
+    SpreadsheetApp.flush();
   } catch(e){
-    // สำรอง: เขียนทีละเซลล์ ข้ามเฉพาะเซลล์ที่ยังถูกปฏิเสธ
-    for (var c2=0;c2<newRow.length;c2++){ if (newRow[c2]==='') continue; try{ sh.getRange(lastRow+1, c2+1).setValue(newRow[c2]); SpreadsheetApp.flush(); }catch(e2){ if (skipped.indexOf(String(HH[c2]).trim())<0) skipped.push(String(HH[c2]).trim()); } }
+    // สำรอง: เขียนทีละเซลล์ (ล้าง validation รายเซลล์ + flush) ข้ามเฉพาะเซลล์ที่ยังถูกปฏิเสธ
+    for (var c=0;c<newRow.length;c++){ if (newRow[c]==='') continue; try{ var cell=sh.getRange(lastRow+1, c+1); cell.clearDataValidations(); SpreadsheetApp.flush(); cell.setValue(newRow[c]); SpreadsheetApp.flush(); }catch(e2){ skipped.push(String(HH[c]).trim()); } }
   }
   return {ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1, skipped:skipped};
 }
