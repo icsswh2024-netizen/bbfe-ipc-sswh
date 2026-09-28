@@ -987,11 +987,25 @@ function docPage2(r){
     + `</div></div>`;
 }
 let pendingSave = null;
+const APPENDED_IDS = new Set();   // เรคคอร์ดที่เขียนลงชีตแล้วในเซสชันนี้ (กันเขียนซ้ำ)
+// เขียนเรคคอร์ดใหม่ลงแท็บทะเบียน 1 ครั้ง + แจ้งผลเป็นป๊อปอัพชัดเจน
+function pushNewToSheet(data){
+  if (!data || !data.id || data.imported || APPENDED_IDS.has(data.id)) return;
+  APPENDED_IDS.add(data.id);
+  appendRecordToSheet(data).then(res=>{
+    if (res.ok) popup('✓ บันทึกลงทะเบียนในชีตแล้ว'+(res.seq?` (ลำดับที่ ${res.seq})`:''), 'ok');
+    else if (res.skipped) { /* ยังไม่ได้ตั้งค่า URL — เงียบไว้ */ }
+    else if (res.unverified) popup('ส่งข้อมูลไปยังชีตแล้ว แต่เบราว์เซอร์อ่านผลกลับไม่ได้\nตรวจในแท็บ 01-บันชีรายชื่อ ว่ามีแถวใหม่หรือไม่', 'info');
+    else { APPENDED_IDS.delete(data.id); popup('เขียนลงชีตไม่สำเร็จ:\n'+(res.error||'ไม่ทราบสาเหตุ'), 'warn'); }
+  }).catch(e=>{ APPENDED_IDS.delete(data.id); });
+}
 function commitSave(data){
   const list = records(), now = new Date().toISOString();
+  let isNew = false;
   if (data.id) { const i = list.findIndex(r => r.id === data.id); const prev = i>=0?list[i]:null; data.createdAt = prev?.createdAt || now; data.updatedAt = now; if (data.vct===undefined && prev?.vct) data.vct = prev.vct; if (i >= 0) list[i] = data; else list.push(data); }
-  else { data.id = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`; data.createdAt = now; data.updatedAt = now; list.push(data); }
+  else { isNew = true; data.id = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`; data.createdAt = now; data.updatedAt = now; list.push(data); }
   persist(list); formDirty=false;
+  if (isNew) pushNewToSheet(data);   // เขียนลงชีตทันทีที่สร้างเรคคอร์ดใหม่ (ครอบคลุมทั้งเส้นทาง VCT และบันทึกปกติ)
 }
 
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
@@ -1445,7 +1459,7 @@ $('#previewPrint').onclick=()=>printReport();
 $('#previewPdf').onclick=e=>savePdf(reportHtml, pdfFileName(reportRecord, reportPaper==='a5'?'VCT':'Form-IC'), e.currentTarget);   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='report'){ if(reportEditFn) reportEditFn(); } else if(previewState!=='ref'){ pendingSave=null; } };
-$('#previewConfirm').onclick=async()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; const isNew=!pendingSave.id; const data=pendingSave; commitSave(data); pendingSave=null; $('#previewDialog').close(); editorBack(); if(isNew){ toast('บันทึกข้อมูลแล้ว — กำลังเขียนลงชีต...'); const res=await appendRecordToSheet(data); if(res.ok) toast('บันทึกลงทะเบียนในชีตแล้ว'+(res.seq?` (ลำดับที่ ${res.seq})`:'')); else if(res.unverified) toast('บันทึกในเครื่องแล้ว — ส่งไปยังชีตแล้ว (ตรวจซ้ำได้ที่การจัดการข้อมูล)'); else if(res.skipped) toast('บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้งค่าการเชื่อมต่อชีต)'); else popup('บันทึกในเครื่องแล้ว แต่เขียนลงชีตไม่สำเร็จ:\n'+(res.error||'ไม่ทราบสาเหตุ'),'warn'); } else { toast('บันทึกข้อมูลเรียบร้อย'); } };
+$('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };   // commitSave จะเขียนลงชีตให้เอง (เรคคอร์ดใหม่)
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=allRecords().find(x=>x.id===selectedId);if(!r)return;
