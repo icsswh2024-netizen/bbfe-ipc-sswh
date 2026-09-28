@@ -1556,7 +1556,7 @@ $('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','ke
 
 // ---- บันทึกลงชีตอัตโนมัติ ผ่าน Google Apps Script Web App ----
 const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
-const DEFAULT_SHEET_HOOK='https://script.google.com/macros/s/AKfycbzG11Z-HV-WN-JEo1DT4pYd_-tldC0I6Y2s-Wo7VecCixRmz0lMR-S_84ykOIpNQdOg/exec';
+const DEFAULT_SHEET_HOOK='https://script.google.com/macros/s/AKfycbwwPev3D6Sthht2ky6bI3axBepL-Ljju-pSa0gsJlnAFAJ8zb3XcS7ruF1225GDyAC9IQ/exec';
 const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||DEFAULT_SHEET_HOOK;}catch{return DEFAULT_SHEET_HOOK;} };
 // วันที่แบบทะเบียนเดิม: d/m/พ.ศ. (เช่น 11/10/2567)
 function regThaiDate(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return iso; return d.getDate()+'/'+(d.getMonth()+1)+'/'+(d.getFullYear()+543); }
