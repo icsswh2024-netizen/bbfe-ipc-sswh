@@ -8,12 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=115">
+  <link rel="stylesheet" href="styles.css?v=116">
   <style id="pageStyle"></style>
 </head>
 <body>
-  <div id="loginView" class="login-view">
+  <div id="loginView" class="login-view hidden">
     <div class="login-card">
+      <button type="button" class="login-close" id="loginClose" aria-label="ปิด">×</button>
       <div class="login-brand">
         <div class="login-logos"><img src="assets/logo-sswh.png" alt="โรงพยาบาลศรีสังวรสุโขทัย"><img src="assets/logo-ic.png" alt="IC"></div>
         <h1>ระบบทะเบียนอุบัติเหตุ<br>จากการทำงาน</h1>
@@ -23,18 +24,18 @@
       </div>
       <form class="login-form" id="loginForm" autocomplete="on">
         <h2>เข้าสู่ระบบ</h2>
-        <p class="login-lede">กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเข้าใช้งาน</p>
+        <p class="login-lede">เข้าสู่ระบบเพื่อดูทะเบียน / ICN / ส่วนแอดมิน<br>(การบันทึกเหตุการณ์ไม่ต้องเข้าสู่ระบบ)</p>
         <label class="lf-field">ชื่อผู้ใช้<span class="lf-in"><span class="lf-ico">👤</span><input name="user" autocomplete="username" placeholder="username" required></span></label>
         <label class="lf-field">รหัสผ่าน<span class="lf-in"><span class="lf-ico">🔒</span><input name="pass" type="password" autocomplete="current-password" placeholder="••••••••" required><button type="button" class="lf-eye" id="passEye" aria-label="แสดง/ซ่อนรหัสผ่าน">👁</button></span></label>
         <div class="login-err hidden" id="loginErr"></div>
         <button type="submit" class="btn primary lf-submit">➜ เข้าสู่ระบบ</button>
-        <div class="login-accounts"><b>ℹ บัญชีทดสอบ</b><div>แอดมิน : <code>admin / 1234</code></div><div>เวรตรวจการ : <code>icn / 1234</code></div><div>ทะเบียน : <code>records / 1234</code></div></div>
+        <div class="login-accounts"><b>ℹ บัญชี</b><div>เวรตรวจการ : <code>sup / 10725</code> — บันทึก · ทะเบียน</div><div>แอดมิน : <code>icn / 10725</code> — ทุกส่วน</div></div>
       </form>
     </div>
   </div>
   <header class="topbar">
     <div class="brand" id="homeLink" role="button" tabindex="0" title="กลับหน้าหลัก"><img class="brand-logo" data-logo="sswh" src="assets/logo-sswh.png" alt="โรงพยาบาลศรีสังวรสุโขทัย"><img class="brand-logo" data-logo="ic" src="assets/logo-ic.png" alt="กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ"><div><strong>IC • Srisangworn</strong><small>Occupational Exposure Registry</small></div></div>
-    <div class="header-actions"><span class="user-badge hidden" id="userBadge"></span><button class="btn primary" id="newRecord">+ บันทึกเหตุการณ์</button><button class="btn ghost" id="logoutBtn">ออกจากระบบ</button></div>
+    <div class="header-actions"><span class="user-badge hidden" id="userBadge"></span><button class="btn primary" id="newRecord">+ บันทึกเหตุการณ์</button><button class="btn ghost" id="loginBtn">เข้าสู่ระบบ</button><button class="btn ghost hidden" id="logoutBtn">ออกจากระบบ</button></div>
   </header>
 
   <main>
@@ -204,6 +205,6 @@
   </nav>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="app.js?v=115"></script>
+  <script src="app.js?v=116"></script>
 </body>
 </html>
