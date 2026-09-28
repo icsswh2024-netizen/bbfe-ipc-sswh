@@ -996,27 +996,26 @@ form.addEventListener('change', e => { if (e.target.matches('select,input[type=c
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
 function setTab(name){ $$('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); }
-// ---- เข้าสู่ระบบ + บทบาท (ระบบภายในฝั่งเบราว์เซอร์) ----
+// ---- เข้าสู่ระบบ + บทบาท (บันทึกเหตุการณ์ไม่ต้องล็อกอิน; ทะเบียน/ICN/แอดมิน ต้องล็อกอิน) ----
 const AUTH_KEY='icsswh-auth-v1';
-const AUTH_USERS={ admin:{pass:'1234',role:'admin',name:'ผู้ดูแลระบบ'}, icn:{pass:'1234',role:'icn',name:'เวรตรวจการ'}, records:{pass:'1234',role:'records',name:'ทะเบียน'} };
-const ROLE_PERMS={ admin:['new','records','icn','admin','vct'], icn:['new','records','icn','vct'], records:['new','records'] };
-const ROLE_LABEL={ admin:'แอดมิน', icn:'เวรตรวจการ', records:'ทะเบียน' };
+const AUTH_USERS={ icn:{pass:'10725',role:'admin',name:'แอดมิน'}, sup:{pass:'10725',role:'sup',name:'เวรตรวจการ'} };
+const PUBLIC_PERMS=['new'];                                   // ไม่ล็อกอิน: บันทึกเหตุการณ์เท่านั้น
+const ROLE_PERMS={ admin:['new','records','icn','admin','vct'], sup:['new','records'] };
+const ROLE_LABEL={ admin:'แอดมิน', sup:'เวรตรวจการ' };
 let AUTH=(()=>{ try{ return JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch{ return null; } })();
-function can(go){ return !!AUTH && (ROLE_PERMS[AUTH.role]||[]).includes(go); }
+let pendingNav=null;
+function can(go){ return (AUTH?(ROLE_PERMS[AUTH.role]||[]):PUBLIC_PERMS).includes(go); }
 function applyAuthUI(){
   const authed=!!AUTH;
-  $('#loginView').classList.toggle('hidden',authed);
-  document.body.classList.toggle('no-auth',!authed);
-  const badge=$('#userBadge'); if(badge){ badge.classList.toggle('hidden',!authed); if(authed) badge.textContent=`👤 ${ROLE_LABEL[AUTH.role]||AUTH.role}`; }
+  $('#loginBtn')&&$('#loginBtn').classList.toggle('hidden',authed);
   $('#logoutBtn')&&$('#logoutBtn').classList.toggle('hidden',!authed);
-  if(authed){
-    $$('.menu-grid .menu-card').forEach(c=>c.classList.toggle('hidden', !can(c.dataset.go)));
-    $$('#tabbar button').forEach(b=>{ const t=b.dataset.tab; if(t==='home')return; b.classList.toggle('hidden', !can(t)); });
-    $('#newRecord')&&$('#newRecord').classList.toggle('hidden', !can('new'));
-  }
+  const badge=$('#userBadge'); if(badge){ badge.classList.toggle('hidden',!authed); if(authed) badge.textContent=`👤 ${ROLE_LABEL[AUTH.role]||AUTH.role}`; }
 }
-function doLogin(u,p){ const key=(u||'').trim().toLowerCase(); const acc=AUTH_USERS[key]; if(acc&&acc.pass===p){ AUTH={user:key,role:acc.role,name:acc.name}; try{sessionStorage.setItem(AUTH_KEY,JSON.stringify(AUTH));}catch(e){} applyAuthUI(); goHome(); return true; } return false; }
-function logout(){ AUTH=null; try{sessionStorage.removeItem(AUTH_KEY);}catch(e){} applyAuthUI(); }
+function openLogin(){ const err=$('#loginErr'); if(err)err.classList.add('hidden'); $('#loginView').classList.remove('hidden'); const u=$('#loginForm'); if(u){u.reset(); setTimeout(()=>{try{u.user.focus();}catch(e){}},50);} }
+function closeLogin(){ $('#loginView').classList.add('hidden'); pendingNav=null; }
+function runPendingNav(){ const n=pendingNav; pendingNav=null; if(n&&n.type==='dash') openDashboard(n.mode); else goHome(); }
+function doLogin(u,p){ const key=(u||'').trim().toLowerCase(); const acc=AUTH_USERS[key]; if(acc&&acc.pass===p){ AUTH={user:key,role:acc.role,name:acc.name}; try{sessionStorage.setItem(AUTH_KEY,JSON.stringify(AUTH));}catch(e){} applyAuthUI(); $('#loginView').classList.add('hidden'); runPendingNav(); return true; } return false; }
+function logout(){ AUTH=null; try{sessionStorage.removeItem(AUTH_KEY);}catch(e){} applyAuthUI(); goHome(); }
 function goHome(){ showView('home'); setTab('home'); }
 function icnFlowHtml(){
   const steps=(FLOW_STEPS&&FLOW_STEPS.length?FLOW_STEPS:DEFAULT_FLOW).slice()
@@ -1065,7 +1064,7 @@ function icnRenderPane(k){
   requestAnimationFrame(scaleLabDoc);
 }
 function icnSelectTab(k){ $$('.icn-tab').forEach(t=>t.classList.toggle('active', t.dataset.icntab===k)); icnRenderPane(k); }
-function openDashboard(mode){ dashMode=mode||'records'; if(!can(dashMode)){ popup('บทบาทของคุณไม่มีสิทธิ์เข้าส่วนนี้','warn'); goHome(); return; } const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
+function openDashboard(mode){ const m=mode||'records'; if(!can(m)){ if(!AUTH){ pendingNav={type:'dash',mode:m}; openLogin(); } else popup('บทบาท “'+(ROLE_LABEL[AUTH.role]||AUTH.role)+'” ไม่มีสิทธิ์เข้าส่วนนี้','warn'); return; } dashMode=m; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
   $('#adminBar').classList.toggle('hidden',!admin);
   const hint=$('#adminHint');
   hint.classList.toggle('hidden', dashMode==='records' || icn);
@@ -1084,7 +1083,7 @@ function openDashboard(mode){ dashMode=mode||'records'; if(!can(dashMode)){ popu
   $('#panelTitle').textContent=icn?'รายการอุบัติเหตุ (ส่วนที่ 4)':(vct?'เลือกผู้รับบริการ':'รายการอุบัติเหตุ');
   $('.stats').classList.toggle('hidden',icn||vct); // hide the overview stat tiles in ICN/VCT mode
   showView('dashboard'); renderDashboard($('#search').value); setTab(icn?'icn':(dashMode==='records'?'records':'')); }
-function openStaffNew(){ if(!can('new')){ popup('บทบาทของคุณไม่มีสิทธิ์บันทึกเหตุการณ์','warn'); goHome(); return; } editorReturn='home'; resetForm(); showView('editor'); initSignPad(); setTab('new'); }
+function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); initSignPad(); setTab('new'); }
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
@@ -1327,8 +1326,10 @@ $('#homeLink').onclick=goHome;
 $('#homeLink').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}};
 $('#dashHome').onclick=goHome;
 // ---- login wiring ----
-$('#loginForm')&&($('#loginForm').onsubmit=e=>{ e.preventDefault(); const f=e.target, u=f.user.value, p=f.pass.value; const err=$('#loginErr'); if(doLogin(u,p)){ f.reset(); err.classList.add('hidden'); } else { err.textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'; err.classList.remove('hidden'); } });
+$('#loginForm')&&($('#loginForm').onsubmit=e=>{ e.preventDefault(); const f=e.target, u=f.user.value, p=f.pass.value; const err=$('#loginErr'); if(!doLogin(u,p)){ err.textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'; err.classList.remove('hidden'); } });
 $('#passEye')&&($('#passEye').onclick=()=>{ const inp=$('#loginForm').pass; inp.type = inp.type==='password'?'text':'password'; });
+$('#loginBtn')&&($('#loginBtn').onclick=()=>openLogin());
+$('#loginClose')&&($('#loginClose').onclick=()=>closeLogin());
 $('#logoutBtn')&&($('#logoutBtn').onclick=()=>{ if(confirm('ออกจากระบบ?')) logout(); });
 applyAuthUI();
 renderMenu();
