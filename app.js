@@ -599,6 +599,8 @@ function showPopup(message, kind, auto){ const d=$('#popupBox'); if(!d){ const e
 function popup(message, kind){ showPopup(message, kind||'ok', 0); }     // สำคัญ: ปิดเอง = ไม่ (มีปุ่มตกลง)
 function toast(message){ showPopup(message, 'note', 1900); }            // ทั่วไป: กล่องกลางจอ ปิดเองใน ~2 วิ
 $('#popupOk')&&($('#popupOk').onclick=()=>$('#popupBox').close());
+// กล่องยืนยันสไตล์เดียวกับแอป (แทน confirm() ของเบราว์เซอร์) — คืนค่าเป็น Promise<boolean>
+function confirmDialog(message, opts){ opts=opts||{}; const d=$('#confirmBox'); if(!d) return Promise.resolve(window.confirm(message)); const k=opts.kind||'warn'; const ico={ok:'✓',warn:'!',error:'✕',info:'i',ask:'?'}[k]||'?'; $('#confirmIco').textContent=ico; $('#confirmIco').className='popup-ico '+k; $('#confirmMsg').textContent=message; $('#confirmYes').textContent=opts.yes||'ยืนยัน'; $('#confirmNo').textContent=opts.no||'ยกเลิก'; if(d.open)d.close(); d.showModal(); return new Promise(res=>{ const done=v=>{ $('#confirmYes').onclick=null; $('#confirmNo').onclick=null; d.onclose=null; try{d.close();}catch(e){} res(v); }; $('#confirmYes').onclick=()=>done(true); $('#confirmNo').onclick=()=>done(false); d.onclose=()=>done(false); }); }
 
 let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
 // section 4 (การรักษาเพื่อป้องกัน) not started yet -> a "new" incident awaiting ICN
@@ -803,8 +805,10 @@ function showView(name){ $$('.view').forEach(v=>v.classList.toggle('active',v.id
 const STAFF_PAGES=[0,1,2], ADMIN_PAGES=[0,1,2,3,4], ICN_PAGES=[3];
 const PAGES_BY_MODE={staff:STAFF_PAGES,admin:ADMIN_PAGES,icn:ICN_PAGES};
 let formMode='staff';
+let formDirty=false;   // มีการแก้ไขฟอร์มที่ยังไม่บันทึก
+form.addEventListener('input', ()=>{ formDirty=true; });
 function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#viewPrevDoc').classList.toggle('hidden',mode!=='icn'); const eyebrow={admin:'ส่วนแอดมิน • ทุกส่วน (1-5)',icn:'ICN / เวรตรวจการ • ส่วนที่ 4'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'แก้ไข/จัดการข้อมูลได้ทุกส่วน (แอดมิน)',icn:'การรักษาเพื่อป้องกัน (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
-function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); }
+function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); formDirty=false; }
 let MULTI_FIELDS = new Set(['exposureType', 'bodySite']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); out.sourcePatients=collectSourcePatients(); const p0=out.sourcePatients[0]||{}; out.sourceName=p0.name||''; out.sourceHn=p0.hn||''; out.sourceHiv=p0.hiv||''; out.sourceHbsAg=p0.hbsAg||''; out.sourceHcv=p0.hcv||''; out.sourceRisk=p0.risk||''; out.sourceRiskDetail=p0.riskDetail||''; return out; }
 function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; renderSourcePatients((record.sourcePatients&&record.sourcePatients.length)?record.sourcePatients:[{name:record.sourceName,hn:record.sourceHn,hiv:record.sourceHiv,hbsAg:record.sourceHbsAg,hcv:record.sourceHcv,risk:record.sourceRisk,riskDetail:record.sourceRiskDetail}]); updateAllOther(); updateSoundex(); }
@@ -985,7 +989,7 @@ function commitSave(data){
   const list = records(), now = new Date().toISOString();
   if (data.id) { const i = list.findIndex(r => r.id === data.id); const prev = i>=0?list[i]:null; data.createdAt = prev?.createdAt || now; data.updatedAt = now; if (data.vct===undefined && prev?.vct) data.vct = prev.vct; if (i >= 0) list[i] = data; else list.push(data); }
   else { data.id = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`; data.createdAt = now; data.updatedAt = now; list.push(data); }
-  persist(list);
+  persist(list); formDirty=false;
 }
 
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
@@ -1291,7 +1295,8 @@ function vctPage3(r){ const v=r.vct||{}, fx=rFx, eq=rEq; const no=x=>Array.isArr
     + `</div>`;
 }
 function vctPagesHtml(r){ return `<div class="a5-page">${vctPage1(r)}</div><div class="a5-page land">${vctPage2(r)}</div><div class="a5-page land">${vctPage3(r)}</div>`; }
-function editorBack(){ if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
+function editorLeave(){ formDirty=false; if(editorReturn==='home') goHome(); else openDashboard(editorReturn); }
+async function editorBack(){ if(formDirty){ if(!await confirmDialog('มีข้อมูลที่ยังไม่ได้บันทึก หากออกตอนนี้ข้อมูลจะหาย ต้องการออกโดยไม่บันทึกใช่หรือไม่?',{kind:'warn',yes:'ออกโดยไม่บันทึก',no:'อยู่หน้านี้ต่อ'}))return; } editorLeave(); }
 // ---- Sample-data filler (fills ONLY the sections active in the current mode) ----
 function drawDemoSignature(){
   const c=signCanvas(); if(!c||!c.getContext) return; initSignPad(); if(!signCtx) return;
@@ -1350,7 +1355,7 @@ $('#loginForm')&&($('#loginForm').onsubmit=e=>{ e.preventDefault(); const f=e.ta
 $('#passEye')&&($('#passEye').onclick=()=>{ const inp=$('#loginForm').pass; inp.type = inp.type==='password'?'text':'password'; });
 $('#loginBtn')&&($('#loginBtn').onclick=()=>openLogin());
 $('#loginClose')&&($('#loginClose').onclick=()=>closeLogin());
-$('#logoutBtn')&&($('#logoutBtn').onclick=()=>{ if(confirm('ออกจากระบบ?')) logout(); });
+$('#logoutBtn')&&($('#logoutBtn').onclick=async()=>{ if(await confirmDialog('ต้องการออกจากระบบใช่หรือไม่?',{kind:'ask',yes:'ออกจากระบบ',no:'ยกเลิก'})) logout(); });
 applyAuthUI();
 renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
@@ -1444,7 +1449,7 @@ $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};  // imported (sheet-*) ไม่อยู่ใน records() จึงแก้ไม่ได้
 $('#attachVctBtn').onclick=openVctFromEditor;
 form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.target.checked && e.target.value==='ใช่'){ openVctFromEditor(); } });
-$('#deleteRecord').onclick=()=>{if(!confirm('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้'))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
+$('#deleteRecord').onclick=async()=>{if(!await confirmDialog('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้',{kind:'error',yes:'ลบรายการ',no:'ยกเลิก'}))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
 function printSelectedRecord(){ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#pageStyle').textContent=printPageCss(hasVct(r)?'mix':'a4'); $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
 $('#printRecord').onclick=printSelectedRecord;
 $('#printRecordPdf').onclick=e=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; savePdf(fullDocHtml(pdpaView(r)), pdfFileName(r,'Form-IC'), e.currentTarget); };   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
