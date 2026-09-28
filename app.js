@@ -1438,7 +1438,7 @@ $('#previewPrint').onclick=()=>printReport();
 $('#previewPdf').onclick=e=>savePdf(reportHtml, pdfFileName(reportRecord, reportPaper==='a5'?'VCT':'Form-IC'), e.currentTarget);   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
 $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='report'){ if(reportEditFn) reportEditFn(); } else if(previewState!=='ref'){ pendingSave=null; } };
-$('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); toast('บันทึกข้อมูลเรียบร้อย'); editorBack(); };
+$('#previewConfirm').onclick=async()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; const isNew=!pendingSave.id; const data=pendingSave; commitSave(data); pendingSave=null; $('#previewDialog').close(); editorBack(); if(isNew){ toast('บันทึกข้อมูลแล้ว — กำลังเขียนลงชีต...'); const res=await appendRecordToSheet(data); if(res.ok) toast('บันทึกลงทะเบียนในชีตแล้ว'+(res.seq?` (ลำดับที่ ${res.seq})`:'')); else if(res.unverified) toast('บันทึกในเครื่องแล้ว — ส่งไปยังชีตแล้ว (ตรวจซ้ำได้ที่การจัดการข้อมูล)'); else if(res.skipped) toast('บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้งค่าการเชื่อมต่อชีต)'); else popup('บันทึกในเครื่องแล้ว แต่เขียนลงชีตไม่สำเร็จ:\n'+(res.error||'ไม่ทราบสาเหตุ'),'warn'); } else { toast('บันทึกข้อมูลเรียบร้อย'); } };
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=allRecords().find(x=>x.id===selectedId);if(!r)return;
@@ -1536,7 +1536,30 @@ $('#dmCopy').onclick=async()=>{ const head=['ส่วน','ลำดับ','ke
 const SHEET_HOOK_KEY='icsswh-sheet-webhook-v1';
 const DEFAULT_SHEET_HOOK='https://script.google.com/macros/s/AKfycbzG11Z-HV-WN-JEo1DT4pYd_-tldC0I6Y2s-Wo7VecCixRmz0lMR-S_84ykOIpNQdOg/exec';
 const getSheetHook=()=>{ try{return localStorage.getItem(SHEET_HOOK_KEY)||DEFAULT_SHEET_HOOK;}catch{return DEFAULT_SHEET_HOOK;} };
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-08-15.2';
+// วันที่แบบทะเบียนเดิม: d/m/พ.ศ. (เช่น 11/10/2567)
+function regThaiDate(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return iso; return d.getDate()+'/'+(d.getMonth()+1)+'/'+(d.getFullYear()+543); }
+// จับคู่ค่าจากฟอร์ม → หัวคอลัมน์ของแท็บ 01-บันชีรายชื่อ (เฉพาะคอลัมน์ที่ชื่อไม่ซ้ำ ปลอดภัยต่อการเรียงคอลัมน์)
+function registryValuesOf(r){ const p0=(r.sourcePatients&&r.sourcePatients[0])||{}; const A=v=>Array.isArray(v)?v.filter(Boolean).join(', '):(v||''); const nm=String(p0.name||r.sourceName||'').trim().split(/\s+/).filter(Boolean);
+  return {
+    'หน่วยงาน':r.department||'', 'ตำแหน่ง':r.staffType||'', 'ประเภท':r.staffType||'',
+    'ชื่อบุคลากร':r.staffName||'', 'นามสกุลบุคลากร':r.staffName2||'',
+    'Soundex code':r.soundex||'', 'HN code':r.hn||'', 'HNบุคลากร':r.staffHn||'',
+    'อายุ (ปี)':r.age||'', 'Tel':r.phone||'', 'เพศ':r.gender||'',
+    'ปีงบ':feYear(r.incidentDate)||'', 'วันที่เกิดเหตุ':regThaiDate(r.incidentDate),
+    'เวร':r.shift||'', 'เวลา':r.incidentTime||'',
+    'ลักษณะเหตุ':r.sharpType||'', 'ตำแหน่งสัมผัส':A(r.bodySite), 'เลือด/สารคัดหลั่ง':A(r.exposureType),
+    'เหตุการณ์':r.incidentDescription||'', 'มือ':r.hand||'', 'นิ้ว':A(r.fingerSite),
+    'อายุการทำงาน จนท. (ปี)':r.workYears||'',
+    'HN ผู้ป่วย':p0.hn||r.sourceHn||'', 'ชื่อผู้ป่วย':nm[0]||'', 'นามสกุลผู้ป่วย':nm.slice(1).join(' '),
+    'Anti HIV CLIA':p0.hiv||r.sourceHiv||'', 'HBs Ag':p0.hbsAg||r.sourceHbsAg||'', 'Anti HCV':p0.hcv||r.sourceHcv||'',
+    'พฤติกรรมเสี่ยง':p0.risk||r.sourceRisk||'', 'ยา 28 day':r.pepRegimen||''
+  };
+}
+// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน (opaque/CORS: ยิงแล้วถือว่าส่งออกไป ตรวจซ้ำได้จาก dmTest)
+async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return {skipped:true}; const body=JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:registryValuesOf(r)});
+  try{ const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body}); const d=await res.json().catch(()=>null); if(d&&d.ok===false) return {ok:false,error:d.error}; return (d&&d.ok===true)?{ok:true,seq:d.seq}:{unverified:true}; }
+  catch(e){ const m=String(e&&e.message||e); if(/Failed to fetch|NetworkError|Load failed|CORS|Type ?Error/i.test(m)) return {unverified:true}; return {ok:false,error:m}; } }
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.1';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // เปิด URL นี้ในเบราว์เซอร์เพื่อทดสอบ: จะเห็นชื่อชีต + รายชื่อแท็บ + เวอร์ชันโค้ด
@@ -1558,6 +1581,32 @@ function doPost(e){
     var ss = getSS();
     var name = body.sheet || 'fields';
     var sh = ss.getSheetByName(name);
+
+    // append a new incident row to the registry — handled first so it never touches the fields-style header logic below
+    if (body.action === 'appendRow'){
+      if (!sh) return ContentService.createTextOutput(JSON.stringify({ok:false, error:'ไม่พบแท็บ '+name})).setMimeType(ContentService.MimeType.JSON);
+      var rdata = sh.getDataRange().getValues();
+      var hi = -1;
+      for (var i=0; i<Math.min(rdata.length,8); i++){ if (rdata[i].indexOf('ชื่อบุคลากร') >= 0){ hi=i; break; } }
+      if (hi < 0) return ContentService.createTextOutput(JSON.stringify({ok:false, error:'ไม่พบหัวตาราง (ชื่อบุคลากร)'})).setMimeType(ContentService.MimeType.JSON);
+      var HH = rdata[hi];
+      var vals = body.values || {};
+      var newRow = [];
+      for (var c=0; c<HH.length; c++) newRow.push('');
+      // fill by header name — first matching column only (duplicated headers keep their first slot)
+      Object.keys(vals).forEach(function(k){ var ci = HH.indexOf(k); if (ci>=0 && newRow[ci]==='') newRow[ci] = vals[k]; });
+      // running number in ลำดับที่ = max existing + 1
+      var seqCol = HH.indexOf('ลำดับที่'); if (seqCol < 0) seqCol = HH.indexOf('ลำดับ');
+      if (seqCol >= 0){ var mx=0; for (var r=hi+1; r<rdata.length; r++){ var n=parseInt(rdata[r][seqCol],10); if(!isNaN(n)&&n>mx) mx=n; } newRow[seqCol]=mx+1; }
+      // find the real last data row (by name/seq column) and write right after it
+      var nameCol = HH.indexOf('ชื่อบุคลากร');
+      var lastRow = hi+1;
+      for (var r=hi+1; r<rdata.length; r++){ if (String(rdata[r][nameCol]||'').trim() !== '' || (seqCol>=0 && String(rdata[r][seqCol]||'').trim() !== '')) lastRow = r+1; }
+      sh.getRange(lastRow+1, 1, 1, newRow.length).setValues([newRow]);
+      return ContentService.createTextOutput(JSON.stringify({ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (!sh){ sh = ss.insertSheet(name); sh.getRange(1,1,1,8).setValues([['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']]); }
     var data = sh.getDataRange().getValues();
     var head = data[0];
