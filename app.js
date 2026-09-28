@@ -1573,7 +1573,7 @@ async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return
   // สำรอง: POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
   try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:slim})}); return {unverified:true}; }
   catch(e){ return {unverified:true}; } }
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.2';
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.3';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // หาคอลัมน์จากชื่อหัวตาราง (ตัดช่องว่างหน้า-หลัง เผื่อหัวตารางมีเว้นวรรค)
@@ -1592,7 +1592,16 @@ function icAppend(ss, name, vals){
   if (seqCol>=0){ var mx=0; for (var r=hi+1;r<rdata.length;r++){ var n=parseInt(rdata[r][seqCol],10); if(!isNaN(n)&&n>mx) mx=n; } newRow[seqCol]=mx+1; }
   var nameCol=icHcol(HH,'ชื่อบุคลากร');
   var lastRow=hi+1; for (var r=hi+1;r<rdata.length;r++){ if (String(rdata[r][nameCol]||'').trim()!=='' || (seqCol>=0 && String(rdata[r][seqCol]||'').trim()!=='')) lastRow=r+1; }
-  sh.getRange(lastRow+1,1,1,newRow.length).setValues([newRow]);
+  var rng = sh.getRange(lastRow+1, 1, 1, newRow.length);
+  try { rng.clearDataValidations(); } catch(e){}   // ล้าง dropdown/validation เฉพาะแถวใหม่ กันค่าที่ไม่ตรงถูกปฏิเสธทั้งแถว
+  try {
+    rng.setValues([newRow]);
+  } catch(e){
+    // เผื่อยังถูกปฏิเสธ: เขียนทีละเซลล์ ข้ามเฉพาะเซลล์ที่ผิดกฎ (ค่าที่เหลือยังลงครบ)
+    var skipped=[];
+    for (var c=0;c<newRow.length;c++){ if (newRow[c]==='') continue; try{ sh.getRange(lastRow+1, c+1).setValue(newRow[c]); }catch(e2){ skipped.push(String(HH[c]).trim()); } }
+    return {ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1, skipped:skipped};
+  }
   return {ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1};
 }
 // เปิด URL นี้ในเบราว์เซอร์เพื่อทดสอบ: จะเห็นชื่อชีต + รายชื่อแท็บ + เวอร์ชันโค้ด / รองรับ appendRow ผ่าน JSONP ด้วย
