@@ -242,6 +242,9 @@ input,select,textarea,button,.search input{font-family:inherit}
 .popup-box.auto #popupOk{display:none}
 .popup-box.auto .popup-card{padding:22px 24px;width:min(360px,88vw)}
 .popup-box.auto .popup-msg{margin-bottom:0}
+.popup-ico.ask{background:linear-gradient(135deg,var(--teal,#0e7c86),#3aa6b0)}
+.confirm-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.confirm-actions .btn{min-width:130px;padding:12px 20px;font-size:15px}
 
 .dm-seg button.on.pull{background:#0b6b5e;color:#fff}
 
