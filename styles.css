@@ -249,6 +249,8 @@ input,select,textarea,button,.search input{font-family:inherit}
 .prompt-input{width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid var(--line,#e3d7d9);border-radius:11px;font-size:15px;font-family:inherit;margin-bottom:10px;text-align:center}
 .prompt-input:focus{outline:none;border-color:var(--brand,#C8102E);box-shadow:0 0 0 3px rgba(200,16,46,.14)}
 .prompt-err{color:#b71c1c;font-size:13px;margin:-4px 0 12px;text-align:center}
+.field-missing{outline:2px solid #e53935!important;outline-offset:2px;border-radius:8px;box-shadow:0 0 0 4px rgba(229,57,53,.16)!important;animation:missPulse .5s ease}
+@keyframes missPulse{0%,100%{box-shadow:0 0 0 4px rgba(229,57,53,.16)}50%{box-shadow:0 0 0 7px rgba(229,57,53,.28)}}
 
 .dm-seg button.on.pull{background:#0b6b5e;color:#fff}
 
