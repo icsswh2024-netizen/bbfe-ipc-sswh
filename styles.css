@@ -392,3 +392,34 @@ input,select,textarea,button,.search input{font-family:inherit}
 /* กรอบลายเซ็นพยาน (เพิ่มตามจำนวน) */
 .witness-pads{display:flex;flex-direction:column;gap:14px}
 .wit-pad .wit-cap{font-weight:600;font-size:14px;margin-bottom:6px;color:var(--ink)}
+
+/* ---- หน้าเข้าสู่ระบบ ---- */
+.login-view{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#fff5f5,#fbe0e2 60%,#f7cdd0);overflow:auto}
+.login-view.hidden{display:none!important}
+body.no-auth .topbar,body.no-auth main,body.no-auth .tabbar{display:none!important}
+.login-card{display:grid;grid-template-columns:1fr 1fr;width:min(940px,100%);background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 90px -30px rgba(200,16,46,.5)}
+.login-brand{position:relative;overflow:hidden;padding:44px 40px;color:#fff;background:linear-gradient(150deg,#c8102e,#8a0f1e);display:flex;flex-direction:column;justify-content:center;gap:6px}
+.login-brand::before{content:"";position:absolute;width:280px;height:280px;border-radius:50%;background:rgba(255,255,255,.08);top:-90px;right:-70px}
+.login-brand::after{content:"";position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.07);bottom:-70px;left:-50px}
+.login-brand>*{position:relative;z-index:1}
+.login-logos{display:flex;gap:12px;margin-bottom:12px}
+.login-logos img{width:64px;height:64px;border-radius:16px;object-fit:contain;background:#fff;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.login-brand h1{font-size:26px;line-height:1.25;margin:6px 0 4px}
+.login-org{font-weight:600;margin:0}
+.login-sub{color:#ffd9dd;font-size:13px;margin:2px 0 0;line-height:1.5}
+.login-secure{margin-top:18px;font-size:13px;color:#ffe3e6;display:inline-flex;align-items:center;gap:6px}
+.login-form{padding:44px 40px;display:flex;flex-direction:column;gap:14px}
+.login-form h2{font-size:28px;margin:0}
+.login-lede{color:var(--muted);margin:0 0 6px}
+.lf-field{font-size:13px;font-weight:600;color:#5c3a40}
+.lf-in{position:relative;display:flex;align-items:center;margin-top:7px}
+.lf-in .lf-ico{position:absolute;left:12px;font-size:16px;opacity:.6;pointer-events:none}
+.lf-in input{margin:0;padding:12px 40px;border:1px solid #e4bfc4;border-radius:10px;width:100%;font-size:15px}
+.lf-in .lf-eye{position:absolute;right:8px;border:0;background:none;font-size:16px;cursor:pointer;opacity:.6;padding:6px}
+.login-err{background:#fdecee;border:1px solid #f2b8bf;color:#a01026;border-radius:9px;padding:9px 12px;font-size:13px}
+.lf-submit{margin-top:6px;padding:13px;font-size:16px;border-radius:11px}
+.login-accounts{margin-top:8px;background:#f8fafb;border:1px solid var(--line);border-radius:12px;padding:12px 15px;font-size:13px;line-height:1.7;color:var(--muted)}
+.login-accounts b{color:var(--ink);display:block;margin-bottom:4px}
+.login-accounts code{background:#fff1f2;color:var(--teal);padding:1px 7px;border-radius:5px;font-weight:600}
+.user-badge{align-self:center;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:6px 12px;border-radius:999px;white-space:nowrap}
+@media(max-width:720px){.login-card{grid-template-columns:1fr}.login-brand{padding:32px 28px}.login-brand h1{font-size:22px}.login-form{padding:32px 26px}}
