@@ -1579,16 +1579,29 @@ function registryValuesOf(r){ const p0=(r.sourcePatients&&r.sourcePatients[0])||
 }
 // เรียก Apps Script แบบ JSONP GET (อ่านผลข้ามโดเมนได้จริง ไม่ติด CORS)
 function jsonpGet(url, params, timeout){ return new Promise(res=>{ const cb='__ic_cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6); const s=document.createElement('script'); let done=false; const fin=v=>{ if(done)return; done=true; try{delete window[cb];}catch(e){} s.remove(); res(v); }; window[cb]=d=>fin(d); s.onerror=()=>fin(null); const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&'); s.src=url+(url.includes('?')?'&':'?')+qs+'&callback='+cb+'&t='+Date.now(); document.body.appendChild(s); setTimeout(()=>fin(null), timeout||15000); }); }
-// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — ช่องทางหลัก JSONP GET (อ่านผลได้) สำรองด้วย POST
+// JSON เต็มของเรคคอร์ด (เก็บทุกช่อง) — ถ้าใหญ่เกินขนาดเซลล์ (มีลายเซ็น base64) จะแทนรูปด้วย "[image]"
+function fullRecordJson(r){
+  const clone={}; Object.keys(r).forEach(k=>{ if(k!=='_appended') clone[k]=r[k]; });
+  let s=JSON.stringify(clone);
+  if(s.length<=45000) return s;
+  const strip=o=>{ if(o==null)return o; if(typeof o==='string')return o.indexOf('data:image')===0?'[image]':o; if(Array.isArray(o))return o.map(strip); if(typeof o==='object'){ const n={}; Object.keys(o).forEach(k=>{ n[k]=strip(o[k]); }); return n; } return o; };
+  s=JSON.stringify(strip(clone));
+  return s.length>45000 ? s.slice(0,44990)+'…' : s;
+}
+// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — เล็กพอใช้ JSONP GET (อ่านผลได้), ใหญ่ใช้ POST
 async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return {skipped:true};
   const vals=registryValuesOf(r), slim={}; Object.keys(vals).forEach(k=>{ if(String(vals[k]).trim()!=='') slim[k]=vals[k]; });
-  const d=await jsonpGet(url,{action:'appendRow', sheet:REGISTRY_SHEET, payload:JSON.stringify(slim)}, 25000);
-  if(d&&d.ok===true) return {ok:true, seq:d.seq};
-  if(d&&d.ok===false) return {ok:false, error:d.error};
-  // สำรอง: POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
+  slim['JSON']=fullRecordJson(r);   // เก็บข้อมูลเต็มทุกช่องลงคอลัมน์ JSON
+  const payload=JSON.stringify(slim);
+  if(payload.length < 6500){   // เล็กพอ → JSONP GET (อ่านผลได้ เขียวชัด)
+    const d=await jsonpGet(url,{action:'appendRow', sheet:REGISTRY_SHEET, payload}, 25000);
+    if(d&&d.ok===true) return {ok:true, seq:d.seq};
+    if(d&&d.ok===false) return {ok:false, error:d.error};
+  }
+  // ใหญ่ หรือ JSONP ไม่สำเร็จ → POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
   try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:slim})}); return {unverified:true}; }
   catch(e){ return {unverified:true}; } }
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.7';
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.8';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // หาคอลัมน์จากชื่อหัวตาราง (ตัดช่องว่างหน้า-หลัง เผื่อหัวตารางมีเว้นวรรค)
@@ -1609,6 +1622,8 @@ function icAppend(ss, name, vals){
   var hi=-1; for (var i=0;i<Math.min(rdata.length,8);i++){ if (icHcol(rdata[i],'ชื่อบุคลากร')>=0){ hi=i; break; } }
   if (hi<0) return {ok:false, error:'ไม่พบหัวตาราง (ชื่อบุคลากร)'};
   var HH = rdata[hi];
+  // สร้างคอลัมน์ JSON ท้ายตารางอัตโนมัติ (เก็บข้อมูลเต็มทุกช่องของเรคคอร์ด) ถ้ายังไม่มี
+  if (icHcol(HH,'JSON') < 0){ var jc = HH.length; sh.getRange(hi+1, jc+1).setValue('JSON'); HH = HH.concat(['JSON']); }
   var newRow=[]; for (var c=0;c<HH.length;c++) newRow.push('');
   Object.keys(vals).forEach(function(k){ var ci=icHcol(HH,k); if (ci>=0 && newRow[ci]==='') newRow[ci]=vals[k]; });
   var seqCol=icHcol(HH,'ลำดับที่'); if (seqCol<0) seqCol=icHcol(HH,'ลำดับ');
