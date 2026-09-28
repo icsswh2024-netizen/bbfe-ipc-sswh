@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=123">
+  <link rel="stylesheet" href="styles.css?v=124">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -81,7 +81,7 @@
 
     <section id="editor" class="view">
       <div class="editor-head"><button class="back" id="backBtn" aria-label="กลับ"><span class="back-ico">←</span><span class="back-txt">กลับ</span></button><div><span class="eyebrow" id="formEyebrow">FORM IC 1 • VERSION 2.0</span><h1 id="formTitle">บันทึกเหตุการณ์ใหม่</h1></div><button type="button" class="btn ghost dark" id="attachVctBtn" style="margin-left:auto">🧪 เอกสารแนบ VCT</button><button type="button" class="btn ghost dark" id="viewReport">📄 ดูใบรายงาน</button><div class="save-state" id="saveState">ยังไม่บันทึก</div></div>
-      <form id="accidentForm">
+      <form id="accidentForm" novalidate>
         <input type="hidden" name="id">
         <nav class="steps" id="steps">
           <button type="button" data-step="0" class="active"><b>01</b><span>ข้อมูลเหตุการณ์</span></button>
@@ -206,6 +206,6 @@
   </nav>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="app.js?v=123"></script>
+  <script src="app.js?v=124"></script>
 </body>
 </html>
