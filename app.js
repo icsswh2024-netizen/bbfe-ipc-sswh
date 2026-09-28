@@ -1573,7 +1573,7 @@ async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return
   // สำรอง: POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
   try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:slim})}); return {unverified:true}; }
   catch(e){ return {unverified:true}; } }
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.3';
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.4';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // หาคอลัมน์จากชื่อหัวตาราง (ตัดช่องว่างหน้า-หลัง เผื่อหัวตารางมีเว้นวรรค)
@@ -1593,13 +1593,15 @@ function icAppend(ss, name, vals){
   var nameCol=icHcol(HH,'ชื่อบุคลากร');
   var lastRow=hi+1; for (var r=hi+1;r<rdata.length;r++){ if (String(rdata[r][nameCol]||'').trim()!=='' || (seqCol>=0 && String(rdata[r][seqCol]||'').trim()!=='')) lastRow=r+1; }
   var rng = sh.getRange(lastRow+1, 1, 1, newRow.length);
-  try { rng.clearDataValidations(); } catch(e){}   // ล้าง dropdown/validation เฉพาะแถวใหม่ กันค่าที่ไม่ตรงถูกปฏิเสธทั้งแถว
+  // ล้าง validation เฉพาะแถวใหม่ แล้ว flush เพื่อ commit ก่อนเขียน (ไม่งั้น validation error จะถูกโยนนอก try ตอน flush)
+  try { rng.clearDataValidations(); SpreadsheetApp.flush(); } catch(e){}
   try {
     rng.setValues([newRow]);
+    SpreadsheetApp.flush();   // บังคับเขียนทันที เพื่อให้ error (ถ้ามี) ถูกจับใน catch นี้
   } catch(e){
-    // เผื่อยังถูกปฏิเสธ: เขียนทีละเซลล์ ข้ามเฉพาะเซลล์ที่ผิดกฎ (ค่าที่เหลือยังลงครบ)
+    // เผื่อยังถูกปฏิเสธ: เขียนทีละเซลล์ (ล้าง validation รายเซลล์ + flush) ข้ามเฉพาะเซลล์ที่ผิดกฎ
     var skipped=[];
-    for (var c=0;c<newRow.length;c++){ if (newRow[c]==='') continue; try{ sh.getRange(lastRow+1, c+1).setValue(newRow[c]); }catch(e2){ skipped.push(String(HH[c]).trim()); } }
+    for (var c=0;c<newRow.length;c++){ if (newRow[c]==='') continue; try{ var cell=sh.getRange(lastRow+1, c+1); cell.clearDataValidations(); cell.setValue(newRow[c]); SpreadsheetApp.flush(); }catch(e2){ skipped.push(String(HH[c]).trim()); } }
     return {ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1, skipped:skipped};
   }
   return {ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1};
