@@ -221,7 +221,7 @@ function pdpaClone(r){
   return m;
 }
 // มุมมองตามโหมด: ทะเบียนสาธารณะ = ปกปิด PDPA, โหมดอื่น = ครบ
-function pdpaView(r){ return dashMode==='records' ? pdpaClone(r) : r; }
+function pdpaView(r){ if(dashMode!=='records') return r; var role=AUTH&&AUTH.role; return (role==='admin'||role==='sup') ? r : pdpaClone(r); }  // แอดมิน+เวรตรวจการเห็นเต็ม, บทบาททะเบียนปกปิด
 // Header logos from the "logo" tab (col A=name, col B=file). Keeps the static assets/ images as fallback.
 function driveImg(u) { u = String(u || '').trim(); const m = u.match(/\/d\/([\w-]+)/) || u.match(/[?&]id=([\w-]+)/); return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w480` : u; }
 function applyLogos(map) { if (!map) return; Object.entries(map).forEach(([name, url]) => { const img = document.querySelector(`img[data-logo="${name}"]`); if (img && url) img.src = driveImg(url); }); }
