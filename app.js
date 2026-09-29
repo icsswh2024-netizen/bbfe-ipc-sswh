@@ -1043,7 +1043,7 @@ function parseUsersRows(rows){
   return Object.keys(out).length?out:null;
 }
 async function loadUsersFromSheet(){ try{ const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000); const res=await fetch(USERS_CSV_URL,{signal:ctrl.signal}); clearTimeout(t); if(!res.ok)return; const u=parseUsersRows(parseCSV(await res.text())); if(u){ AUTH_USERS=u; try{localStorage.setItem(USERS_CACHE_KEY,JSON.stringify(u));}catch(e){} } }catch{ /* keep cache/defaults */ } }
-let AUTH=(()=>{ try{ return JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch{ return null; } })();
+var AUTH=(()=>{ try{ return JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch{ return null; } })();  // var: hoisted กัน pdpaView อ้างก่อนประกาศตอนโหลด (TDZ)
 let pendingNav=null;
 function can(go){ return (AUTH?(ROLE_PERMS[AUTH.role]||[]):PUBLIC_PERMS).includes(go); }
 function applyAuthUI(){
