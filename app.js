@@ -1128,6 +1128,10 @@ function openStaffNew(){ editorReturn='home'; resetForm(); showView('editor'); i
 function openStaffEdit(r){ editorReturn='records'; fillForm(r); applyMode('staff'); showView('editor'); initSignPad(); }
 function openAdminEdit(r){ editorReturn='admin'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/จัดการข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
 function openIcnEdit(r){ editorReturn='icn'; fillForm(r); applyMode('icn'); $('#formTitle').textContent='การรักษาเพื่อป้องกัน (ส่วนที่ 4)'; showView('editor'); }
+// แก้ไขเต็มทุกส่วน (1-5) — สำหรับแอดมิน/เวรตรวจการ; กลับไปหน้าเดิมที่มีสิทธิ์เข้า
+function openFullEdit(r){ editorReturn=(dashMode==='admin'||dashMode==='icn'||dashMode==='records')?dashMode:'records'; fillForm(r); applyMode('admin'); $('#formTitle').textContent='แก้ไข/เติมข้อมูลทั้งหมด'; showView('editor'); initSignPad(); }
+// เลือกโหมดแก้ไขตามบทบาท: แอดมิน+เวรตรวจการ = เต็มทุกส่วน, อื่น ๆ = ตามหน้าที่อยู่
+function chooseEdit(r){ const role=AUTH&&AUTH.role; if(role==='admin'||role==='sup'){ openFullEdit(r); return; } if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r); }
 // ---- VCT / คัดกรอง Z114 (เอกสารแนบ) ----
 const VCT_RISKS=['เสพยาเสพติดชนิดฉีดเข้าเส้น','ผู้ป่วยวัณโรค','คู่สมรส/คู่นอนติดเชื้อเอชไอวี','คลอดจากมารดาติดเชื้อ','เที่ยวหญิงบริการ','มีเพศสัมพันธ์ไม่ใช้ถุงยาง','ชายรักชาย','เข็มทิ่มตำ','อื่นๆ'];
 const VCT_RIGHTS=['อนุเคราะห์','กรมบัญชีกลาง','บัตรทอง','ประกันสังคม','เบิกต้นสังกัด','ชำระเงินเอง'];
@@ -1455,7 +1459,7 @@ function savePdfReport(btn){ if(!reportHtml)return; savePdf(reportHtml, pdfFileN
 $('#warnOk').onclick=()=>{ if(!pendingSave){ $('#warnDialog').close(); return; } setPreviewMode('save'); $('#warnDialog').close(); $('#previewBody').innerHTML = formMode==='icn' ? fullDocHtml(pendingSave) : reportA4Html(pendingSave, formMode==='admin'?'admin':'staff'); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewPrevDoc').onclick=()=>{ setPreviewMode('ref'); $('#previewBody').innerHTML=docPage1(formDataObject()); $('#previewDialog').showModal(); requestAnimationFrame(fitPreview); const vp=$('.a4-viewport'); if(vp)vp.scrollTop=0; };
 $('#viewReport').onclick=()=>{ openReport(formDataObject(), null); };
-$('#viewReportDetail').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; const rv=pdpaView(r); openReport(rv, r.imported?null:()=>{ $('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r); }); };
+$('#viewReportDetail').onclick=()=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; const rv=pdpaView(r); openReport(rv, r.imported?null:()=>{ $('#detailDialog').close(); chooseEdit(r); }); };
 $('#previewPrint').onclick=()=>printReport();
 $('#previewPdf').onclick=e=>savePdf(reportHtml, pdfFileName(reportRecord, reportPaper==='a5'?'VCT':'Form-IC'), e.currentTarget);   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
 window.addEventListener('resize',()=>{ if($('#previewDialog').open) fitPreview(); });
@@ -1465,12 +1469,12 @@ $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=allRecords().find(x=>x.id===selectedId);if(!r)return;
   // รายการนำเข้าจากชีต = อ่านอย่างเดียว เปิดหน้ารายละเอียดเสมอ (ทุกโหมด)
-  if(!r.imported){ if(dashMode==='icn'){openIcnEdit(r);return;} if(dashMode==='vct'){openVct(r);return;} }
+  if(!r.imported){ const role=AUTH&&AUTH.role, full=(role==='admin'||role==='sup'); if(dashMode==='icn'){ if(full)openFullEdit(r); else openIcnEdit(r); return; } if(dashMode==='vct'){openVct(r);return;} }
   $('#detailContent').innerHTML=detailHtml(pdpaView(r), r.imported);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';
   $('#editRecord').classList.toggle('hidden',!!r.imported); const del=$('#deleteRecord'); if(del)del.classList.toggle('hidden',!!r.imported);
   $('#detailDialog').showModal();};
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
-$('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); if(dashMode==='admin')openAdminEdit(r); else if(dashMode==='icn')openIcnEdit(r); else openStaffEdit(r);}};  // imported (sheet-*) ไม่อยู่ใน records() จึงแก้ไม่ได้
+$('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); chooseEdit(r);}};  // imported (sheet-*) ไม่อยู่ใน records() จึงแก้ไม่ได้
 $('#attachVctBtn').onclick=openVctFromEditor;
 form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.target.checked && e.target.value==='ใช่'){ openVctFromEditor(); } });
 $('#deleteRecord').onclick=async()=>{if(!await confirmDialog('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้',{kind:'error',yes:'ลบรายการ',no:'ยกเลิก'}))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
