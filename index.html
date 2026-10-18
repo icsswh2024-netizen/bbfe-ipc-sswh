@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=146">
+  <link rel="stylesheet" href="styles.css?v=147">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -52,9 +52,10 @@
       <div class="editor-head"><button class="back" id="dashHome" aria-label="กลับหน้าหลัก"><span class="back-ico">←</span><span class="back-txt">หน้าหลัก</span></button><div><span class="eyebrow" id="dashEyebrow">RECORDS</span><h1 id="dashTitle">ทะเบียนอุบัติเหตุ</h1></div><div class="admin-bar hidden" id="adminBar"><button type="button" class="btn ghost dark" id="openDataMgr">⚙ การจัดการข้อมูล</button><button type="button" class="btn ghost dark" id="exportCsv">ส่งออก CSV</button><button type="button" class="btn ghost dark" id="exportJson">สำรอง JSON</button></div></div>
       <aside class="notice admin-hint hidden" id="adminHint"><b>โหมดแอดมิน</b><span>เลือกรายการด้านล่างเพื่อบันทึกการรักษาและติดตามผล (ขั้นตอน 4-5)</span></aside>
       <div class="stats">
-        <article><span>เหตุการณ์ทั้งหมด</span><strong id="statTotal">0</strong><small>รายการ</small></article>
-        <article><span>อยู่ระหว่างติดตาม</span><strong id="statPending">0</strong><small>รายการ</small></article>
-        <article><span>บันทึกเดือนนี้</span><strong id="statMonth">0</strong><small>รายการ</small></article>
+        <article class="stat-card"><div class="sc-ico">📋</div><div class="sc-body"><strong id="statTotal">0</strong><span>เหตุการณ์ทั้งหมด</span></div></article>
+        <article class="stat-card sc-warn"><div class="sc-ico">🩺</div><div class="sc-body"><strong id="statPending">0</strong><span>อยู่ระหว่างติดตาม</span></div></article>
+        <article class="stat-card sc-danger clickable" id="cardOverdue" role="button" tabindex="0"><div class="sc-ico">⏰</div><div class="sc-body"><strong id="statOverdue">0</strong><span>เลยกำหนดนัด →</span></div></article>
+        <article class="stat-card sc-ok"><div class="sc-ico">🗓️</div><div class="sc-body"><strong id="statMonth">0</strong><span>บันทึกเดือนนี้</span></div></article>
       </div>
       <div id="dashCharts" class="charts hidden"></div>
       <div id="icnTabs" class="icn-tabs hidden">
@@ -74,7 +75,8 @@
         <div id="statsList" class="stats-list"></div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><span class="eyebrow" id="panelEyebrow">RECORDS</span><h2 id="panelTitle">รายการอุบัติเหตุ</h2></div><div class="panel-tools"><button type="button" class="btn ghost dark hidden" id="followToggle">📅 ไล่นัดติดตาม</button><label class="search">⌕ <input id="search" placeholder="ค้นหาชื่อ, HN, Soundex, สถานที่..."></label></div></div>
+        <div class="panel-head"><div><span class="eyebrow" id="panelEyebrow">RECORDS</span><h2 id="panelTitle">รายการอุบัติเหตุ</h2></div><div class="panel-tools"><button type="button" class="btn ghost dark" id="viewToggle" title="สลับมุมมอง">▦ การ์ด</button><button type="button" class="btn ghost dark hidden" id="followToggle">📅 ไล่นัดติดตาม</button><label class="search">⌕ <input id="search" placeholder="ค้นหาชื่อ, HN, Soundex, สถานที่..."></label></div></div>
+        <div id="recordCards" class="rec-cards"></div>
         <div class="table-wrap"><table><thead><tr><th>วันที่เกิดเหตุ</th><th>บุคลากร</th><th>ลักษณะอุบัติเหตุ</th><th>สถานะ</th><th></th></tr></thead><tbody id="recordRows"></tbody></table><div id="emptyState" class="empty"><b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span></div></div>
       </div>
     </section>
@@ -206,6 +208,6 @@
   </nav>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="app.js?v=146"></script>
+  <script src="app.js?v=147"></script>
 </body>
 </html>
