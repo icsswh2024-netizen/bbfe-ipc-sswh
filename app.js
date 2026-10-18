@@ -673,6 +673,7 @@ function promptDialog(message, opts){ opts=opts||{}; const d=$('#promptBox'); if
 
 let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
 let followOnly=false;        // หน้าทะเบียน: กรองเฉพาะรายการที่ต้องไล่นัดติดตาม
+let cardView=true;           // หน้าทะเบียน: มุมมองการ์ด (ค่าเริ่มต้น) / ตาราง
 // section 4 (การรักษาเพื่อป้องกัน) not started yet -> a "new" incident awaiting ICN
 function icnPending(r){ return !(r.staffHiv||r.staffHbsAg||r.staffAntiHbs||r.staffHcv||r.pepRegimen||r.hemoglobin||r.otherTreatment||r.noTreatmentReason); }
 // ---- Overview charts (inline SVG/CSS, no external libraries) ----
@@ -869,7 +870,14 @@ function renderDashboard(query='') {
     ? (hasVct(r)?'<span class="status done">แนบแล้ว</span>':'<span class="status">ยังไม่แนบ</span>')
     : (()=>{ if(isComplete(r)) return '<span class="status done">ติดตามครบ</span>'; const fd=followDue(r); return `<span class="status">รอติดตาม</span>${fd?`<small class="due-line">${fd.label} • ${followBadge(r)}</small>`:''}`; })();
   const actionLabel=r=>dashMode==='icn'?(icnPending(r)?'กรอกส่วนที่ 4 →':'แก้ไขส่วนที่ 4 →'):(dashMode==='vct'?(hasVct(r)?'แก้ไข VCT →':'กรอก VCT →'):'ดูรายละเอียด →');
+  const ovEl=$('#statOverdue'); if(ovEl) ovEl.textContent=overdueN;
   $('#recordRows').innerHTML=filtered.map(r=>{ const v=pdpaView(r); const badge=r.imported?'<span class="reg-badge" title="นำเข้าจากชีตทะเบียนเดิม">ชีต</span>':''; return `<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(v.staffName||'ไม่ระบุชื่อ')}</b>${badge}<small>${esc(v.staffType||'')} ${v.staffHn?'• HN '+esc(v.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(v.location||'')}</small></td><td>${statusCell(r)}</td><td class="row-actions"><button data-view="${r.id}">${actionLabel(r)}</button></td></tr>`; }).join('');
+  // มุมมองการ์ด (อ่านง่าย โดยเฉพาะมือถือ)
+  const cards=$('#recordCards'); if(cards){ cards.innerHTML=filtered.map(r=>{ const v=pdpaView(r); const regb=r.imported?'<span class="reg-badge">ชีต</span>':''; return `<button type="button" class="rec-card" data-view="${r.id}"><div class="rc-top"><span class="rc-date">${thaiDate(r.incidentDate)} • ${esc(r.incidentTime||'')} น.</span>${regb}</div><div class="rc-name">${esc(v.staffName||'ไม่ระบุชื่อ')}</div><div class="rc-sub">${esc(v.staffType||'—')}${v.staffHn?' • HN '+esc(v.staffHn):''}</div><div class="rc-exp">${esc(exposureLabel(r))}${v.location?' • '+esc(v.location):''}</div><div class="rc-foot">${statusCell(r)}<span class="rc-go">${actionLabel(r)}</span></div></button>`; }).join(''); }
+  const cardOn = cardView && dashMode!=='icn';   // ICN ใช้ตารางปฏิบัติงานเดิม
+  cards&&cards.classList.toggle('hidden',!cardOn);
+  const tw=$('#recordRows').closest('.table-wrap'); if(tw) tw.classList.toggle('hidden',cardOn);
+  const vtg=$('#viewToggle'); if(vtg){ vtg.classList.toggle('hidden',dashMode==='icn'||dashMode==='vct'); vtg.textContent=cardView?'▤ ตาราง':'▦ การ์ด'; }
   $('#emptyState').innerHTML = dashMode==='icn'
     ? '<b>ยังไม่มีรายการอุบัติเหตุ</b><span>เมื่อเจ้าหน้าที่บันทึกเหตุการณ์ใหม่ จะปรากฏที่นี่</span>'
     : '<b>ยังไม่มีรายการ</b><span>เริ่มบันทึกเหตุการณ์แรกเพื่อสร้างทะเบียนติดตาม</span>';
@@ -1467,6 +1475,10 @@ $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
 $('#followToggle')&&($('#followToggle').onclick=()=>{ followOnly=!followOnly; renderDashboard($('#search').value); });
+$('#viewToggle')&&($('#viewToggle').onclick=()=>{ cardView=!cardView; renderDashboard($('#search').value); });
+const goOverdue=()=>{ followOnly=true; renderDashboard($('#search').value); $('#followToggle')&&$('#followToggle').scrollIntoView({behavior:'smooth',block:'center'}); };
+$('#cardOverdue')&&($('#cardOverdue').onclick=goOverdue);
+$('#cardOverdue')&&($('#cardOverdue').onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); goOverdue(); } });
 $('#addPatient').onclick=()=>{ const l=collectSourcePatients(); l.push({}); renderSourcePatients(l); };
 $('#sourcePatients').onclick=e=>{ const btn=e.target.closest('.sp-remove'); if(!btn)return; const l=collectSourcePatients(); l.splice(+btn.closest('.patient-card').dataset.idx,1); renderSourcePatients(l); };
 // ป้ายชื่อของช่องกรอก (จาก legend / span / ข้อความใน label)
@@ -1542,12 +1554,15 @@ $('#previewEdit').onclick=()=>{ $('#previewDialog').close(); if(previewState==='
 $('#previewConfirm').onclick=()=>{ if(previewState==='report'){ $('#previewDialog').close(); return; } if(!pendingSave)return; const wasNew=!pendingSave.id; commitSave(pendingSave); pendingSave=null; $('#previewDialog').close(); if(!wasNew) toast('✏️ บันทึกการแก้ไขแล้ว'); editorBack(); };   // เรคคอร์ดใหม่: commitSave เขียนลงชีต + เด้งป๊อปอัพผลเดียวชัดเจน (ไม่ต้อง toast ซ้ำ)
 $('#warnDialog').addEventListener('cancel',()=>{ pendingSave=null; });
 $('#previewDialog').addEventListener('cancel',()=>{ pendingSave=null; });
-$('#recordRows').onclick=e=>{const btn=e.target.closest('[data-view]');if(!btn)return;selectedId=btn.dataset.view;const r=allRecords().find(x=>x.id===selectedId);if(!r)return;
+function openRecord(id){ selectedId=id; const r=allRecords().find(x=>x.id===selectedId); if(!r)return;
   // รายการนำเข้าจากชีต = อ่านอย่างเดียว เปิดหน้ารายละเอียดเสมอ (ทุกโหมด)
   if(!r.imported){ const role=AUTH&&AUTH.role, full=(role==='admin'||role==='sup'); if(dashMode==='icn'){ if(full)openFullEdit(r); else openIcnEdit(r); return; } if(dashMode==='vct'){openVct(r);return;} }
   $('#detailContent').innerHTML=detailHtml(pdpaView(r), r.imported);$('#editRecord').textContent=dashMode==='admin'?'แก้ไข/จัดการทั้งหมด':'แก้ไข';
   $('#editRecord').classList.toggle('hidden',!!r.imported); const del=$('#deleteRecord'); if(del)del.classList.toggle('hidden',!!r.imported);
-  $('#detailDialog').showModal();};
+  $('#detailDialog').showModal();}
+const recClick=e=>{ const btn=e.target.closest('[data-view]'); if(!btn)return; openRecord(btn.dataset.view); };
+$('#recordRows').onclick=recClick;
+$('#recordCards')&&($('#recordCards').onclick=recClick);
 $('.dialog-close').onclick=()=>$('#detailDialog').close();
 $('#editRecord').onclick=()=>{const r=records().find(x=>x.id===selectedId);if(r){$('#detailDialog').close(); chooseEdit(r);}};  // imported (sheet-*) ไม่อยู่ใน records() จึงแก้ไม่ได้
 $('#attachVctBtn').onclick=openVctFromEditor;
