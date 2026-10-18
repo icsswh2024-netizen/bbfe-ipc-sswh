@@ -1144,6 +1144,8 @@ function applyAuthUI(){
   $('#loginBtn')&&$('#loginBtn').classList.toggle('hidden',authed);
   $('#logoutBtn')&&$('#logoutBtn').classList.toggle('hidden',!authed);
   const badge=$('#userBadge'); if(badge){ badge.classList.toggle('hidden',!authed); if(authed) badge.textContent=`👤 ${ROLE_LABEL[AUTH.role]||AUTH.role}`; }
+  // ปุ่ม "ใส่ข้อมูลตัวอย่าง" ให้เห็นเฉพาะแอดมิน (กันผู้ใช้ทั่วไปกดโดนแล้วได้ข้อมูลสมมติ)
+  const demo=$('#fillDemo'); if(demo) demo.classList.toggle('hidden', !(AUTH&&AUTH.role==='admin'));
 }
 function openLogin(){ const err=$('#loginErr'); if(err)err.classList.add('hidden'); $('#loginView').classList.remove('hidden'); const u=$('#loginForm'); if(u){u.reset(); setTimeout(()=>{try{u.user.focus();}catch(e){}},50);} }
 function closeLogin(){ $('#loginView').classList.add('hidden'); pendingNav=null; }
