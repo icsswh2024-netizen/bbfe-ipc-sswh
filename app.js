@@ -166,7 +166,7 @@ function parseRegistryRows(rows){
     sHiv:col('HIV','HIVrap'), sAntiHbs:col('Anti-HBs'), sHcv:col('Anti-HCV'), sHbsAg:colN('HBs Ag',1),
     creat:col('Creatinine'), sgpt:col('SGPT'), sgot:col('SGOT'), bun:col('Bun'),
     labBase:col('Labพื้นฐาน','Lab พื้นฐาน','Labพื้นฐาน '), fu0:col('FU0'), fu1:col('FU1'), fu2:col('FU2'), fu3:col('FU3'), fu4:col('FU4'),
-    json:col('JSON') };
+    json:col('JSON'), sign:col(SIGN_COL), vctSign:col(VCTSIGN_COL) };
   if(c.fn<0)return null;
   // คอลัมน์ค่าใช้จ่าย: ทุกหัวคอลัมน์ที่มีคำว่า "ราคา" หรือ "ค่ายา" (รวมค่าตรวจแล็บ+ค่ายา)
   const costCols=[]; H.forEach((h,i)=>{ if(/ราคา|ค่ายา/.test(h)) costCols.push(i); });
@@ -213,6 +213,10 @@ function parseRegistryRows(rows){
     };
     // A) ถ้ามีคอลัมน์ JSON (บันทึกผ่านแอป) = ข้อมูลเต็ม → ใช้แทนทั้งหมด (คงสถานะนำเข้า/อ่านอย่างเดียว)
     if(c.json>=0){ const jv=g(row,c.json); if(jv){ try{ const full=JSON.parse(jv); if(full&&typeof full==='object'){ Object.assign(rec, full); rec.id='sheet-'+(seq||r); rec.imported=true; } }catch(e){} } }
+    // รูปลายเซ็นจากคอลัมน์แยก (ไม่ถูกตัดแม้ JSON ใหญ่) → ชนะค่าใน JSON เสมอ เพื่อใช้ประกอบใบรายงาน
+    if(c.sign>=0){ const sv=g(row,c.sign); if(sigSrc(sv)) rec.sign=sv; }
+    if(c.vctSign>=0){ const vv=g(row,c.vctSign); if(vv){ try{ const vb=JSON.parse(vv); if(vb&&typeof vb==='object') Object.assign(rec, vb); }catch(e){} } }
+    if(rec.sign && !sigSrc(rec.sign)) rec.sign='';   // กัน placeholder '[image]' ทำรูปเสียบนรายงาน
     rec.createdAt=rec.incidentDate?rec.incidentDate+'T00:00:00':'';
     out.push(rec);
   }
@@ -1027,7 +1031,7 @@ function docPage1(r){
     +   crow('บุคลากรฯ ยินดีรับการรักษาเบื้องต้นเพื่อป้องกันเชื้อ Hepatitis B', r.consentHbvPep)
     + `</div>`
     + `<div class="sig-row">`
-    +   `<div class="sig-col"><div class="sig-sign">${r.sign?`<img src="${r.sign}" alt="">`:''}</div><div class="sig-cap">ลงชื่อ ............................................. (บุคลากร)</div><div class="sig-cap">( ${has(fullName)?esc(fullName):'............................................'} )</div><div class="sig-cap">วันที่ ${cd.d||'.....'} / ${cd.m||'..........'} / ${cd.y||'........'}</div></div>`
+    +   `<div class="sig-col"><div class="sig-sign">${sigSrc(r.sign)?`<img src="${sigSrc(r.sign)}" alt="">`:''}</div><div class="sig-cap">ลงชื่อ ............................................. (บุคลากร)</div><div class="sig-cap">( ${has(fullName)?esc(fullName):'............................................'} )</div><div class="sig-cap">วันที่ ${cd.d||'.....'} / ${cd.m||'..........'} / ${cd.y||'........'}</div></div>`
     +   `<div class="sig-col"><div class="sig-sign"></div><div class="sig-cap">ลงชื่อ ............................................. (แพทย์ผู้ดูแล)</div><div class="sig-cap">( ${has(r.doctorName)?esc(r.doctorName):'............................................'} )</div><div class="sig-cap">&nbsp;</div></div>`
     + `</div>`
     + `<div class="doc-note"><b>หมายเหตุ</b> &nbsp; การให้ยาป้องกัน ควรได้รับยาเร็วที่สุด (1 – 4 ชั่วโมง หลังเกิดเหตุการณ์) อย่างช้าไม่ควรเกิน 48 – 72 ชั่วโมง หลังเกิดอุบัติเหตุ</div>`
@@ -1351,7 +1355,7 @@ function bindVctForm(){ if(vctFormBound)return; const f=$('#vctForm'); if(!f)ret
 function vctPadSave(){ VCT_PADS.forEach(p=>{ try{p.save();}catch(e){} }); }
 function collectVct(){ try{vctPadSave();}catch(e){} const fd=new FormData($('#vctForm')),out={}; for(const[k,val] of fd){ if(vctIsMulti(k)){(out[k]??=[]).push(val);} else out[k]=(val&&val.trim)?val.trim():val; } Object.keys(VCT_CFG).forEach(k=>{ if(vctIsMulti(k)&&!out[k])out[k]=[]; }); VCT_MULTI.forEach(k=>{if(!out[k])out[k]=[];}); return out; }
 function vctIdBoxes(cid){ const s=String(cid||'').replace(/\D/g,'').slice(0,13); let o='<div class="v-id">'; for(let i=0;i<13;i++) o+=`<span>${s[i]||''}</span>`; return o+'</div>'; }
-function vSig(cap,cap2,img){ const sig=img?`<div class="v-signimg"><img src="${img}" alt=""></div>`:''; return `<div class="v-sigbox">${sig}<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap"><span class="v-paren">(...............................................)</span> ${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}</div>`; }
+function vSig(cap,cap2,img){ const s=sigSrc(img); const sig=s?`<div class="v-signimg"><img src="${s}" alt=""></div>`:''; return `<div class="v-sigbox">${sig}<div class="v-sig"><span>ลงนาม</span><span class="v-line"></span></div><div class="v-cap"><span class="v-paren">(...............................................)</span> ${cap}</div>${cap2?`<div class="v-cap2">${cap2}</div>`:''}</div>`; }
 function vWitnessCount(v){ const raw=(v&&v.witnessCount!=null&&v.witnessCount!=='')?v.witnessCount:2; const n=parseInt(raw,10); return Math.max(0,Math.min(8,isNaN(n)?2:n)); }
 function vWitnesses(v){ const n=vWitnessCount(v); return Array.from({length:n},(_,i)=>{ const img=(v&&(v['witnessSign'+i]|| (i===0?v.witnessSign:''))); return vSig('พยาน','',img); }).join(''); }
 function vctPage1(r){ const v=r.vct||{}, ck=rCk, fx=rFx, eq=rEq; const on=x=>Array.isArray(v.riskTypes)&&v.riskTypes.includes(x);
@@ -1684,6 +1688,31 @@ function registryValuesOf(r){ const p0=(r.sourcePatients&&r.sourcePatients[0])||
 }
 // เรียก Apps Script แบบ JSONP GET (อ่านผลข้ามโดเมนได้จริง ไม่ติด CORS)
 function jsonpGet(url, params, timeout){ return new Promise(res=>{ const cb='__ic_cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6); const s=document.createElement('script'); let done=false; const fin=v=>{ if(done)return; done=true; try{delete window[cb];}catch(e){} s.remove(); res(v); }; window[cb]=d=>fin(d); s.onerror=()=>fin(null); const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&'); s.src=url+(url.includes('?')?'&':'?')+qs+'&callback='+cb+'&t='+Date.now(); document.body.appendChild(s); setTimeout(()=>fin(null), timeout||15000); }); }
+// ชื่อคอลัมน์เก็บรูปลายเซ็นแยกต่างหาก (แต่ละเซลล์เก็บได้สูงสุด ~50,000 ตัวอักษร) — ไม่ถูกตัดแม้ JSON ใหญ่
+const SIGN_COL='ลายเซ็น';        // ลายเซ็นบุคลากร (แสดงบนใบรายงาน IC + VCT)
+const VCTSIGN_COL='ลายเซ็นVCT';   // ลายเซ็นผู้ให้คำปรึกษา + พยาน (รวมเป็น JSON ย่อย)
+// คีย์ที่เป็นรูปลายเซ็น base64
+function isSignKey(k){ return k==='sign'||k==='counselorSign'||/^witnessSign/.test(k); }
+// คืนค่า src เฉพาะเมื่อเป็น data URL รูปจริง (กันรูปเสียจาก placeholder '[image]')
+function sigSrc(s){ s=String(s||''); return s.indexOf('data:image')===0 ? s : ''; }
+// บีบอัดรูป data URL ให้กว้างไม่เกิน maxW (ลายเซ็น PNG line-art เล็กมาก) เพื่อไม่ให้เซลล์/JSON ล้น
+function shrinkImageDataUrl(dataUrl, maxW, type, q){
+  return new Promise(resolve=>{
+    if(!dataUrl || String(dataUrl).indexOf('data:image')!==0){ resolve(dataUrl||''); return; }
+    try{ const img=new Image();
+      img.onload=()=>{ try{
+        const scale=img.width>maxW ? maxW/img.width : 1;
+        const w=Math.max(1,Math.round(img.width*scale)), h=Math.max(1,Math.round(img.height*scale));
+        const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const cx=cv.getContext('2d');
+        if(type==='image/jpeg'){ cx.fillStyle='#fff'; cx.fillRect(0,0,w,h); }
+        cx.drawImage(img,0,0,w,h);
+        const out=cv.toDataURL(type||'image/png', q||0.85);
+        resolve(out.length<dataUrl.length ? out : dataUrl);   // ใช้อันที่เล็กกว่า
+      }catch(e){ resolve(dataUrl); } };
+      img.onerror=()=>resolve(dataUrl); img.src=dataUrl;
+    }catch(e){ resolve(dataUrl); }
+  });
+}
 // JSON เต็มของเรคคอร์ด (เก็บทุกช่อง) — ถ้าใหญ่เกินขนาดเซลล์ (มีลายเซ็น base64) จะแทนรูปด้วย "[image]"
 function fullRecordJson(r){
   const clone={}; Object.keys(r).forEach(k=>{ if(k!=='_appended') clone[k]=r[k]; });
@@ -1695,8 +1724,15 @@ function fullRecordJson(r){
 }
 // เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — เล็กพอใช้ JSONP GET (อ่านผลได้), ใหญ่ใช้ POST
 async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return {skipped:true};
-  const vals=registryValuesOf(r), slim={}; Object.keys(vals).forEach(k=>{ if(String(vals[k]).trim()!=='') slim[k]=vals[k]; });
-  slim['JSON']=fullRecordJson(r);   // เก็บข้อมูลเต็มทุกช่องลงคอลัมน์ JSON
+  // บีบอัดรูปลายเซ็นทุกช่องก่อนบันทึก (กว้างสุด 340px) ลดขนาดไม่ให้เซลล์/JSON ล้น
+  const rc=Object.assign({}, r);
+  for(const k of Object.keys(rc)){ if(isSignKey(k) && typeof rc[k]==='string' && rc[k].indexOf('data:image')===0){ try{ rc[k]=await shrinkImageDataUrl(rc[k],340,'image/png'); }catch(e){} } }
+  const vals=registryValuesOf(rc), slim={}; Object.keys(vals).forEach(k=>{ if(String(vals[k]).trim()!=='') slim[k]=vals[k]; });
+  slim['JSON']=fullRecordJson(rc);   // เก็บข้อมูลเต็มทุกช่องลงคอลัมน์ JSON (รวมลายเซ็นที่บีบแล้ว เป็น backup)
+  // + เก็บลายเซ็นในคอลัมน์แยก ไม่ถูกตัดแม้ JSON ใหญ่ → ดึงมาใช้บนใบรายงานได้เสมอ
+  if(sigSrc(rc.sign)) slim[SIGN_COL]=rc.sign;
+  const vb={}; Object.keys(rc).forEach(k=>{ if((k==='counselorSign'||/^witnessSign/.test(k)) && sigSrc(rc[k])) vb[k]=rc[k]; });
+  if(Object.keys(vb).length) slim[VCTSIGN_COL]=JSON.stringify(vb);
   const payload=JSON.stringify(slim);
   if(payload.length < 6500){   // เล็กพอ → JSONP GET (อ่านผลได้ เขียวชัด)
     const d=await jsonpGet(url,{action:'appendRow', sheet:REGISTRY_SHEET, payload}, 25000);
@@ -1706,7 +1742,7 @@ async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return
   // ใหญ่ หรือ JSONP ไม่สำเร็จ → POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
   try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:slim})}); return {unverified:true}; }
   catch(e){ return {unverified:true}; } }
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.8';
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.9';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // หาคอลัมน์จากชื่อหัวตาราง (ตัดช่องว่างหน้า-หลัง เผื่อหัวตารางมีเว้นวรรค)
@@ -1727,8 +1763,8 @@ function icAppend(ss, name, vals){
   var hi=-1; for (var i=0;i<Math.min(rdata.length,8);i++){ if (icHcol(rdata[i],'ชื่อบุคลากร')>=0){ hi=i; break; } }
   if (hi<0) return {ok:false, error:'ไม่พบหัวตาราง (ชื่อบุคลากร)'};
   var HH = rdata[hi];
-  // สร้างคอลัมน์ JSON ท้ายตารางอัตโนมัติ (เก็บข้อมูลเต็มทุกช่องของเรคคอร์ด) ถ้ายังไม่มี
-  if (icHcol(HH,'JSON') < 0){ var jc = HH.length; sh.getRange(hi+1, jc+1).setValue('JSON'); HH = HH.concat(['JSON']); }
+  // สร้างคอลัมน์ระบบท้ายตารางอัตโนมัติถ้ายังไม่มี: JSON (ข้อมูลเต็ม) + ลายเซ็น/ลายเซ็นVCT (รูปลายเซ็นแยกเซลล์ ไม่ถูกตัด)
+  ['JSON','${SIGN_COL}','${VCTSIGN_COL}'].forEach(function(k){ if (icHcol(HH,k) < 0){ sh.getRange(hi+1, HH.length+1).setValue(k); HH = HH.concat([k]); } });
   var newRow=[]; for (var c=0;c<HH.length;c++) newRow.push('');
   Object.keys(vals).forEach(function(k){ var ci=icHcol(HH,k); if (ci>=0 && newRow[ci]==='') newRow[ci]=vals[k]; });
   var seqCol=icHcol(HH,'ลำดับที่'); if (seqCol<0) seqCol=icHcol(HH,'ลำดับ');
