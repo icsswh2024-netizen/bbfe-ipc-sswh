@@ -153,12 +153,20 @@ function parseRegistryRows(rows){
   if(hi<0)return null;
   const H=rows[hi].map(h=>String(h).trim());
   const col=(...names)=>{ for(const n of names){ const i=H.indexOf(n); if(i>=0)return i; } return -1; };
+  const colN=(name,n)=>{ let cnt=0; for(let i=0;i<H.length;i++){ if(H[i]===name){ if(cnt===n)return i; cnt++; } } return -1; };  // หาคอลัมน์ชื่อซ้ำ ลำดับที่ n (0-based)
   const c={ seq:col('ลำดับที่','ลำดับ'), dept:col('หน่วยงาน'), pos:col('ตำแหน่ง'), fn:col('ชื่อบุคลากร'), ln:col('นามสกุลบุคลากร'),
     soundex:col('Soundex code'), hncode:col('HN code'), hn:col('HNบุคลากร','HN บุคลากร'), age:col('อายุ (ปี)','อายุ'), tel:col('Tel','เบอร์โทร'),
     gender:col('เพศ'), date:col('วันที่เกิดเหตุ'), time:col('เวลา'), shift:col('เวร'), nature:col('ลักษณะเหตุ'), site:col('ตำแหน่งสัมผัส'),
     fluid:col('เลือด/สารคัดหลั่ง'), event:col('เหตุการณ์'), hand:col('มือ'), finger:col('นิ้ว'), workYears:col('อายุการทำงาน จนท. (ปี)','อายุการทำงาน จนท.'),
     pHn:col('HN ผู้ป่วย'), pFn:col('ชื่อผู้ป่วย'), pLn:col('นามสกุลผู้ป่วย'),
-    pHiv:col('Anti HIV CLIA'), pHivRap:col('Anti HIV rap'), pHbs:col('HBs Ag'), pHcv:col('Anti HCV') };
+    pHiv:col('Anti HIV CLIA'), pHivRap:col('Anti HIV rap'), pHbs:col('HBs Ag'), pHcv:col('Anti HCV'),
+    // B) กลุ่มรักษา / ผลบุคลากร Day0 / ติดตาม / อื่น ๆ
+    pRisk:col('พฤติกรรมเสี่ยง'), pRights:col('สิทธิผู้ป่วย'),
+    pepReg:col('ยา 28 day'), pepStart:colN('วันที่เริ่มยา',1), pepFull:col('ครบ'), pepNotFull:col('ไม่ครบ'), pepStop:col('หยุดยาเนื่องจาก'),
+    sHiv:col('HIV','HIVrap'), sAntiHbs:col('Anti-HBs'), sHcv:col('Anti-HCV'), sHbsAg:colN('HBs Ag',1),
+    creat:col('Creatinine'), sgpt:col('SGPT'), sgot:col('SGOT'), bun:col('Bun'),
+    fu1:col('FU1'), fu2:col('FU2'), fu3:col('FU3'), fu4:col('FU4'),
+    json:col('JSON') };
   if(c.fn<0)return null;
   // คอลัมน์ค่าใช้จ่าย: ทุกหัวคอลัมน์ที่มีคำว่า "ราคา" หรือ "ค่ายา" (รวมค่าตรวจแล็บ+ค่ายา)
   const costCols=[]; H.forEach((h,i)=>{ if(/ราคา|ค่ายา/.test(h)) costCols.push(i); });
@@ -189,7 +197,17 @@ function parseRegistryRows(rows){
       incidentDescription:g(row,c.event),
       sourceName:[pFn,pLn].filter(Boolean).join(' '), sourceHn:g(row,c.pHn),
       sourceHiv:g(row,c.pHiv)||g(row,c.pHivRap), sourceHbsAg:g(row,c.pHbs), sourceHcv:g(row,c.pHcv),
+      sourceRisk:g(row,c.pRisk), sourceRights:g(row,c.pRights),
+      // B) ผลบุคลากร Day0 / การรักษา PEP
+      staffHiv:g(row,c.sHiv), staffAntiHbs:g(row,c.sAntiHbs), staffHcv:g(row,c.sHcv), staffHbsAg:g(row,c.sHbsAg),
+      creatinine:g(row,c.creat), sgpt:g(row,c.sgpt), sgot:g(row,c.sgot), bun:g(row,c.bun),
+      pepRegimen:g(row,c.pepReg), pepStart:parseThaiDate(g(row,c.pepStart)),
+      pepOutcome:(g(row,c.pepFull)?'ครบ':(g(row,c.pepNotFull)?'ไม่ครบ':'')), pepNote:g(row,c.pepStop),
+      // B) ติดตามผล (best-effort: FU เป็นวันที่; ถ้าไม่ใช่วันที่จะเว้นว่าง)
+      follow1Date:parseThaiDate(g(row,c.fu1)), follow3Date:parseThaiDate(g(row,c.fu3)), follow6Date:parseThaiDate(g(row,c.fu4)),
     };
+    // A) ถ้ามีคอลัมน์ JSON (บันทึกผ่านแอป) = ข้อมูลเต็ม → ใช้แทนทั้งหมด (คงสถานะนำเข้า/อ่านอย่างเดียว)
+    if(c.json>=0){ const jv=g(row,c.json); if(jv){ try{ const full=JSON.parse(jv); if(full&&typeof full==='object'){ Object.assign(rec, full); rec.id='sheet-'+(seq||r); rec.imported=true; } }catch(e){} } }
     rec.createdAt=rec.incidentDate?rec.incidentDate+'T00:00:00':'';
     out.push(rec);
   }
