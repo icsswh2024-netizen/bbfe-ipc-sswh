@@ -611,6 +611,22 @@ function persist(items) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items
 function esc(v='') { return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function thaiDate(v) { if(!v) return '—'; return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date(`${v}T00:00:00`)); }
 function isComplete(r) { return r.imported ? true : Boolean(r.follow6Date && (r.follow6HIV || r.follow6HbsAg || r.follow6HCV)); } // เคสนำเข้า (ทะเบียนเดิม) ถือว่าติดตามครบแล้ว
+// นัดติดตามถัดไป: คำนวณจากวันเกิดเหตุ +1/+3/+6 เดือน ตามนัดที่ยังไม่มีผล; คืน null ถ้าครบแล้ว/ไม่มีวันเกิดเหตุ
+function followDue(r){
+  if(!r||!r.incidentDate) return null;
+  const has1=!!(r.follow1HIV||r.follow1HCV), has3=!!(r.follow3HIV), has6=!!(r.follow6HIV||r.follow6HbsAg||r.follow6HCV);
+  if(has6) return null;   // มีผลเดือน 6 = ติดตามครบ ไม่ต้องไล่นัด
+  let months, label;
+  if(!has1){months=1;label='เดือนที่ 1';} else if(!has3){months=3;label='เดือนที่ 3';} else {months=6;label='เดือนที่ 6';}
+  const base=new Date(r.incidentDate+'T00:00:00'); if(isNaN(base)) return null;
+  const due=new Date(base); due.setMonth(due.getMonth()+months);
+  const today=new Date(); today.setHours(0,0,0,0);
+  const days=Math.round((due-today)/86400000);
+  return {label, dueISO:due.toISOString().slice(0,10), days, state:days<0?'overdue':(days<=14?'soon':'upcoming')};
+}
+// ควรอยู่ใน worklist ไล่นัดไหม: ยังติดตามไม่ครบ + เหตุเกิดไม่เกิน ~7 เดือน (ตัดเคสเก่าที่เลยรอบติดตาม)
+function inFollowWorklist(r){ const fd=followDue(r); if(!fd) return false; const base=new Date((r.incidentDate||'')+'T00:00:00'); if(isNaN(base)) return false; const ageDays=Math.round((Date.now()-base)/86400000); return ageDays<=220; }
+function followBadge(r){ const fd=followDue(r); if(!fd) return ''; if(fd.state==='overdue') return `<span class="due due-over">⚠ เลยกำหนด ${-fd.days} วัน</span>`; if(fd.state==='soon') return `<span class="due due-soon">⏰ อีก ${fd.days} วัน</span>`; return `<span class="due due-up">📅 ${thaiDate(fd.dueISO)}</span>`; }
 function exposureLabel(r) { const value = Array.isArray(r.exposureType) ? r.exposureType.join(', ') : r.exposureType; return value || 'ไม่ระบุ'; }
 // Prominent centered popup box (top layer). auto>0 = ปิดเองอัตโนมัติ (โหมด toast)
 function showPopup(message, kind, auto){ const d=$('#popupBox'); if(!d){ const el=$('#toast'); if(el){el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600);} return; } const k=kind||'ok'; const ico={ok:'✓',warn:'!',error:'✕',info:'i',note:'i'}[k]||'✓'; $('#popupIco').textContent=ico; $('#popupIco').className='popup-ico '+k; $('#popupMsg').textContent=message; d.classList.toggle('auto', !!auto); if(d.open)d.close(); d.showModal(); clearTimeout(d._t); if(auto) d._t=setTimeout(()=>{ try{d.close();}catch(e){} }, auto); }
@@ -623,6 +639,7 @@ function confirmDialog(message, opts){ opts=opts||{}; const d=$('#confirmBox'); 
 function promptDialog(message, opts){ opts=opts||{}; const d=$('#promptBox'); if(!d) return Promise.resolve(window.prompt(message, opts.value||'')); $('#promptMsg').textContent=message; const inp=$('#promptInput'); inp.value=opts.value||''; inp.placeholder=opts.placeholder||''; const err=$('#promptErr'); err.classList.add('hidden'); err.textContent=''; if(d.open)d.close(); d.showModal(); setTimeout(()=>{inp.focus();inp.select();},30); return new Promise(res=>{ const done=v=>{ $('#promptYes').onclick=null; $('#promptNo').onclick=null; inp.onkeydown=null; d.onclose=null; try{d.close();}catch(e){} res(v); }; const ok=()=>{ const v=inp.value.trim(); if(opts.validate){ const m=opts.validate(v); if(m){ err.textContent=m; err.classList.remove('hidden'); return; } } done(v); }; $('#promptYes').onclick=ok; $('#promptNo').onclick=()=>done(null); inp.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();ok();} }; d.onclose=()=>done(null); }); }
 
 let dashMode='records';      // dashboard viewing mode: 'records' | 'admin' | 'icn'
+let followOnly=false;        // หน้าทะเบียน: กรองเฉพาะรายการที่ต้องไล่นัดติดตาม
 // section 4 (การรักษาเพื่อป้องกัน) not started yet -> a "new" incident awaiting ICN
 function icnPending(r){ return !(r.staffHiv||r.staffHbsAg||r.staffAntiHbs||r.staffHcv||r.pepRegimen||r.hemoglobin||r.otherTreatment||r.noTreatmentReason); }
 // ---- Overview charts (inline SVG/CSS, no external libraries) ----
@@ -801,7 +818,13 @@ function renderDashboard(query='') {
   if(dashMode==='icn') items = items.filter(r=>!r.imported && icnPending(r)); // ICN: แสดงเฉพาะรายใหม่ (ยังไม่กรอกส่วนที่ 4) ไม่รวมรายการเดิม/นำเข้า
   // ตัวกรองวิเคราะห์ (ปีงบ/หน่วยงาน/ตำแหน่ง/เพศ/อายุ) ใช้กับตาราง+กราฟในหน้าทะเบียน/แอดมิน
   const statsOn = (dashMode==='records'||dashMode==='admin');
-  if(statsOn) items = items.filter(matchStatsF);
+  const followable = dashMode==='records';
+  const followSrc = items;   // ก่อนกรองปีงบ — เพราะนัดติดตามข้ามปีงบได้
+  const overdueN = followable ? followSrc.filter(r=>{const fd=followDue(r);return fd&&fd.state==='overdue'&&inFollowWorklist(r);}).length : 0;
+  const soonN = followable ? followSrc.filter(r=>{const fd=followDue(r);return fd&&fd.state==='soon'&&inFollowWorklist(r);}).length : 0;
+  if(followable && followOnly){ items = followSrc.filter(inFollowWorklist).sort((a,b)=>followDue(a).days-followDue(b).days); }  // โหมดไล่นัด: ข้ามตัวกรองปีงบ
+  else if(statsOn){ items = items.filter(matchStatsF); }
+  const ftg=$('#followToggle'); if(ftg){ ftg.classList.toggle('hidden',!followable); ftg.classList.toggle('active',followOnly); ftg.textContent = followOnly ? '📋 แสดงทั้งหมด' : `📅 ไล่นัดติดตาม${overdueN?` (เลยกำหนด ${overdueN})`:(soonN?` (ใกล้ถึง ${soonN})`:'')}`; }
   const q=query.trim().toLowerCase();
   const filtered=items.filter(r=>[r.staffName,r.staffHn,r.soundex,r.location,r.incidentDescription].join(' ').toLowerCase().includes(q));
   $('#statTotal').textContent=items.length;
@@ -811,7 +834,7 @@ function renderDashboard(query='') {
     ? (icnPending(r)?'<span class="status">รอบันทึก</span>':'<span class="status done">บันทึกแล้ว</span>')
     : dashMode==='vct'
     ? (hasVct(r)?'<span class="status done">แนบแล้ว</span>':'<span class="status">ยังไม่แนบ</span>')
-    : `<span class="status ${isComplete(r)?'done':''}">${isComplete(r)?'ติดตามครบ':'รอติดตาม'}</span>`;
+    : (()=>{ if(isComplete(r)) return '<span class="status done">ติดตามครบ</span>'; const fd=followDue(r); return `<span class="status">รอติดตาม</span>${fd?`<small class="due-line">${fd.label} • ${followBadge(r)}</small>`:''}`; })();
   const actionLabel=r=>dashMode==='icn'?(icnPending(r)?'กรอกส่วนที่ 4 →':'แก้ไขส่วนที่ 4 →'):(dashMode==='vct'?(hasVct(r)?'แก้ไข VCT →':'กรอก VCT →'):'ดูรายละเอียด →');
   $('#recordRows').innerHTML=filtered.map(r=>{ const v=pdpaView(r); const badge=r.imported?'<span class="reg-badge" title="นำเข้าจากชีตทะเบียนเดิม">ชีต</span>':''; return `<tr><td><b>${thaiDate(r.incidentDate)}</b><small>${esc(r.incidentTime||'')} น.</small></td><td><b>${esc(v.staffName||'ไม่ระบุชื่อ')}</b>${badge}<small>${esc(v.staffType||'')} ${v.staffHn?'• HN '+esc(v.staffHn):''}</small></td><td>${esc(exposureLabel(r))}<small>${esc(v.location||'')}</small></td><td>${statusCell(r)}</td><td class="row-actions"><button data-view="${r.id}">${actionLabel(r)}</button></td></tr>`; }).join('');
   $('#emptyState').innerHTML = dashMode==='icn'
@@ -1123,7 +1146,7 @@ function icnRenderPane(k){
   requestAnimationFrame(scaleLabDoc);
 }
 function icnSelectTab(k){ $$('.icn-tab').forEach(t=>t.classList.toggle('active', t.dataset.icntab===k)); icnRenderPane(k); }
-function openDashboard(mode){ const m=mode||'records'; if(!can(m)){ if(!AUTH){ pendingNav={type:'dash',mode:m}; openLogin(); } else popup('บทบาท “'+(ROLE_LABEL[AUTH.role]||AUTH.role)+'” ไม่มีสิทธิ์เข้าส่วนนี้','warn'); return; } dashMode=m; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
+function openDashboard(mode){ const m=mode||'records'; if(!can(m)){ if(!AUTH){ pendingNav={type:'dash',mode:m}; openLogin(); } else popup('บทบาท “'+(ROLE_LABEL[AUTH.role]||AUTH.role)+'” ไม่มีสิทธิ์เข้าส่วนนี้','warn'); return; } dashMode=m; followOnly=false; const admin=dashMode==='admin', icn=dashMode==='icn', vct=dashMode==='vct';
   $('#adminBar').classList.toggle('hidden',!admin);
   const hint=$('#adminHint');
   hint.classList.toggle('hidden', dashMode==='records' || icn);
@@ -1410,6 +1433,7 @@ $('#vctPreview2').onclick=()=>{ const c=vctDraft(); if(!c)return; reportRecord=c
 $('#newRecord').onclick=openStaffNew;
 $('#backBtn').onclick=editorBack;
 $('#search').oninput=e=>renderDashboard(e.target.value);
+$('#followToggle')&&($('#followToggle').onclick=()=>{ followOnly=!followOnly; renderDashboard($('#search').value); });
 $('#addPatient').onclick=()=>{ const l=collectSourcePatients(); l.push({}); renderSourcePatients(l); };
 $('#sourcePatients').onclick=e=>{ const btn=e.target.closest('.sp-remove'); if(!btn)return; const l=collectSourcePatients(); l.splice(+btn.closest('.patient-card').dataset.idx,1); renderSourcePatients(l); };
 // ป้ายชื่อของช่องกรอก (จาก legend / span / ข้อความใน label)
