@@ -610,6 +610,27 @@ function records() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) 
 function persist(items) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
 function esc(v='') { return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function thaiDate(v) { if(!v) return '—'; return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date(`${v}T00:00:00`)); }
+function thaiLongDate(v){ if(!v) return '.......................................'; const d=new Date(`${v}T00:00:00`); if(isNaN(d))return '.......................................'; return new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'long',year:'numeric'}).format(d); }
+// วันนัดติดตาม: ครั้งที่ 1 = วันเกิดเหตุ (Day 0), +1, +3, +6 เดือน
+function apptDates(r){ const base=r&&r.incidentDate?new Date(r.incidentDate+'T00:00:00'):null; const add=m=>{ if(!base||isNaN(base))return ''; const d=new Date(base); d.setMonth(d.getMonth()+m); return d.toISOString().slice(0,10); }; return [add(0),add(1),add(3),add(6)]; }
+// บัตรนัดติดตามผลเลือด (พิมพ์แจกผู้สัมผัส)
+function apptCardHtml(r){
+  const dts=apptDates(r);
+  const code=String(r.soundex||'').trim();
+  const boxes=code?[...code].map(ch=>`<span class="ac-box">${esc(ch)}</span>`).join(''):'<span class="ac-box">&nbsp;</span>'.repeat(8);
+  const chk='<span class="ac-ck ac-on">☑</span>', box='<span class="ac-ck">☐</span>';
+  const rows=[
+    {no:1,tests:`${chk} CBC , LFT , Cr , SGOT / SGPT`,moth:''},
+    {no:2,tests:`${chk} Anti HIV &nbsp; ${box} HCV VL`,moth:'Month 1'},
+    {no:3,tests:`${chk} Anti HIV`,moth:'Month 3'},
+    {no:4,tests:`${chk} Anti HIV &nbsp; ${box} HBsAg &nbsp; ${box} Anti-HCV`,moth:'Month 6'},
+  ];
+  return `<div class="appt-card">
+    <div class="ac-head"><img class="ac-logo" src="assets/logo-sswh.png" alt=""><div class="ac-ht"><div class="ac-title">บัตรนัดติดตามผลเลือด</div><div class="ac-code">CODE ${boxes}</div></div></div>
+    <table class="ac-tbl"><tbody>${rows.map((row,i)=>`<tr><td class="ac-tests">${row.tests}${row.moth?` <span class="ac-moth">(${row.moth})</span>`:''}</td><td class="ac-when"><b>ครั้งที่ ${row.no}</b> <span class="ac-date">${thaiLongDate(dts[i])}</span></td></tr>`).join('')}</tbody></table>
+    <div class="ac-foot">กลุ่มงานการพยาบาลด้านการควบคุมและป้องกันการติดเชื้อ โทร 1324</div>
+  </div>`;
+}
 function isComplete(r) { return r.imported ? true : Boolean(r.follow6Date && (r.follow6HIV || r.follow6HbsAg || r.follow6HCV)); } // เคสนำเข้า (ทะเบียนเดิม) ถือว่าติดตามครบแล้ว
 // นัดติดตามถัดไป: คำนวณจากวันเกิดเหตุ +1/+3/+6 เดือน ตามนัดที่ยังไม่มีผล; คืน null ถ้าครบแล้ว/ไม่มีวันเกิดเหตุ
 function followDue(r){
@@ -1521,7 +1542,10 @@ $('#attachVctBtn').onclick=openVctFromEditor;
 form.addEventListener('change', e=>{ if(e.target.name==='consentBloodTest' && e.target.checked && e.target.value==='ใช่'){ openVctFromEditor(); } });
 $('#deleteRecord').onclick=async()=>{if(!await confirmDialog('ยืนยันการลบรายการนี้? ข้อมูลที่ลบไม่สามารถกู้คืนได้',{kind:'error',yes:'ลบรายการ',no:'ยกเลิก'}))return;persist(records().filter(r=>r.id!==selectedId));$('#detailDialog').close();renderDashboard();toast('ลบรายการแล้ว')};
 function printSelectedRecord(){ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#pageStyle').textContent=printPageCss(hasVct(r)?'mix':'a4'); $('#printArea').innerHTML=fullDocHtml(pdpaView(r)); $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
+const APPT_PAGE_CSS='@page{size:148mm 105mm;margin:0}';   // บัตรนัด A6 แนวนอน
+function printApptCard(){ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; $('#pageStyle').textContent=APPT_PAGE_CSS; $('#printArea').innerHTML=`<div class="appt-page">${apptCardHtml(r)}</div>`; $('#detailDialog').close(); document.body.classList.add('printing'); setTimeout(()=>window.print(),60); }
 $('#printRecord').onclick=printSelectedRecord;
+$('#apptCard')&&($('#apptCard').onclick=printApptCard);
 $('#printRecordPdf').onclick=e=>{ const r=allRecords().find(x=>x.id===selectedId); if(!r)return; savePdf(fullDocHtml(pdpaView(r)), pdfFileName(r,'Form-IC'), e.currentTarget); };   // ดาวน์โหลดไฟล์ PDF ลงอุปกรณ์
 window.addEventListener('afterprint',()=>{ document.body.classList.remove('printing'); $('#printArea').innerHTML=''; });
 $('#exportJson').onclick=()=>{const data=records();if(!data.length)return toast('ยังไม่มีข้อมูลสำหรับสำรอง');download(`occupational-exposure-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),'application/json')};
