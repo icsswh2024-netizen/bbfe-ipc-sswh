@@ -36,6 +36,7 @@ h1,h2,h3,.brand strong,.detail-title,.eyebrow{font-family:"Sarabun",system-ui,sa
 .due-over{background:#fdeaea;color:#b71c1c}
 .due-soon{background:#fff4d6;color:#8a6508}
 .due-up{background:#eef4ff;color:#2b5fb0}
+.fu-sum{margin-top:8px;padding:8px 12px;background:#fff4f5;border:1px solid #f0d7da;border-radius:10px;font-size:13.5px;color:var(--ink)}
 /* บัตรนัดติดตามผลเลือด */
 .appt-page{width:148mm;min-height:105mm;background:#fff;color:#000;box-sizing:border-box;padding:5mm;margin:0 auto;font-family:"Sarabun",system-ui,sans-serif}
 .appt-card{border:2.5px solid #000}
