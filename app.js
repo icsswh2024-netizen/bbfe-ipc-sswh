@@ -771,8 +771,8 @@ function totalCost(recs){ return recs.reduce((s,r)=>s+costOf(r),0); }
 function baht(n){ return (Number(n)||0).toLocaleString('th-TH'); }
 function costByData(recs,keyFn,limit){ const m={}; recs.forEach(r=>{ const k=keyFn(r)||'ไม่ระบุ'; m[k]=(m[k]||0)+costOf(r); }); let e=Object.entries(m).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
 function costByLabData(recs,limit){ const m={}; recs.forEach(r=>{ Object.entries(r.labCosts||{}).forEach(([k,v])=>{ m[k]=(m[k]||0)+(Number(v)||0); }); }); let e=Object.entries(m).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]); if(limit)e=e.slice(0,limit); return e.map(([label,value])=>({label,value})); }
-// ค่าใช้จ่ายตรวจติดตามเจาะเลือด รวมทุกเคส แยกตามครั้ง (Lab พื้นฐาน, FU0-FU4)
-function fuCostData(recs){ const keys=[['labBaseCost','Lab พื้นฐาน'],['fu0Cost','FU0'],['fu1Cost','FU1'],['fu2Cost','FU2'],['fu3Cost','FU3'],['fu4Cost','FU4']]; return keys.map(([k,label])=>({label,value:recs.reduce((s,r)=>s+(Number(r[k])||0),0)})).filter(x=>x.value>0); }
+// ค่าใช้จ่ายตรวจติดตามเจาะเลือด รวมทุกเคส แยกตามครั้ง (FU0-FU4 เท่านั้น ไม่รวม Lab พื้นฐาน)
+function fuCostData(recs){ const keys=[['fu0Cost','FU0'],['fu1Cost','FU1'],['fu2Cost','FU2'],['fu3Cost','FU3'],['fu4Cost','FU4']]; return keys.map(([k,label])=>({label,value:recs.reduce((s,r)=>s+(Number(r[k])||0),0)})).filter(x=>x.value>0); }
 function chartMoneyBars(data){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูลค่าใช้จ่าย</p>'; const max=Math.max(1,...data.map(d=>d.value)); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(14,d.value/max*100)}%">฿${baht(d.value)}</div></div></div>`).join('')}</div>`; }
 // รายการที่ผ่านตัวกรองวิเคราะห์ (ใช้ร่วมกับตารางทะเบียนในหน้าเดียว)
 function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.fy)
