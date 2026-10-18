@@ -611,8 +611,20 @@ function persist(items) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items
 function esc(v='') { return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function thaiDate(v) { if(!v) return '—'; return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date(`${v}T00:00:00`)); }
 function thaiLongDate(v){ if(!v) return '.......................................'; const d=new Date(`${v}T00:00:00`); if(isNaN(d))return '.......................................'; return new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'long',year:'numeric'}).format(d); }
-// วันนัดติดตาม: ครั้งที่ 1 = วันเกิดเหตุ (Day 0), +1, +3, +6 เดือน
-function apptDates(r){ const base=r&&r.incidentDate?new Date(r.incidentDate+'T00:00:00'):null; const add=m=>{ if(!base||isNaN(base))return ''; const d=new Date(base); d.setMonth(d.getMonth()+m); return d.toISOString().slice(0,10); }; return [add(0),add(1),add(3),add(6)]; }
+// วันหยุดราชการไทย (YYYY-MM-DD) — ควรตรวจสอบ/ปรับปรุงรายปี (วันพระจันทรคติเปลี่ยนทุกปี)
+const TH_HOLIDAYS=new Set([
+  // 2568 (2025)
+  '2025-01-01','2025-02-12','2025-04-06','2025-04-07','2025-04-13','2025-04-14','2025-04-15','2025-04-16','2025-05-01','2025-05-04','2025-05-05','2025-05-11','2025-05-12','2025-06-02','2025-06-03','2025-07-10','2025-07-11','2025-07-28','2025-08-11','2025-08-12','2025-10-13','2025-10-23','2025-12-05','2025-12-10','2025-12-31',
+  // 2569 (2026)
+  '2026-01-01','2026-01-02','2026-03-03','2026-04-06','2026-04-13','2026-04-14','2026-04-15','2026-05-01','2026-05-04','2026-05-31','2026-06-01','2026-06-03','2026-07-29','2026-07-30','2026-07-31','2026-07-28','2026-08-12','2026-10-13','2026-10-23','2026-12-05','2026-12-07','2026-12-10','2026-12-31',
+  // 2570 (2027)
+  '2027-01-01','2027-02-20','2027-02-22','2027-04-06','2027-04-13','2027-04-14','2027-04-15','2027-05-04','2027-05-20','2027-05-21','2027-06-03','2027-07-18','2027-07-19','2027-07-20','2027-07-28','2027-08-12','2027-10-13','2027-10-23','2027-12-05','2027-12-06','2027-12-10','2027-12-31',
+]);
+function toISOlocal(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function isThNonWork(d){ const w=d.getDay(); if(w===0||w===6)return true; return TH_HOLIDAYS.has(toISOlocal(d)); }   // เสาร์-อาทิตย์ หรือวันหยุดราชการ
+function prevWorkday(iso){ if(!iso)return iso; let d=new Date(iso+'T00:00:00'); if(isNaN(d))return iso; let g=0; while(isThNonWork(d)&&g<40){ d.setDate(d.getDate()-1); g++; } return toISOlocal(d); }
+// วันนัดติดตาม: ครั้งที่ 1 = วันเกิดเหตุ (Day 0, ไม่เลื่อน), +1/+3/+6 เดือน แล้วเลื่อนมาก่อนถ้าตรงวันหยุด
+function apptDates(r){ const base=r&&r.incidentDate?new Date(r.incidentDate+'T00:00:00'):null; const add=m=>{ if(!base||isNaN(base))return ''; const d=new Date(base); d.setMonth(d.getMonth()+m); return toISOlocal(d); }; return [add(0), prevWorkday(add(1)), prevWorkday(add(3)), prevWorkday(add(6))]; }
 // บัตรนัดติดตามผลเลือด (พิมพ์แจกผู้สัมผัส)
 function apptCardHtml(r){
   const dts=apptDates(r);
