@@ -902,11 +902,16 @@ const PAGES_BY_MODE={staff:STAFF_PAGES,admin:ADMIN_PAGES,icn:ICN_PAGES};
 let formMode='staff';
 let formDirty=false;   // มีการแก้ไขฟอร์มที่ยังไม่บันทึก
 form.addEventListener('input', ()=>{ formDirty=true; });
+// ทำให้ช่องที่กรอกข้อมูลแล้วมีพื้นหลังเข้มขึ้น (ดูออกง่ายว่าช่องไหนกรอกแล้ว)
+function markFilled(el){ if(!el||!el.classList)return; const tag=el.tagName; if(tag!=='INPUT'&&tag!=='SELECT'&&tag!=='TEXTAREA')return; if(el.type==='checkbox'||el.type==='radio'||el.type==='hidden')return; el.classList.toggle('has-value', String(el.value||'').trim()!==''); }
+function refreshFilledState(){ try{ form.querySelectorAll('input,select,textarea').forEach(markFilled); }catch(e){} }
+form.addEventListener('input', e=>markFilled(e.target));
+form.addEventListener('change', e=>markFilled(e.target));
 function applyMode(mode){ formMode=mode; const pages=PAGES_BY_MODE[mode]||STAFF_PAGES; $$('.form-page').forEach((p,i)=>p.classList.toggle('active',pages.includes(i))); ['#steps','#prevBtn','#nextBtn'].forEach(s=>$(s).classList.add('hidden')); $('#saveBtn').classList.remove('hidden'); $('#viewPrevDoc').classList.toggle('hidden',mode!=='icn'); const eyebrow={admin:'ส่วนแอดมิน • ทุกส่วน (1-5)',icn:'ICN / เวรตรวจการ • ส่วนที่ 4'}[mode]||'FORM IC 1 • เจ้าหน้าที่ • ขั้นตอน 1-3'; const label={admin:'แก้ไข/จัดการข้อมูลได้ทุกส่วน (แอดมิน)',icn:'การรักษาเพื่อป้องกัน (ICN / เวรตรวจการ)'}[mode]||'กรอกข้อมูลให้ครบแล้วกดบันทึก (เจ้าหน้าที่)'; $('#formEyebrow').textContent=eyebrow; $('#stepLabel').textContent=label; window.scrollTo({top:0}); }
-function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); formDirty=false; }
+function resetForm(){ form.reset(); form.id.value='';$('#formTitle').textContent='บันทึกเหตุการณ์ใหม่'; $('#saveState').textContent='ยังไม่บันทึก'; applyMode('staff'); renderSourcePatients([]); updateAllOther(); updateSoundex(); refreshFilledState(); formDirty=false; }
 let MULTI_FIELDS = new Set(['exposureType', 'bodySite']); // fields whose value is an array (checkbox groups)
 function formDataObject(){ const fd=new FormData(form), out={}; for(const [k,v] of fd){ if(MULTI_FIELDS.has(k)){ (out[k]??=[]).push(v); } else out[k]=v.trim?.()??v; } MULTI_FIELDS.forEach(k=>{ if(!out[k]) out[k]=[]; }); out.sourcePatients=collectSourcePatients(); const p0=out.sourcePatients[0]||{}; out.sourceName=p0.name||''; out.sourceHn=p0.hn||''; out.sourceHiv=p0.hiv||''; out.sourceHbsAg=p0.hbsAg||''; out.sourceHcv=p0.hcv||''; out.sourceRisk=p0.risk||''; out.sourceRiskDetail=p0.riskDetail||''; return out; }
-function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; renderSourcePatients((record.sourcePatients&&record.sourcePatients.length)?record.sourcePatients:[{name:record.sourceName,hn:record.sourceHn,hiv:record.sourceHiv,hbsAg:record.sourceHbsAg,hcv:record.sourceHcv,risk:record.sourceRisk,riskDetail:record.sourceRiskDetail}]); updateAllOther(); updateSoundex(); }
+function fillForm(record){ resetForm(); Object.entries(record).forEach(([k,v])=>{ const els=$$(`[name="${CSS.escape(k)}"]`,form); if(!els.length)return; if(Array.isArray(v)){ els.forEach(e=>e.checked=v.includes(e.value)); } else if(els[0].type==='radio'){ els.forEach(e=>e.checked=e.value===v); } else { if(els[0].tagName==='SELECT'&&v&&![...els[0].options].some(o=>o.value===v)) els[0].add(new Option(v,v)); els[0].value=v??''; } }); $('#formTitle').textContent='แก้ไขบันทึกเหตุการณ์'; $('#saveState').textContent=`แก้ไขล่าสุด ${thaiDate((record.updatedAt||record.createdAt||'').slice(0,10))}`; renderSourcePatients((record.sourcePatients&&record.sourcePatients.length)?record.sourcePatients:[{name:record.sourceName,hn:record.sourceHn,hiv:record.sourceHiv,hbsAg:record.sourceHbsAg,hcv:record.sourceHcv,risk:record.sourceRisk,riskDetail:record.sourceRiskDetail}]); updateAllOther(); updateSoundex(); refreshFilledState(); }
 
 // ---- Signature pad: sign with finger / mouse in section 3, stored as a PNG data URL in field "sign" ----
 let signCtx=null, signDrawing=false, signHasInk=false, signLast=null;
@@ -1460,6 +1465,7 @@ function fillDemo(){
     setV('notes','ข้อมูลตัวอย่างสำหรับทดสอบระบบ'); setV('doctorName','นพ.วิชัย รักษาดี');
   }
   updateAllOther(); updateSoundex();
+  refreshFilledState();
   toast('กรอกข้อมูลตัวอย่างเฉพาะส่วนของโหมดนี้แล้ว');
 }
 $('#fillDemo').onclick=fillDemo;
