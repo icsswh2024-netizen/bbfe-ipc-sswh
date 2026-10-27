@@ -166,7 +166,7 @@ function parseRegistryRows(rows){
     sHiv:col('HIV','HIVrap'), sAntiHbs:col('Anti-HBs'), sHcv:col('Anti-HCV'), sHbsAg:colN('HBs Ag',1),
     creat:col('Creatinine'), sgpt:col('SGPT'), sgot:col('SGOT'), bun:col('Bun'),
     labBase:col('Labพื้นฐาน','Lab พื้นฐาน','Labพื้นฐาน '), fu0:col('FU0'), fu1:col('FU1'), fu2:col('FU2'), fu3:col('FU3'), fu4:col('FU4'),
-    json:col('JSON'), sign:col(SIGN_COL), vctSign:col(VCTSIGN_COL) };
+    json:col('JSON'), sign:col(SIGN_COL), vctSign:col(VCTSIGN_COL), fy:col('ปีงบ') };
   if(c.fn<0)return null;
   // คอลัมน์ค่าใช้จ่าย: ทุกหัวคอลัมน์ที่มีคำว่า "ราคา" หรือ "ค่ายา" (รวมค่าตรวจแล็บ+ค่ายา)
   const costCols=[]; H.forEach((h,i)=>{ if(/ราคา|ค่ายา/.test(h)) costCols.push(i); });
@@ -210,6 +210,7 @@ function parseRegistryRows(rows){
       pepOutcome:(g(row,c.pepFull)?'ครบ':(g(row,c.pepNotFull)?'ไม่ครบ':'')), pepNote:g(row,c.pepStop),
       // ค่าใช้จ่ายตรวจติดตามเจาะเลือด (บาท): Labพื้นฐาน, FU0, FU1-FU4
       labBaseCost:labBaseCost, fu0Cost:fu0, fu1Cost:fu1, fu2Cost:fu2, fu3Cost:fu3, fu4Cost:fu4, followCost:followCost,
+      budgetYear:g(row,c.fy),   // ปีงบจากคอลัมน์ในชีตโดยตรง (ว่าง = ยังไม่กำหนดปีงบ → ไม่นับ)
     };
     // A) ถ้ามีคอลัมน์ JSON (บันทึกผ่านแอป) = ข้อมูลเต็ม → ใช้แทนทั้งหมด (คงสถานะนำเข้า/อ่านอย่างเดียว)
     if(c.json>=0){ const jv=g(row,c.json); if(jv){ try{ const full=JSON.parse(jv); if(full&&typeof full==='object'){ Object.assign(rec, full); rec.id='sheet-'+(seq||r); rec.imported=true; } }catch(e){} } }
@@ -752,6 +753,8 @@ function renderCharts(){
 const STATS_F={fy:'',q:'',mo:'',fac:'',dept:'',type:'',gender:'',age:''};
 function feYear(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d))return ''; const be=d.getFullYear()+543; return String(d.getMonth()>=9?be+1:be); } // ปีงบไทย ต.ค.–ก.ย.
 function currentFY(){ return feYear(new Date().toISOString().slice(0,10)); }
+// ปีงบของเคส: เรคคอร์ดจากชีตใช้คอลัมน์ "ปีงบ" ตรงๆ (ว่าง = ไม่นับ) — เรคคอร์ดในเครื่องคำนวณจากวันที่เกิดเหตุ
+function fyOf(r){ if(r&&r.imported) return String(r.budgetYear||'').trim(); return feYear(r&&r.incidentDate); }
 // ค่าเริ่มต้น: ส่วน = โรงพยาบาลศรีสังวรสุโขทัย, ปีงบ = ปีงบปัจจุบัน (มิติอื่นล้าง)
 function statsApplyDefaults(){ STATS_F.fac='โรงพยาบาลศรีสังวรสุโขทัย'; STATS_F.fy=currentFY(); STATS_F.q=''; STATS_F.mo=''; STATS_F.dept=''; STATS_F.type=''; STATS_F.gender=''; STATS_F.age=''; }
 statsApplyDefaults();
@@ -763,8 +766,8 @@ const QUARTERS=['Q1','Q2','Q3','Q4'];
 const FACILITIES=['โรงพยาบาลศรีสังวรสุโขทัย','รพ.สต.'];
 // แบ่ง "ส่วน" (สังกัด): รพ.สต./สอ./สสอ. = รพ.สต. ; ที่เหลือ = โรงพยาบาลศรีสังวรสุโขทัย
 function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ\./.test((r.department||'')+' '+(r.workGroup||''))?'รพ.สต.':'โรงพยาบาลศรีสังวรสุโขทัย'; }
-// ฐานการนับ: 1 เคส = ต้องมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) เป็นเงื่อนไขแรกก่อน แล้วจึงต้องมี "ตำแหน่ง"
-function countable(r){ return !!feYear(r.incidentDate) && !!(String(r.staffType||'').trim()); }
+// ฐานการนับ: 1 เคส = ต้องมี "ปีงบ" (จากคอลัมน์ปีงบในชีต) เป็นเงื่อนไขแรกก่อน แล้วจึงต้องมี "ตำแหน่ง"
+function countable(r){ return !!fyOf(r) && !!(String(r.staffType||'').trim()); }
 function statsPool(){ return allRecords().filter(countable); }
 // พาเลทสีหลัก (ธีมแดง MOPH) สำหรับสีกราฟแบบหลายหมวด
 function colorize(arr){ return arr.map((d,i)=>({...d,color:CAT_COLORS[i%CAT_COLORS.length]})); }
@@ -795,7 +798,7 @@ function costByLabData(recs,limit){ const m={}; recs.forEach(r=>{ Object.entries
 function fuCostData(recs){ const keys=[['fu0Cost','FU0'],['fu1Cost','FU1'],['fu2Cost','FU2'],['fu3Cost','FU3'],['fu4Cost','FU4']]; return keys.map(([k,label])=>({label,value:recs.reduce((s,r)=>s+(Number(r[k])||0),0)})).filter(x=>x.value>0); }
 function chartMoneyBars(data){ if(!data.length)return '<p class="chart-empty">ไม่มีข้อมูลค่าใช้จ่าย</p>'; const max=Math.max(1,...data.map(d=>d.value)); return `<div class="hbars">${data.map(d=>`<div class="hbar"><span class="hbar-lbl" title="${esc(d.label)}">${esc(d.label)}</span><div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(14,d.value/max*100)}%">฿${baht(d.value)}</div></div></div>`).join('')}</div>`; }
 // รายการที่ผ่านตัวกรองวิเคราะห์ (ใช้ร่วมกับตารางทะเบียนในหน้าเดียว)
-function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.fy)
+function matchStatsF(r){ return (!STATS_F.fy||fyOf(r)===STATS_F.fy)
  &&(!STATS_F.q||quarterOf(r.incidentDate)===STATS_F.q)
  &&(!STATS_F.mo||monthOf(r.incidentDate)===STATS_F.mo)
  &&(!STATS_F.fac||facilityOf(r)===STATS_F.fac)
@@ -806,7 +809,7 @@ function matchStatsF(r){ return (!STATS_F.fy||feYear(r.incidentDate)===STATS_F.f
 function statsFiltered(){ return statsPool().filter(matchStatsF); }
 function renderStatsFilters(){
   const box=$('#statsFilters'); if(!box)return;
-  const years=distinctVals(r=>feYear(r.incidentDate)).sort();
+  const years=distinctVals(r=>fyOf(r)).sort();
   const sel=(id,label,opts)=>`<label class="sf"><span>${label}</span><select data-sf="${id}"><option value="">ทั้งหมด</option>${opts.map(o=>`<option value="${esc(o)}"${o===STATS_F[id]?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
   // ส่วน (สังกัด) ลำดับแรก, ตามด้วย ปีงบ · ไตรมาส · เดือน
   box.innerHTML=sel('fac','ส่วน (สังกัด)',FACILITIES)+sel('fy','ปีงบ',years)+sel('q','ไตรมาส',QUARTERS)+sel('mo','เดือน',THMON_SHORT);
