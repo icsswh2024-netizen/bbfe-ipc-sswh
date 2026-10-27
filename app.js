@@ -763,8 +763,8 @@ const QUARTERS=['Q1','Q2','Q3','Q4'];
 const FACILITIES=['โรงพยาบาลศรีสังวรสุโขทัย','รพ.สต.'];
 // แบ่ง "ส่วน" (สังกัด): รพ.สต./สอ./สสอ. = รพ.สต. ; ที่เหลือ = โรงพยาบาลศรีสังวรสุโขทัย
 function facilityOf(r){ return /รพ\.?\s*สต|รพสต|สสอ|สอ\./.test((r.department||'')+' '+(r.workGroup||''))?'รพ.สต.':'โรงพยาบาลศรีสังวรสุโขทัย'; }
-// ฐานการนับ: 1 เคส = ต้องมี "ตำแหน่ง" และมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) ครบ
-function countable(r){ return !!(String(r.staffType||'').trim()) && !!feYear(r.incidentDate); }
+// ฐานการนับ: 1 เคส = ต้องมี "ปีงบ" (คำนวณจากวันที่เกิดเหตุ) เป็นเงื่อนไขแรกก่อน แล้วจึงต้องมี "ตำแหน่ง"
+function countable(r){ return !!feYear(r.incidentDate) && !!(String(r.staffType||'').trim()); }
 function statsPool(){ return allRecords().filter(countable); }
 // พาเลทสีหลัก (ธีมแดง MOPH) สำหรับสีกราฟแบบหลายหมวด
 function colorize(arr){ return arr.map((d,i)=>({...d,color:CAT_COLORS[i%CAT_COLORS.length]})); }
