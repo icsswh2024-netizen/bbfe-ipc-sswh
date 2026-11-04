@@ -143,6 +143,7 @@ const REGISTRY_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gvi
 const REGISTRY_CACHE_KEY = 'icsswh-registry-cache-v1';
 function loadCachedRegistry(){ try { const v=JSON.parse(localStorage.getItem(REGISTRY_CACHE_KEY)); return Array.isArray(v)?v:[]; } catch { return []; } }
 let IMPORTED_RECORDS = loadCachedRegistry();
+let REGISTRY_HEADERS = null;   // หัวคอลัมน์จริงของแท็บทะเบียน (อัปเดตตอนโหลดชีต) ใช้เขียนข้อมูลลงตรงตำแหน่งคอลัมน์
 // วันที่ไทย dd/mm/พ.ศ. -> ISO yyyy-mm-dd (คืนค่าดิบถ้าแปลงไม่ได้)
 function parseThaiDate(s){ s=String(s||'').trim(); const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{3,4})$/); if(!m)return ''; let[_,d,mo,y]=m; y=+y; if(y>2400)y-=543; return `${y}-${String(+mo).padStart(2,'0')}-${String(+d).padStart(2,'0')}`; }
 const REG_GENDER={female:'หญิง',male:'ชาย',f:'หญิง',m:'ชาย'};
@@ -152,6 +153,7 @@ function parseRegistryRows(rows){
   let hi=-1; for(let i=0;i<Math.min(rows.length,8);i++){ if((rows[i]||[]).some(c=>String(c).trim()==='ชื่อบุคลากร')){hi=i;break;} }
   if(hi<0)return null;
   const H=rows[hi].map(h=>String(h).trim());
+  REGISTRY_HEADERS=H.slice();   // เก็บหัวคอลัมน์จริงไว้ใช้เขียนข้อมูลลงตรงตำแหน่ง (รองรับหัวคอลัมน์ชื่อซ้ำ)
   const col=(...names)=>{ for(const n of names){ const i=H.indexOf(n); if(i>=0)return i; } return -1; };
   const colN=(name,n)=>{ let cnt=0; for(let i=0;i<H.length;i++){ if(H[i]===name){ if(cnt===n)return i; cnt++; } } return -1; };  // หาคอลัมน์ชื่อซ้ำ ลำดับที่ n (0-based)
   const c={ seq:col('ลำดับที่','ลำดับ'), dept:col('หน่วยงาน'), pos:col('ตำแหน่ง'), fn:col('ชื่อบุคลากร'), ln:col('นามสกุลบุคลากร'),
@@ -1714,6 +1716,47 @@ function registryValuesOf(r){ const p0=(r.sourcePatients&&r.sourcePatients[0])||
     'พฤติกรรมเสี่ยง':p0.risk||r.sourceRisk||'', 'ยา 28 day':r.pepRegimen||''
   };
 }
+const THMON_FULL=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+function thMonthFull(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); return isNaN(d)?'':THMON_FULL[d.getMonth()]; }
+// สร้างแถวข้อมูลตาม "ตำแหน่งคอลัมน์จริง" ของแท็บทะเบียน (รองรับหัวคอลัมน์ชื่อซ้ำ เช่น "HBs Ag", "วันที่เริ่มยา")
+// → เขียนลงคอลัมน์แยกได้ครบ ไม่ชนช่องกัน (occ = ลำดับการพบหัวคอลัมน์ชื่อเดียวกัน 0-based)
+function registryRowArray(r){
+  const H=REGISTRY_HEADERS; if(!H||!H.length) return null;
+  const p0=(r.sourcePatients&&r.sourcePatients[0])||{};
+  const A=v=>Array.isArray(v)?v.filter(Boolean).join(', '):(v||'');
+  const nm=String(p0.name||r.sourceName||'').trim().split(/\s+/).filter(Boolean);
+  const arr=H.map(()=>'');
+  const nth=(name,occ)=>{ let c=0; for(let i=0;i<H.length;i++){ if(String(H[i]).trim()===name){ if(c===(occ||0))return i; c++; } } return -1; };
+  const set=(name,occ,val)=>{ const i=nth(name,occ); if(i>=0 && val!=null && String(val)!=='') arr[i]=val; };
+  // ข้อมูลหลัก (คอลัมน์ชื่อไม่ซ้ำ)
+  set('หน่วยงาน',0,r.department); set('ตำแหน่ง',0,posCode(r.staffType)); set('ประเภท',0,posCode(r.staffType));
+  set('ชื่อบุคลากร',0,r.staffName); set('นามสกุลบุคลากร',0,r.staffName2);
+  set('Soundex code',0,r.soundex); set('HN code',0,r.hn); set('HNบุคลากร',0,r.staffHn);
+  set('อายุ (ปี)',0,r.age); set('Tel',0,r.phone); set('เพศ',0,r.gender);
+  set('ปีงบ',0,feYear(r.incidentDate)); set('วันที่เกิดเหตุ',0,regThaiDate(r.incidentDate)); set('เดือน',0,thMonthFull(r.incidentDate));
+  set('เวร',0,r.shift); set('เวลา',0,r.incidentTime);
+  set('ลักษณะเหตุ',0,r.sharpType); set('ตำแหน่งสัมผัส',0,A(r.bodySite)); set('เลือด/สารคัดหลั่ง',0,A(r.exposureType));
+  set('เหตุการณ์',0,r.incidentDescription); set('มือ',0,r.hand); set('นิ้ว',0,A(r.fingerSite));
+  set('อายุการทำงาน จนท. (ปี)',0,r.workYears);
+  // ผู้ป่วยต้นเหตุ
+  set('HN ผู้ป่วย',0,p0.hn||r.sourceHn); set('ชื่อผู้ป่วย',0,nm[0]); set('นามสกุลผู้ป่วย',0,nm.slice(1).join(' '));
+  set('สิทธิผู้ป่วย',0,p0.rights||r.sourceRights);
+  set('Anti HIV CLIA',0,p0.hiv||r.sourceHiv); set('HBs Ag',0,p0.hbsAg||r.sourceHbsAg); set('Anti HCV',0,p0.hcv||r.sourceHcv);
+  set('พฤติกรรมเสี่ยง',0,p0.risk||r.sourceRisk);
+  // การรักษา PEP (ยา 28 วัน) — "วันที่เริ่มยา" ตัวที่ 2 (occ 1) คือของยา 28 วัน
+  set('ยา 28 day',0,r.pepRegimen); set('วันที่เริ่มยา',1,regThaiDate(r.pepStart));
+  if(r.pepOutcome==='ครบ') set('ครบ',0,'✓'); if(r.pepOutcome==='ไม่ครบ') set('ไม่ครบ',0,'✓');
+  set('หยุดยาเนื่องจาก',0,r.pepNote);
+  // ผลเลือดเจ้าหน้าที่ Day0 — "HBs Ag" ตัวที่ 2 (occ 1) คือของเจ้าหน้าที่
+  set('HIV',0,r.staffHiv); set('Anti-HBs',0,r.staffAntiHbs); set('Anti-HCV',0,r.staffHcv); set('HBs Ag',1,r.staffHbsAg);
+  set('Creatinine',0,r.creatinine); set('Bun',0,r.bun); set('SGPT',0,r.sgpt); set('SGOT',0,r.sgot);
+  // สำรองข้อมูลเต็ม + ลายเซ็น (บีบแล้ว)
+  set('JSON',0,fullRecordJson(r));
+  if(sigSrc(r.sign)) set(SIGN_COL,0,r.sign);
+  const vb={}; Object.keys(r).forEach(k=>{ if((k==='counselorSign'||/^witnessSign/.test(k)) && sigSrc(r[k])) vb[k]=r[k]; });
+  if(Object.keys(vb).length) set(VCTSIGN_COL,0,JSON.stringify(vb));
+  return arr;
+}
 // เรียก Apps Script แบบ JSONP GET (อ่านผลข้ามโดเมนได้จริง ไม่ติด CORS)
 function jsonpGet(url, params, timeout){ return new Promise(res=>{ const cb='__ic_cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6); const s=document.createElement('script'); let done=false; const fin=v=>{ if(done)return; done=true; try{delete window[cb];}catch(e){} s.remove(); res(v); }; window[cb]=d=>fin(d); s.onerror=()=>fin(null); const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&'); s.src=url+(url.includes('?')?'&':'?')+qs+'&callback='+cb+'&t='+Date.now(); document.body.appendChild(s); setTimeout(()=>fin(null), timeout||15000); }); }
 // ชื่อคอลัมน์เก็บรูปลายเซ็นแยกต่างหาก (แต่ละเซลล์เก็บได้สูงสุด ~50,000 ตัวอักษร) — ไม่ถูกตัดแม้ JSON ใหญ่
@@ -1755,22 +1798,28 @@ async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return
   // บีบอัดรูปลายเซ็นทุกช่องก่อนบันทึก (กว้างสุด 340px) ลดขนาดไม่ให้เซลล์/JSON ล้น
   const rc=Object.assign({}, r);
   for(const k of Object.keys(rc)){ if(isSignKey(k) && typeof rc[k]==='string' && rc[k].indexOf('data:image')===0){ try{ rc[k]=await shrinkImageDataUrl(rc[k],340,'image/png'); }catch(e){} } }
-  const vals=registryValuesOf(rc), slim={}; Object.keys(vals).forEach(k=>{ if(String(vals[k]).trim()!=='') slim[k]=vals[k]; });
-  slim['JSON']=fullRecordJson(rc);   // เก็บข้อมูลเต็มทุกช่องลงคอลัมน์ JSON (รวมลายเซ็นที่บีบแล้ว เป็น backup)
-  // + เก็บลายเซ็นในคอลัมน์แยก ไม่ถูกตัดแม้ JSON ใหญ่ → ดึงมาใช้บนใบรายงานได้เสมอ
-  if(sigSrc(rc.sign)) slim[SIGN_COL]=rc.sign;
-  const vb={}; Object.keys(rc).forEach(k=>{ if((k==='counselorSign'||/^witnessSign/.test(k)) && sigSrc(rc[k])) vb[k]=rc[k]; });
-  if(Object.keys(vb).length) slim[VCTSIGN_COL]=JSON.stringify(vb);
-  const payload=JSON.stringify(slim);
+  // เขียนแบบอิงตำแหน่งคอลัมน์จริง (ครบทุกช่อง รองรับหัวคอลัมน์ซ้ำ) ถ้ารู้หัวคอลัมน์แล้ว
+  const rowArr=registryRowArray(rc);
+  let payloadObj;
+  if(rowArr){ payloadObj={rowValues:rowArr, headers:REGISTRY_HEADERS}; }
+  else {   // fallback: ยังไม่โหลดหัวคอลัมน์ → เขียนตามชื่อ (เฉพาะคอลัมน์ไม่ซ้ำ) เหมือนเดิม
+    const vals=registryValuesOf(rc), slim={}; Object.keys(vals).forEach(k=>{ if(String(vals[k]).trim()!=='') slim[k]=vals[k]; });
+    slim['JSON']=fullRecordJson(rc);
+    if(sigSrc(rc.sign)) slim[SIGN_COL]=rc.sign;
+    const vb={}; Object.keys(rc).forEach(k=>{ if((k==='counselorSign'||/^witnessSign/.test(k)) && sigSrc(rc[k])) vb[k]=rc[k]; });
+    if(Object.keys(vb).length) slim[VCTSIGN_COL]=JSON.stringify(vb);
+    payloadObj={values:slim};
+  }
+  const payload=JSON.stringify(payloadObj);
   if(payload.length < 6500){   // เล็กพอ → JSONP GET (อ่านผลได้ เขียวชัด)
     const d=await jsonpGet(url,{action:'appendRow', sheet:REGISTRY_SHEET, payload}, 25000);
     if(d&&d.ok===true) return {ok:true, seq:d.seq};
     if(d&&d.ok===false) return {ok:false, error:d.error};
   }
   // ใหญ่ หรือ JSONP ไม่สำเร็จ → POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
-  try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appendRow', sheet:REGISTRY_SHEET, values:slim})}); return {unverified:true}; }
+  try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'appendRow', sheet:REGISTRY_SHEET}, payloadObj))}); return {unverified:true}; }
   catch(e){ return {unverified:true}; } }
-const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.9';
+const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.10';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
 // หาคอลัมน์จากชื่อหัวตาราง (ตัดช่องว่างหน้า-หลัง เผื่อหัวตารางมีเว้นวรรค)
@@ -1783,8 +1832,8 @@ function icDvAllows(dv, val){
   if (crit === 'VALUE_IN_RANGE'){ try { var vs = args[0].getValues(); for (var i=0;i<vs.length;i++){ for (var j=0;j<vs[i].length;j++){ if (String(vs[i][j]).trim() === String(val).trim()) return true; } } return false; }catch(e){ return true; } }
   return true;
 }
-// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — จับคู่ค่าตามชื่อหัวคอลัมน์ + รันเลขลำดับที่
-function icAppend(ss, name, vals){
+// เขียนแถวใหม่ต่อท้ายแท็บทะเบียน — รองรับทั้งแบบอิงตำแหน่งคอลัมน์ (rowValues+headers) และแบบจับคู่ตามชื่อ (values)
+function icAppend(ss, name, data){
   var sh = ss.getSheetByName(name);
   if (!sh) return {ok:false, error:'ไม่พบแท็บ '+name};
   var rdata = sh.getDataRange().getValues();
@@ -1794,7 +1843,23 @@ function icAppend(ss, name, vals){
   // สร้างคอลัมน์ระบบท้ายตารางอัตโนมัติถ้ายังไม่มี: JSON (ข้อมูลเต็ม) + ลายเซ็น/ลายเซ็นVCT (รูปลายเซ็นแยกเซลล์ ไม่ถูกตัด)
   ['JSON','${SIGN_COL}','${VCTSIGN_COL}'].forEach(function(k){ if (icHcol(HH,k) < 0){ sh.getRange(hi+1, HH.length+1).setValue(k); HH = HH.concat([k]); } });
   var newRow=[]; for (var c=0;c<HH.length;c++) newRow.push('');
-  Object.keys(vals).forEach(function(k){ var ci=icHcol(HH,k); if (ci>=0 && newRow[ci]==='') newRow[ci]=vals[k]; });
+  if (data && data.rowValues){
+    var rv = data.rowValues, dh = data.headers || [];
+    if (dh.length === HH.length){   // หัวคอลัมน์ตรงกัน → เขียนตามตำแหน่งตรงๆ
+      for (var c=0;c<Math.min(rv.length,HH.length);c++){ if (rv[c]!=='' && rv[c]!=null) newRow[c]=rv[c]; }
+    } else {                        // หัวคอลัมน์เลื่อน/เพิ่ม → จับคู่ตามชื่อ + ลำดับการพบ (occurrence)
+      var occ={};
+      for (var c=0;c<dh.length;c++){
+        var nmH=String(dh[c]).trim(); var want=occ[nmH]||0; occ[nmH]=want+1;
+        var seen=0, ti=-1;
+        for (var j=0;j<HH.length;j++){ if (String(HH[j]).trim()===nmH){ if(seen===want){ti=j;break;} seen++; } }
+        if (ti>=0 && rv[c]!=='' && rv[c]!=null) newRow[ti]=rv[c];
+      }
+    }
+  } else {   // แบบเดิม: จับคู่ค่าตามชื่อหัวคอลัมน์ (คอลัมน์ไม่ซ้ำ)
+    var vals = (data && data.values) ? data.values : (data || {});
+    Object.keys(vals).forEach(function(k){ var ci=icHcol(HH,k); if (ci>=0 && newRow[ci]==='') newRow[ci]=vals[k]; });
+  }
   var seqCol=icHcol(HH,'ลำดับที่'); if (seqCol<0) seqCol=icHcol(HH,'ลำดับ');
   if (seqCol>=0){ var mx=0; for (var r=hi+1;r<rdata.length;r++){ var n=parseInt(rdata[r][seqCol],10); if(!isNaN(n)&&n>mx) mx=n; } newRow[seqCol]=mx+1; }
   var nameCol=icHcol(HH,'ชื่อบุคลากร');
@@ -1843,7 +1908,7 @@ function doPost(e){
 
     // append a new incident row to the registry — handled first so it never touches the fields-style header logic below
     if (body.action === 'appendRow'){
-      var outA = icAppend(ss, name, body.values || {});
+      var outA = icAppend(ss, name, body);
       return ContentService.createTextOutput(JSON.stringify(outA)).setMimeType(ContentService.MimeType.JSON);
     }
 
