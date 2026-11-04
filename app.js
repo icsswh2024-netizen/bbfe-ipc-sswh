@@ -1127,6 +1127,19 @@ function commitSave(data){
   else { isNew = true; data.id = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`; data.createdAt = now; data.updatedAt = now; list.push(data); }
   persist(list); formDirty=false;
   if (isNew) pushNewToSheet(data);   // เขียนลงชีตทันทีที่สร้างเรคคอร์ดใหม่ (ครอบคลุมทั้งเส้นทาง VCT และบันทึกปกติ)
+  else if (String(data.id||'').indexOf('sheet-')===0) pushUpdateToSheet(data);   // แก้ไขเรคคอร์ดจากชีต → เขียนกลับแถวเดิม (เช่น ICN กรอกส่วนที่ 4)
+}
+// เขียนทับแถวเดิมในชีต (ตามเลขลำดับที่) เมื่อแก้ไขเรคคอร์ดที่มาจากชีต — เช่น ICN/เวรตรวจการ กรอกส่วนที่ 4
+function pushUpdateToSheet(data){
+  const seq = String(data.id||'').slice(6);
+  if (!/^\d+$/.test(seq)) return;   // ไม่มีเลขลำดับที่ชัดเจน (แถวไม่มี "ลำดับที่") → ข้าม เขียนกลับไม่ได้
+  toast('⏳ กำลังบันทึกกลับทะเบียนกลาง…');
+  updateRecordInSheet(data).then(res=>{
+    if (res.ok) popup('🟢 บันทึกกลับทะเบียนกลางแล้ว\n\nลำดับที่ '+seq+' (แท็บ 01-บันชีรายชื่อ)', 'ok');
+    else if (res.skipped) { /* เงียบ */ }
+    else if (res.unverified) popup('🟡 ส่งข้อมูลแก้ไขแล้ว\n\nแต่เบราว์เซอร์อ่านผลยืนยันกลับไม่ได้\nโปรดเปิดแท็บ 01 เช็กลำดับที่ '+seq, 'info');
+    else popup('🔴 บันทึกกลับทะเบียนไม่สำเร็จ\n\nแก้ในเครื่องแล้ว แต่เขียนลงชีตไม่ได้:\n'+(res.error||'ไม่ทราบสาเหตุ'), 'error');
+  }).catch(()=>{});
 }
 
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
@@ -1819,6 +1832,28 @@ async function appendRecordToSheet(r){ const url=getSheetHook(); if(!url) return
   // ใหญ่ หรือ JSONP ไม่สำเร็จ → POST (เขียนได้แต่ตรวจผลกลับไม่ได้)
   try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'appendRow', sheet:REGISTRY_SHEET}, payloadObj))}); return {unverified:true}; }
   catch(e){ return {unverified:true}; } }
+// เขียนทับแถวเดิม (ตาม seq) สำหรับเรคคอร์ดจากชีตที่ถูกแก้ไข — ต้อง deploy Apps Script .10 ขึ้นไป
+async function updateRecordInSheet(r){
+  const url=getSheetHook(); if(!url) return {skipped:true};
+  const seq = String(r.id||'').indexOf('sheet-')===0 ? String(r.id).slice(6) : '';
+  if(!/^\d+$/.test(seq)) return {skipped:true};
+  // รวมกับเรคคอร์ดต้นฉบับจากชีต เพื่อไม่ให้ช่องที่ฟอร์มไม่แสดง (เช่น ค่าใช้จ่าย) หายไปตอนเขียน JSON
+  const orig=(IMPORTED_RECORDS||[]).find(x=>x.id===r.id)||{};
+  const rc=Object.assign({}, orig, r);
+  for(const k of Object.keys(rc)){ if(isSignKey(k) && typeof rc[k]==='string' && rc[k].indexOf('data:image')===0){ try{ rc[k]=await shrinkImageDataUrl(rc[k],340,'image/png'); }catch(e){} } }
+  const rowArr=registryRowArray(rc);
+  let payloadObj;
+  if(rowArr){ payloadObj={rowValues:rowArr, headers:REGISTRY_HEADERS}; }
+  else { const vals=registryValuesOf(rc), slim={}; Object.keys(vals).forEach(k=>{ if(String(vals[k]).trim()!=='') slim[k]=vals[k]; }); slim['JSON']=fullRecordJson(rc); if(sigSrc(rc.sign)) slim[SIGN_COL]=rc.sign; payloadObj={values:slim}; }
+  payloadObj.seq=seq;
+  const payload=JSON.stringify(payloadObj);
+  if(payload.length < 6500){
+    const d=await jsonpGet(url,{action:'updateRow', sheet:REGISTRY_SHEET, seq, payload}, 25000);
+    if(d&&d.ok===true) return {ok:true, row:d.row};
+    if(d&&d.ok===false) return {ok:false, error:d.error};
+  }
+  try{ await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'updateRow', sheet:REGISTRY_SHEET}, payloadObj))}); return {unverified:true}; }
+  catch(e){ return {unverified:true}; } }
 const APPS_SCRIPT_CODE=`var IC_VERSION='2568-09-28.10';
 var IC_SHEET_ID='${SHEET_ID}';   // เปิดชีตด้วย ID ตรง (ใช้ได้ทั้งสคริปต์แบบผูกชีตและสแตนด์อโลน)
 function getSS(){ try{ return SpreadsheetApp.openById(IC_SHEET_ID); }catch(e){ return SpreadsheetApp.getActive(); } }
@@ -1882,12 +1917,63 @@ function icAppend(ss, name, data){
   }
   return {ok:true, version:IC_VERSION, sheet:name, seq:(seqCol>=0?newRow[seqCol]:''), row:lastRow+1, skipped:skipped};
 }
+// หาหัวตาราง + แถวตามเลขลำดับที่ (seq) — คืน {hi, HH, row(1-based) หรือ -1}
+function icLocate(ss, name, seq){
+  var sh = ss.getSheetByName(name); if (!sh) return {sh:null};
+  var rdata = sh.getDataRange().getValues();
+  var hi=-1; for (var i=0;i<Math.min(rdata.length,8);i++){ if (icHcol(rdata[i],'ชื่อบุคลากร')>=0){ hi=i; break; } }
+  if (hi<0) return {sh:sh, hi:-1};
+  var HH=rdata[hi];
+  var seqCol=icHcol(HH,'ลำดับที่'); if (seqCol<0) seqCol=icHcol(HH,'ลำดับ');
+  var row=-1; if (seqCol>=0 && seq!=null && String(seq)!==''){ for (var r=hi+1;r<rdata.length;r++){ if (String(rdata[r][seqCol]).trim()===String(seq).trim()){ row=r+1; break; } } }
+  return {sh:sh, hi:hi, HH:HH, row:row};
+}
+// อัปเดตแถวที่มีอยู่ (ตาม seq) — เขียนเฉพาะช่องที่ส่งมาและไม่ว่าง (ไม่ลบค่าช่องอื่น) รองรับ positional + by name
+function icUpdate(ss, name, body){
+  var L=icLocate(ss, name, body.seq);
+  if (!L.sh) return {ok:false, error:'ไม่พบแท็บ '+name};
+  if (L.hi<0) return {ok:false, error:'ไม่พบหัวตาราง'};
+  if (L.row<0) return {ok:false, error:'ไม่พบลำดับที่ '+body.seq};
+  var HH=L.HH, sh=L.sh, updates=[];
+  if (body.rowValues){ var rv=body.rowValues, dh=body.headers||[];
+    if (dh.length===HH.length){ for (var c=0;c<Math.min(rv.length,HH.length);c++){ if (rv[c]!=='' && rv[c]!=null) updates.push([c, rv[c]]); } }
+    else { var occ={}; for (var c=0;c<dh.length;c++){ var nmH=String(dh[c]).trim(); var want=occ[nmH]||0; occ[nmH]=want+1; var seen=0,ti=-1; for (var j=0;j<HH.length;j++){ if (String(HH[j]).trim()===nmH){ if(seen===want){ti=j;break;} seen++; } } if (ti>=0 && rv[c]!=='' && rv[c]!=null) updates.push([ti, rv[c]]); } }
+  } else { var vals=body.values||{}; Object.keys(vals).forEach(function(k){ var ci=icHcol(HH,k); if (ci>=0 && String(vals[k])!=='') updates.push([ci, vals[k]]); }); }
+  updates.forEach(function(u){ var cell=sh.getRange(L.row, u[0]+1); try{ var dv=cell.getDataValidation(); if (dv && !icDvAllows(dv, u[1])) cell.clearDataValidations(); }catch(e){} cell.setValue(u[1]); });
+  SpreadsheetApp.flush();
+  return {ok:true, version:IC_VERSION, row:L.row, updated:updates.length};
+}
+// บันทึกไฟล์ (base64) ลงโฟลเดอร์ Drive แล้วคืน URL — ถ้าระบุ seq+column จะเขียน URL ลงเซลล์ของแถวนั้นให้ด้วย
+function icSaveFile(ss, name, body){
+  var folderName = body.folder || 'IC-อุบัติเหตุ-ไฟล์แนบ';
+  var it = DriveApp.getFoldersByName(folderName); var folder = it.hasNext()? it.next() : DriveApp.createFolder(folderName);
+  var bytes = Utilities.base64Decode(body.data || '');
+  var blob = Utilities.newBlob(bytes, body.mime || 'application/octet-stream', body.name || 'file');
+  var file = folder.createFile(blob);
+  try{ file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }catch(e){}
+  var id = file.getId();
+  var isImg = /^image\\//.test(body.mime || '');
+  var url = isImg ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w1000') : file.getUrl();
+  // เขียน URL ลงคอลัมน์ของแถว (ตาม seq) ถ้าระบุ — สร้างคอลัมน์ถ้ายังไม่มี
+  if (body.seq && body.column && name){
+    var L=icLocate(ss, name, body.seq);
+    if (L.sh && L.hi>=0){ var HH=L.HH; if (icHcol(HH, body.column) < 0){ L.sh.getRange(L.hi+1, HH.length+1).setValue(body.column); HH=HH.concat([body.column]); }
+      var cc=icHcol(HH, body.column); if (L.row>0 && cc>=0) L.sh.getRange(L.row, cc+1).setValue(url); }
+  }
+  return {ok:true, version:IC_VERSION, id:id, url:url};
+}
 // เปิด URL นี้ในเบราว์เซอร์เพื่อทดสอบ: จะเห็นชื่อชีต + รายชื่อแท็บ + เวอร์ชันโค้ด / รองรับ appendRow ผ่าน JSONP ด้วย
 function doGet(e){
   var p = (e && e.parameter) || {};
   var out;
   if (p.action === 'appendRow'){
     try{ var vals = JSON.parse(p.payload || '{}'); out = icAppend(getSS(), p.sheet || '01-บันชีรายชื่อ', vals); }
+    catch(err){ out = {ok:false, error:String(err)}; }
+  } else if (p.action === 'updateRow'){
+    try{ var bu = JSON.parse(p.payload || '{}'); if (p.seq) bu.seq = p.seq; out = icUpdate(getSS(), p.sheet || '01-บันชีรายชื่อ', bu); }
+    catch(err){ out = {ok:false, error:String(err)}; }
+  } else if (p.action === 'saveFile'){
+    try{ var bf = JSON.parse(p.payload || '{}'); out = icSaveFile(getSS(), p.sheet || '01-บันชีรายชื่อ', bf); }
     catch(err){ out = {ok:false, error:String(err)}; }
   } else {
     out = { ok:true, version:IC_VERSION };
@@ -1910,6 +1996,14 @@ function doPost(e){
     if (body.action === 'appendRow'){
       var outA = icAppend(ss, name, body);
       return ContentService.createTextOutput(JSON.stringify(outA)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'updateRow'){
+      var outU = icUpdate(ss, name, body);
+      return ContentService.createTextOutput(JSON.stringify(outU)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'saveFile'){
+      var outF = icSaveFile(ss, name, body);
+      return ContentService.createTextOutput(JSON.stringify(outF)).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (!sh){ sh = ss.insertSheet(name); sh.getRange(1,1,1,8).setValues([['ส่วน','ลำดับ','key','คำถาม','ประเภท','ตัวเลือก','จำเป็น','สถานะ']]); }
