@@ -234,7 +234,8 @@ async function loadRegistryFromSheet(){
   } catch { /* เก็บแคชไว้ ใช้งานต่อได้ */ }
 }
 // รายการทั้งหมด = ที่บันทึกในเครื่อง + ที่นำเข้าจากชีต (ชีตอ่านอย่างเดียว)
-function allRecords(){ return records().concat(IMPORTED_RECORDS||[]); }
+// รวมเรคคอร์ดในเครื่อง + จากชีต โดยให้ของในเครื่อง (ที่แก้ไขแล้ว) ทับของจากชีตที่ id เดียวกัน (กันซ้ำ)
+function allRecords(){ const loc=records(); const ids=new Set(loc.map(r=>r.id)); return loc.concat((IMPORTED_RECORDS||[]).filter(r=>!ids.has(r.id))); }
 // ---- PDPA: ปกปิดข้อมูลส่วนบุคคลในหน้าทะเบียน (โหมด records) ; แอดมินเห็นครบ ----
 function maskMid(s,keep){ s=String(s==null?'':s); if(s.length<=keep)return s?'•'.repeat(Math.max(1,s.length)):''; return '•'.repeat(s.length-keep)+s.slice(-keep); }
 function maskName(s){ s=String(s==null?'':s).trim(); if(!s)return ''; const a=[...s]; return a[0]+'•'.repeat(Math.max(1,a.length-1)); }
@@ -879,7 +880,7 @@ function statsReportHtml(){
 }
 function renderDashboard(query='') {
   let items = allRecords().sort((a,b)=>(b.incidentDate||'').localeCompare(a.incidentDate||''));
-  if(dashMode==='icn') items = items.filter(r=>!r.imported && icnPending(r)); // ICN: แสดงเฉพาะรายใหม่ (ยังไม่กรอกส่วนที่ 4) ไม่รวมรายการเดิม/นำเข้า
+  if(dashMode==='icn') items = items.filter(r=>icnPending(r)); // ICN: แสดงทุกรายที่ยังไม่กรอกส่วนที่ 4 (รวมรายที่บันทึกจากเครื่องอื่น/ดึงจากชีต)
   // ตัวกรองวิเคราะห์ (ปีงบ/หน่วยงาน/ตำแหน่ง/เพศ/อายุ) ใช้กับตาราง+กราฟในหน้าทะเบียน/แอดมิน
   const statsOn = (dashMode==='records'||dashMode==='admin');
   const followable = dashMode==='records';
