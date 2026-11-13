@@ -232,12 +232,34 @@ async function loadRegistryFromSheet(){
     if(!res.ok)return;
     const recs=parseRegistryRows(parseCSV(await res.text()));
     if(recs){ IMPORTED_RECORDS=recs; localStorage.setItem(REGISTRY_CACHE_KEY,JSON.stringify(recs));
+      // ลบสำเนาในเครื่องที่ขึ้นชีตแล้ว (ไม่ให้ค้าง/ซ้ำ) — ยกเว้นฉบับแก้ไขในเครื่อง (id sheet-N)
+      try{ const impKeys=new Set(recs.map(recKey).filter(Boolean)); const loc=records();
+        const keep=loc.filter(r=>{ const id=String(r.id||''); if(id.indexOf('sheet-')===0) return true; const k=recKey(r); return !(k && impKeys.has(k)); });
+        if(keep.length!==loc.length) persist(keep);
+      }catch(e){}
       if($('#dashboard').classList.contains('active')) renderDashboard($('#search').value); }
   } catch { /* เก็บแคชไว้ ใช้งานต่อได้ */ }
 }
-// รายการทั้งหมด = ที่บันทึกในเครื่อง + ที่นำเข้าจากชีต (ชีตอ่านอย่างเดียว)
-// รวมเรคคอร์ดในเครื่อง + จากชีต โดยให้ของในเครื่อง (ที่แก้ไขแล้ว) ทับของจากชีตที่ id เดียวกัน (กันซ้ำ)
-function allRecords(){ const loc=records(); const ids=new Set(loc.map(r=>r.id)); return loc.concat((IMPORTED_RECORDS||[]).filter(r=>!ids.has(r.id))); }
+// ซิงก์ชีตอัตโนมัติ (เรียลไทม์เบาๆ): ดึงซ้ำเป็นระยะเมื่อหน้าจอเปิดอยู่ + ทันทีเมื่อสลับกลับมาที่แอป
+let SHEET_SYNC_TIMER=null;
+function startSheetSync(){
+  if(SHEET_SYNC_TIMER) return;
+  SHEET_SYNC_TIMER=setInterval(()=>{ if(document.visibilityState==='visible') loadRegistryFromSheet(); }, 45000);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') loadRegistryFromSheet(); });
+  window.addEventListener('focus', ()=>loadRegistryFromSheet());
+}
+// กุญแจระบุเรคคอร์ด (ชื่อ+นามสกุล+วันเวลา+HN) ใช้จับคู่ว่าเรคคอร์ดในเครื่อง = เรคคอร์ดในชีตแล้ว
+function recKey(r){ const nm=String(r.staffName||'').trim(), hn=String(r.staffHn||'').trim(); if(!nm && !hn) return ''; return [nm, String(r.staffName2||'').trim(), String(r.incidentDate||'').trim(), String(r.incidentTime||'').trim(), hn].join('|').toLowerCase(); }
+// รายการทั้งหมด: ยึด "ชีต" เป็นหลัก (ทุกเครื่องเห็นตรงกัน) + ทับด้วยฉบับแก้ไขในเครื่อง (id sheet-N)
+// + เรคคอร์ดใหม่ในเครื่องที่ "ยังไม่ขึ้นชีต" เท่านั้น (พอขึ้นชีตแล้วใช้ฉบับชีต ไม่ค้าง/ไม่ซ้ำ)
+function allRecords(){
+  const imp=IMPORTED_RECORDS||[], loc=records();
+  const impIds=new Set(imp.map(r=>r.id)), impKeys=new Set(imp.map(recKey).filter(Boolean));
+  const overlay=new Map(); loc.forEach(r=>{ if(String(r.id||'').indexOf('sheet-')===0) overlay.set(r.id,r); });
+  const out=imp.map(r=> overlay.has(r.id)? overlay.get(r.id):r);
+  loc.forEach(r=>{ const id=String(r.id||''); if(id.indexOf('sheet-')===0) return; if(impIds.has(r.id)) return; const k=recKey(r); if(k && impKeys.has(k)) return; out.push(r); });
+  return out;
+}
 // ---- PDPA: ปกปิดข้อมูลส่วนบุคคลในหน้าทะเบียน (โหมด records) ; แอดมินเห็นครบ ----
 function maskMid(s,keep){ s=String(s==null?'':s); if(s.length<=keep)return s?'•'.repeat(Math.max(1,s.length)):''; return '•'.repeat(s.length-keep)+s.slice(-keep); }
 function maskName(s){ s=String(s==null?'':s).trim(); if(!s)return ''; const a=[...s]; return a[0]+'•'.repeat(Math.max(1,a.length-1)); }
@@ -1114,6 +1136,7 @@ function pushNewToSheet(data){
   APPENDED_IDS.add(data.id);
   toast('⏳ กำลังส่งขึ้นทะเบียนกลาง…');
   appendRecordToSheet(data).then(res=>{
+    if (res.ok || res.unverified) setTimeout(loadRegistryFromSheet, 4000);   // ดึงกลับจากชีตเพื่อให้ทุกเครื่องเห็นตรงกัน + เลิกค้างสำเนาในเครื่อง
     if (res.ok) popup('🟢 ขึ้นทะเบียนกลางสำเร็จ\n\nเลขลำดับที่ '+(res.seq||'-')+'\n(แท็บ 01-บันชีรายชื่อ ในชีต)', 'ok');
     else if (res.skipped) { /* ยังไม่ได้ตั้งค่า URL — เงียบไว้ */ }
     else if (res.unverified) popup('🟡 ส่งขึ้นทะเบียนกลางแล้ว\n\nแต่เบราว์เซอร์อ่านผลยืนยันกลับไม่ได้\nโปรดเปิดแท็บ 01-บันชีรายชื่อ เช็กว่ามีแถวใหม่', 'info');
@@ -1135,6 +1158,7 @@ function pushUpdateToSheet(data){
   if (!/^\d+$/.test(seq)) return;   // ไม่มีเลขลำดับที่ชัดเจน (แถวไม่มี "ลำดับที่") → ข้าม เขียนกลับไม่ได้
   toast('⏳ กำลังบันทึกกลับทะเบียนกลาง…');
   updateRecordInSheet(data).then(res=>{
+    if (res.ok || res.unverified) setTimeout(loadRegistryFromSheet, 4000);   // ดึงกลับให้ทุกเครื่องเห็นการแก้ไขตรงกัน
     if (res.ok) popup('🟢 บันทึกกลับทะเบียนกลางแล้ว\n\nลำดับที่ '+seq+' (แท็บ 01-บันชีรายชื่อ)', 'ok');
     else if (res.skipped) { /* เงียบ */ }
     else if (res.unverified) popup('🟡 ส่งข้อมูลแก้ไขแล้ว\n\nแต่เบราว์เซอร์อ่านผลยืนยันกลับไม่ได้\nโปรดเปิดแท็บ 01 เช็กลำดับที่ '+seq, 'info');
@@ -1145,7 +1169,7 @@ function pushUpdateToSheet(data){
 function download(filename, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff',content],{type})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
 function csvExport(){ const items=records(); if(!items.length)return toast('ยังไม่มีข้อมูลสำหรับส่งออก'); const columns=['incidentDate','incidentTime','staffName','staffHn','soundex','department','workGroup','staffType','location','exposureType','bodySite','sourceHiv','sourceHbsAg','sourceHcv','staffHiv','staffHbsAg','staffAntiHbs','staffHcv','pepRegimen','pepStart','follow1HIV','follow1HCV','follow3HIV','follow6HIV','follow6HbsAg','follow6HCV']; const quote=v=>`"${String(Array.isArray(v)?v.join('|'):v??'').replaceAll('"','""')}"`; download(`occupational-exposure-${new Date().toISOString().slice(0,10)}.csv`,[columns.join(','),...items.map(r=>columns.map(c=>quote(r[c])).join(','))].join('\n'),'text/csv;charset=utf-8'); }
 
-reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet(); loadDocsFromSheet(); loadRegistryFromSheet(); loadUsersFromSheet();
+reconcileFieldStatus(); buildDynamicFields(); populateSelects(); populateChecks(); addDynamicFields(); reorderFieldsBySheet(); applyFieldConfig(); applySectionTitles(); setupOtherInputs(); updateDurationNote(); updateSoundex(); renderSourcePatients([]); setupSignPad(); applyLogos(loadCachedLogoMap()); renderDashboard(); loadOptionsFromSheet(); loadFieldsFromSheet(); loadSoundexFromSheet(); loadLogoFromSheet(); loadFlowFromSheet(); loadMenuFromSheet(); loadVctFromSheet(); loadDocsFromSheet(); loadRegistryFromSheet(); loadUsersFromSheet(); startSheetSync();
 form.addEventListener('change', e => { if (e.target.matches('select,input[type=checkbox]')) updateOtherVisibility(e.target.name); });
 form.addEventListener('input', e => { if (e.target.name === 'staffName' || e.target.name === 'staffName2') updateSoundex(); });
 let editorReturn='home';     // where the editor's back/save should return to
