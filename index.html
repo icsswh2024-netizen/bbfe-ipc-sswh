@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=160">
+  <link rel="stylesheet" href="styles.css?v=161">
   <style id="pageStyle"></style>
 </head>
 <body>
@@ -65,14 +65,17 @@
         <button type="button" class="icn-tab" data-icntab="lab-patient">🧾 ตัวอย่างใบส่ง LAB (ผู้ป่วย)</button>
       </div>
       <div id="icnPane" class="icn-pane hidden"></div>
-      <div id="statsPane" class="stats-pane hidden">
-        <div class="stats-bar">
-          <div class="stats-filters" id="statsFilters"></div>
-          <div class="stats-actions"><button type="button" class="btn ghost dark" id="statsReset">ล้างตัวกรอง</button><button type="button" class="btn primary" id="statsPrint">🖨 พิมพ์รายงาน</button></div>
+      <div id="statsPane" class="stats-pane hidden collapsed">
+        <button type="button" class="stats-toggle" id="statsToggle" aria-expanded="false"><span class="st-ico">📊</span><span class="st-txt">แดชบอร์ดสถิติ</span><span class="st-caret">▸</span></button>
+        <div class="stats-body">
+          <div class="stats-bar">
+            <div class="stats-filters" id="statsFilters"></div>
+            <div class="stats-actions"><button type="button" class="btn ghost dark" id="statsReset">ล้างตัวกรอง</button><button type="button" class="btn primary" id="statsPrint">🖨 พิมพ์รายงาน</button></div>
+          </div>
+          <div class="stats-headline" id="statsHeadline"></div>
+          <div id="statsCharts" class="charts"></div>
+          <div id="statsList" class="stats-list"></div>
         </div>
-        <div class="stats-headline" id="statsHeadline"></div>
-        <div id="statsCharts" class="charts"></div>
-        <div id="statsList" class="stats-list"></div>
       </div>
       <div class="panel">
         <div class="panel-head"><div><span class="eyebrow" id="panelEyebrow">RECORDS</span><h2 id="panelTitle">รายการอุบัติเหตุ</h2></div><div class="panel-tools"><button type="button" class="btn ghost dark" id="viewToggle" title="สลับมุมมอง">▦ การ์ด</button><button type="button" class="btn ghost dark hidden" id="followToggle">📅 ไล่นัดติดตาม</button><label class="search">⌕ <input id="search" placeholder="ค้นหาชื่อ, HN, Soundex, สถานที่..."></label></div></div>
@@ -208,6 +211,6 @@
   </nav>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="app.js?v=160"></script>
+  <script src="app.js?v=161"></script>
 </body>
 </html>
