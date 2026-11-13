@@ -368,6 +368,13 @@ input.has-value:focus,select.has-value:focus,textarea.has-value:focus{background
 @media (prefers-color-scheme:dark){.reg-note{background:#2a2410;border-color:#5c4a12;color:#e9d9a0}}
 
 /* วิเคราะห์ / สถิติ */
+/* ปุ่มยุบ/ขยายแดชบอร์ดสถิติ */
+.stats-toggle{display:flex;align-items:center;gap:10px;width:100%;margin-bottom:14px;padding:13px 18px;border:1.5px solid #f0d3d9;border-radius:14px;background:linear-gradient(180deg,#fff,#fff6f8);color:var(--teal,#9c1f2e);font:700 15px inherit;cursor:pointer;box-shadow:0 2px 8px rgba(140,16,20,.06)}
+.stats-toggle .st-txt{flex:1 1 auto;text-align:left}
+.stats-toggle .st-caret{transition:transform .2s ease;font-size:13px}
+.stats-pane:not(.collapsed) .stats-toggle .st-caret{transform:rotate(90deg)}
+.stats-pane.collapsed .stats-body{display:none}
+.stats-pane.collapsed{margin-bottom:0}
 .stats-bar{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
 .stats-filters{display:flex;flex-wrap:wrap;gap:10px}
 .sf{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted,#6b6b7a)}

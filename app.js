@@ -1518,6 +1518,14 @@ renderMenu();
 $('.menu-grid').onclick=e=>{const card=e.target.closest('.menu-card'); if(!card)return; const go=card.dataset.go; if(go==='new'){openStaffNew();} else if(go==='records'){openDashboard('records');} else if(go==='admin'){openDashboard('admin');} else if(go==='icn'){openDashboard('icn');} else if(go==='vct'){openDashboard('vct');}};
 $('#statsReset').onclick=()=>{ statsApplyDefaults(); renderStatsFilters(); renderDashboard($('#search').value); };
 $('#statsPrint').onclick=()=>openReportHtml(statsReportHtml(), null, 'a4');
+// ยุบ/ขยายแดชบอร์ดสถิติ — ค่าเริ่มต้นยุบไว้ จำสถานะไว้ในเครื่อง
+const STATS_COLLAPSE_KEY='icsswh-stats-collapsed-v1';
+(function(){ const pane=$('#statsPane'), t=$('#statsToggle'); if(!pane||!t)return;
+  let collapsed=true; try{ if(localStorage.getItem(STATS_COLLAPSE_KEY)==='0') collapsed=false; }catch(e){}
+  const apply=()=>{ pane.classList.toggle('collapsed',collapsed); t.setAttribute('aria-expanded',String(!collapsed)); };
+  t.onclick=()=>{ collapsed=!collapsed; try{localStorage.setItem(STATS_COLLAPSE_KEY,collapsed?'1':'0');}catch(e){} apply(); };
+  apply();
+})();
 $('#statsFilters').onchange=e=>{ const s=e.target.closest('[data-sf]'); if(!s)return; STATS_F[s.dataset.sf]=s.value; renderDashboard($('#search').value); };
 $('#tabbar').onclick=e=>{const btn=e.target.closest('button'); if(!btn)return; const t=btn.dataset.tab; if(t==='home')goHome(); else if(t==='new')openStaffNew(); else if(t==='icn')openDashboard('icn'); else if(t==='records')openDashboard('records');};
 $('#vctBack').onclick=()=>$('#vct').close();
